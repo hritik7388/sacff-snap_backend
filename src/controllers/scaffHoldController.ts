@@ -1,3 +1,4 @@
+// src/controllers/scaffHoldController.ts
 import { Response } from "express";
 import { Request } from "express";
 import { AuthenticatedRequest } from "../types/index";
@@ -74,7 +75,9 @@ export class scaffHoldController {
         try {
 
             const data = ScaffCompetentPerson.parse(req.body);
-            const competentData = await scaffHold.addCompetentPersonToScaffHold(data);
+            const userId = req.user!.id;
+            
+            const competentData = await scaffHold.addCompetentPersonToScaffHold(userId,data);
             res.status(200).json(competentData);
 
         } catch (err) {

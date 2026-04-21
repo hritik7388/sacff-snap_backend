@@ -24,11 +24,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectManagerServices = void 0;
+// src/services/projectManagerServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const customError_1 = require("../types/customError");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const uuid_1 = require("uuid");
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
+const client_1 = require("@prisma/client");
 class ProjectManagerServices {
     getDashboardStats(projectManagerId) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -40,7 +43,13 @@ class ProjectManagerServices {
                         }
                     }),
                     prismaClient_1.default.project.count({
-                        where: { projectManagerId },
+                        where: {
+                            projectManagers: {
+                                some: {
+                                    id: projectManagerId
+                                }
+                            }
+                        }
                     }),
                     prismaClient_1.default.scaffholdRequest.count({
                         where: {
@@ -53,7 +62,11 @@ class ProjectManagerServices {
                     prismaClient_1.default.scaffhold.count({
                         where: {
                             status: "ACTIVE", project: {
-                                projectManagerId: projectManagerId
+                                projectManagers: {
+                                    some: {
+                                        id: projectManagerId
+                                    }
+                                }
                             }
                         },
                     }),
@@ -83,18 +96,33 @@ class ProjectManagerServices {
     commonLoginServices(data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const existingProjectManager = yield prismaClient_1.default.user.findFirst({
-                    where: { email: data.email, isDeleted: false, status: "ACTIVE", user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] } }
+                const existingProjectManager = yield prismaClient_1.default.user.findUnique({
+                    where: { email: data.email, status: "ACTIVE", user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] }, isVerified: true }
                 });
                 if (!existingProjectManager) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND, 500, "Not found with this email");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this email");
+                }
+                if (existingProjectManager.isDeleted) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.DELETED, 403, "User DELETED by Subadmin");
                 }
                 const isPasswordValid = yield bcryptjs_1.default.compare(data.password, existingProjectManager.password);
                 if (!isPasswordValid) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.INVALID_PASSWORD, 500, "Invalid password");
                 }
                 if (data.user_type !== existingProjectManager.user_type) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND, 500, "User type mismatch");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "User type mismatch");
+                }
+                const company = yield prismaClient_1.default.company.findFirst({
+                    where: {
+                        CMPId: data.companyId,
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true
+                    }
+                });
+                if (!company) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Company not active or not approved or Deleted or not verified with this ID");
                 }
                 if (data.user_type === "PROJECT_MANAGER") {
                     const projectManager = yield prismaClient_1.default.projectManager.findFirst({
@@ -104,7 +132,7 @@ class ProjectManagerServices {
                         }
                     });
                     if (!projectManager) {
-                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND, 500, "No project manager found for this company");
+                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "No user found for this company");
                     }
                 }
                 else if (data.user_type === "COMPETENT_PERSON") {
@@ -114,7 +142,7 @@ class ProjectManagerServices {
                         }
                     });
                     if (!competentPerson) {
-                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND, 500, "No competent person found for this company");
+                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "No competent person found for this company");
                     }
                 }
                 const jwtPayload = {
@@ -137,7 +165,7 @@ class ProjectManagerServices {
                     companyId: data.companyId
                 };
                 return {
-                    message: responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.LOGIN_SUCCESS,
+                    message: responseMessages_1.RESPONSE_MESSAGES.USER.USER_SUCCESS,
                     token,
                     data: user
                 };
@@ -147,7 +175,7 @@ class ProjectManagerServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.LOGIN_FAILED, 500, "Login failed due to server error");
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.LOGIN_FAILE, 500, "Login failed due to server error");
             }
         });
     }
@@ -157,7 +185,15 @@ class ProjectManagerServices {
                 const skip = (page - 1) * limit;
                 const whereCondition = {
                     isDeleted: false,
-                    projectManagerId: id
+                    projectManagers: {
+                        some: {
+                            id: id,
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "PROJECT_MANAGER"
+                        }
+                    }
                 };
                 if (status && typeof status === "string" && status.trim() !== "") {
                     whereCondition.status = status.toUpperCase();
@@ -179,7 +215,7 @@ class ProjectManagerServices {
                             latitude: true,
                             longitude: true,
                             createdById: true,
-                            projectManagerId: true,
+                            projectManagers: true,
                             status: true,
                             isDeleted: true,
                             createdAt: true,
@@ -212,7 +248,7 @@ class ProjectManagerServices {
                     latitude: p.latitude,
                     longitude: p.longitude,
                     createdById: p.createdById,
-                    projectManagerId: p.projectManagerId,
+                    projectManager: p.projectManagers,
                     status: p.status,
                     isDeleted: p.isDeleted,
                     createdAt: p.createdAt,
@@ -246,6 +282,9 @@ class ProjectManagerServices {
                 const user = yield prismaClient_1.default.user.findUnique({
                     where: {
                         id: id,
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
                     },
                     select: {
                         id: true,
@@ -395,47 +434,216 @@ class ProjectManagerServices {
     }
     approveOrRejectScaffHoldRequest(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b, _c, _d, _e, _f, _g;
             try {
+                // 1️⃣ Fetch the pending request
                 const requestData = yield prismaClient_1.default.scaffholdRequest.findUnique({
-                    where: {
-                        id: data.requestId,
-                        scaffholdId: data.scaffHoldId,
-                        status: "PENDING"
+                    where: { id: data.requestId },
+                    include: {
+                        createdBy: { select: { id: true, craft: true } },
+                        scaffhold: {
+                            select: {
+                                id: true, SCAFFID: true, projectId: true, projectName: true, companyId: true,
+                                competentPersons: {
+                                    select: {
+                                        id: true,
+                                        competentPerson: {
+                                            select: {
+                                                id: true,
+                                                userId: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
-                if (!requestData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.NOT_FOUND, 404, "No pending request found with this ID and ScaffHold ID");
+                if (!requestData || requestData.status !== "PENDING") {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.REQUEST_NOT_FOUND, 404, "No pending request found with this ID and ScaffHold ID");
                 }
                 const updatedRequest = yield prismaClient_1.default.scaffholdRequest.update({
                     where: { id: data.requestId },
                     data: {
                         status: data.status,
                         reason: data.status === "REJECTED" ? (_a = data.reajectionReason) !== null && _a !== void 0 ? _a : null : null,
-                    },
+                    }, include: {
+                        createdBy: {
+                            select: {
+                                userId: true
+                            }
+                        }
+                    }
                 });
-                return {
-                    message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.UPDATE_SUCCESS,
-                    data: updatedRequest,
-                };
+                const isModifiedRequest = updatedRequest.parentId !== null;
+                const tradesmanId = updatedRequest.createdBy.userId;
+                let notificationTitle;
+                let notificationType;
+                let notificationMessage;
+                let notificationImage;
+                if (isModifiedRequest) {
+                    notificationTitle =
+                        data.status === "APPROVED"
+                            ? "Scaffold Modification Approved"
+                            : "Scaffold Modification Declined";
+                    notificationType =
+                        data.status === "APPROVED"
+                            ? "MODIFICATION_ACCEPTED"
+                            : "MODIFICATION_REJECTED";
+                    notificationMessage =
+                        `Your modification request for Scaffold ${requestData.scaffhold.SCAFFID} | Project ${requestData.scaffhold.projectName} has been ${data.status}.`;
+                    notificationImage =
+                        data.status === "APPROVED"
+                            ? "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/accept.png"
+                            : "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/reject.png";
+                }
+                else {
+                    notificationTitle =
+                        data.status === "APPROVED"
+                            ? "Scaffold Request Approved"
+                            : "Scaffold Request Declined";
+                    notificationType =
+                        data.status === "APPROVED"
+                            ? client_1.NotificationType.REQUEST_ACCEPTED
+                            : client_1.NotificationType.REQUEST_REJECTED;
+                    notificationMessage =
+                        `Your scaffold request for Scaffold ${requestData.scaffhold.SCAFFID} | Project ${requestData.scaffhold.projectName} has been ${data.status}.`;
+                    notificationImage =
+                        data.status === "APPROVED"
+                            ? "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/requestAccepted.png"
+                            : "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/requestRejected.png";
+                }
+                if (tradesmanId) {
+                    const validTradesman = yield prismaClient_1.default.user.findFirst({
+                        where: {
+                            id: tradesmanId,
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "TRADESMAN"
+                        }
+                    });
+                    if (tradesmanId) {
+                        const validTradesman = yield prismaClient_1.default.user.findFirst({
+                            where: {
+                                id: tradesmanId,
+                                isDeleted: false,
+                                status: "ACTIVE",
+                                isVerified: true,
+                                user_type: "TRADESMAN"
+                            }
+                        });
+                        if (validTradesman) {
+                            yield prismaClient_1.default.notification.create({
+                                data: {
+                                    uuid: (0, uuid_1.v4)(),
+                                    title: notificationTitle,
+                                    message: notificationMessage,
+                                    type: notificationType,
+                                    scaffoldId: BigInt(updatedRequest.id),
+                                    scaffoldRequestId: "",
+                                    role: "TRADESMAN",
+                                    receiverId: BigInt(tradesmanId),
+                                    senderId: (_d = (_c = (_b = requestData.createdBy) === null || _b === void 0 ? void 0 : _b.id) === null || _c === void 0 ? void 0 : _c.toString()) !== null && _d !== void 0 ? _d : "0",
+                                    isRead: false,
+                                    notificationImage: notificationImage,
+                                    tradesmanCraft: requestData.createdBy.craft || null,
+                                },
+                            });
+                            const devices = yield prismaClient_1.default.device.findMany({
+                                where: {
+                                    userId: tradesmanId,
+                                    user_type: "TRADESMAN",
+                                    deviceToken: { not: null }
+                                },
+                                select: { deviceToken: true }
+                            });
+                            yield Promise.all(devices.map(d => d.deviceToken
+                                ? (0, utils_1.pushNotificationDelhi)(d.deviceToken, notificationTitle, notificationMessage)
+                                : Promise.resolve()));
+                        }
+                    }
+                    const competentUserIds = requestData.scaffhold.competentPersons.map(cp => cp.competentPerson.userId);
+                    const validCompetentUsers = yield prismaClient_1.default.user.findMany({
+                        where: {
+                            id: { in: competentUserIds },
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "COMPETENT_PERSON"
+                        }
+                    });
+                    const competentPersonDevices = yield prismaClient_1.default.device.findMany({
+                        where: {
+                            userId: { in: validCompetentUsers.map(u => u.id) },
+                            deviceToken: { not: null }
+                        },
+                        select: { userId: true, deviceToken: true }
+                    });
+                    for (const cpUser of validCompetentUsers) {
+                        yield prismaClient_1.default.notification.create({
+                            data: {
+                                uuid: (0, uuid_1.v4)(),
+                                title: notificationTitle,
+                                message: notificationMessage,
+                                type: notificationType,
+                                role: "COMPETENT_PERSON",
+                                isRead: false,
+                                companyId: requestData.scaffhold.companyId
+                                    ? BigInt(requestData.scaffhold.companyId)
+                                    : null,
+                                scaffoldId: BigInt(requestData.scaffhold.id),
+                                scaffoldRequestId: updatedRequest.id.toString(),
+                                receiverId: BigInt(cpUser.id),
+                                senderId: (_g = (_f = (_e = requestData.createdBy) === null || _e === void 0 ? void 0 : _e.id) === null || _f === void 0 ? void 0 : _f.toString()) !== null && _g !== void 0 ? _g : "0",
+                                notificationImage: notificationImage,
+                                tradesmanCraft: requestData.createdBy.craft || null,
+                            }
+                        });
+                    }
+                    const devices = yield prismaClient_1.default.device.findMany({
+                        where: {
+                            userId: { in: validCompetentUsers.map(u => u.id) },
+                            user_type: "COMPETENT_PERSON",
+                            deviceToken: { not: null }
+                        },
+                        select: { deviceToken: true }
+                    });
+                    yield Promise.all(devices.map(d => (0, utils_1.pushNotificationDelhi)(d.deviceToken, notificationTitle, notificationMessage)));
+                    return {
+                        message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.UPDATE_SUCCESS,
+                        data: updatedRequest,
+                    };
+                }
             }
             catch (error) {
-                console.error("❌ Approve/Reject ScaffHold Request error:", error);
-                if (error instanceof customError_1.CustomError) {
+                console.error("❌ Approve/Reject Scaffold Request error:", error);
+                if (error instanceof customError_1.CustomError)
                     throw error;
-                }
                 throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.FETCH_FAILED, 500, error.message);
             }
         });
     }
-    getAllPendingModifiedRequestsByParentId(data_1) {
-        return __awaiter(this, arguments, void 0, function* (data, page = 1, limit = 10) {
+    getAllPendingModifiedRequestsByParentId(userId_1, data_1) {
+        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10) {
             var _a;
             try {
                 const skip = (page - 1) * limit;
                 const whereCondition = {
                     parentId: { not: null },
-                    status: "PENDING"
+                    status: "PENDING",
+                    scaffhold: {
+                        project: {
+                            projectManagers: {
+                                some: {
+                                    id: userId,
+                                    isDeleted: false,
+                                    status: "ACTIVE",
+                                    isVerified: true,
+                                },
+                            },
+                        },
+                    },
                 };
                 const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
                 if (searchTerm && searchTerm !== "") {
@@ -525,13 +733,26 @@ class ProjectManagerServices {
             }
         });
     }
-    getTrademanPendingRequestListServices(data_1) {
-        return __awaiter(this, arguments, void 0, function* (data, page = 1, limit = 10) {
+    getTrademanPendingRequestListServices(userId_1, data_1) {
+        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10) {
             var _a;
             try {
                 const skip = (page - 1) * limit;
                 const whereCondition = {
-                    status: "PENDING"
+                    status: "PENDING",
+                    parentId: null,
+                    scaffhold: {
+                        project: {
+                            projectManagers: {
+                                some: {
+                                    id: userId,
+                                    isDeleted: false,
+                                    status: "ACTIVE",
+                                    isVerified: true,
+                                },
+                            },
+                        },
+                    },
                 };
                 const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
                 if (searchTerm && searchTerm !== "") {
@@ -706,7 +927,7 @@ class ProjectManagerServices {
                     updateId: u.id,
                     requestId: u.requestId,
                     scaffholdId: u.scaffholdId,
-                    size: `${u.length || "N/A"} x ${u.width || "N/A"} x ${u.height || "N/A"}`,
+                    size: `${u.length || "N/A"} ft  x ${u.width || "N/A"} ft  x ${u.height || "N/A"} ft `,
                     priority: u.priority || "N/A",
                     expectedEndDate: u.expectedEndDate || "Not specified",
                     notes: u.notes || "No notes available",
@@ -747,6 +968,38 @@ class ProjectManagerServices {
                 const updatedImage = yield prismaClient_1.default.userMedia.update({
                     where: { id: userExists.id },
                     data: { url: data.idProofImage },
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.IMAGE.UPADTE_IMAGE,
+                    data: updatedImage,
+                };
+            }
+            catch (error) {
+                console.error("Error fetching image data:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.IMAGE.FAIL_UPADTE_IMAGE, 500, error.message);
+            }
+        });
+    }
+    updateUserProfileImage(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userExists = yield prismaClient_1.default.userMedia.findFirst({
+                    where: {
+                        userId: userId,
+                        mediaType: client_1.MediaType.PHOTO_IMAGE,
+                    },
+                });
+                if (!userExists) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT found ");
+                }
+                const updatedImage = yield prismaClient_1.default.userMedia.update({
+                    where: { id: userExists.id },
+                    data: { url: data.profileImage },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.IMAGE.UPADTE_IMAGE,

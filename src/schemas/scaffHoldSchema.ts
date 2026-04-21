@@ -1,3 +1,4 @@
+// src/schemas/scaffHoldSchema.ts
 import { Priority } from "@prisma/client";
 import z from "zod";
 
@@ -9,7 +10,7 @@ export const scaffHoldSchema = z.object({
     longitude: z.number().optional(),
     priority: z.enum([Priority.HIGH, Priority.MEDIUM, Priority.LOW]).optional(),
     projectId: z.number().optional(),
-    competentPersonIds: z.array(z.number()).min(2, "At least 2 competent persons are required"),
+    competentPersonIds: z.array(z.number()),
     descreption: z.string().optional(),
 
 })

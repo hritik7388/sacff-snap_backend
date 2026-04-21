@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/routes/subAdminRoutes.ts
 const express_1 = require("express");
 const subAdminController_1 = require("../controllers/subAdminController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
@@ -126,4 +127,14 @@ router.get("/getAllScaffHold", authMiddleware_2.clientAuthMiddleware, authMiddle
  * @access  Private (Authenticated Users)
  */
 router.get("/getUserData", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, subAdminControllers.getUserData.bind(subAdminControllers));
+/** * @route   GET /api/v1/subAdmin/deleteUserBySubAdmin
+ * @desc    Get user deleted by id
+ * @access  Private (Authenticated Users)
+ */
+router.delete("/deleteUserBySubAdmin", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSubAdmin, subAdminControllers.deleteUserBySubAdmin.bind(subAdminControllers));
+/** * @route   POST /api/v1/subadmin/logoutCompany
+ * @desc    Logout
+ * @access  Private (Authenticated Users)
+ */
+router.post("/logOutCompany", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, subAdminControllers.logOutCompany.bind(subAdminControllers));
 exports.default = router;

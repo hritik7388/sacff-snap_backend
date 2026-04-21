@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/routes/scaffHoldRoutes.ts
 const express_1 = require("express");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const authMiddleware_2 = require("../middlewares/authMiddleware");

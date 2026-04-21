@@ -1,3 +1,4 @@
+// src/controllers/password.ts
 import { Response } from "express";
 import { Request } from "express";
 import { PasswordServices } from "../services/passwordServices";
@@ -51,10 +52,9 @@ export class PasswordController {
 }
 
      async resetPassword(req: AuthenticatedRequest, res: Response, next: Function) {
-    try {
-      const id = req.user!.id;
+    try { 
       const data = resetPasswordSchema.parse(req.body);
-      const result = await password.resetPasswordService(data, id);
+      const result = await password.resetPasswordService(data);
       res.status(200).json(result);
     } catch (err) {
       next(err);

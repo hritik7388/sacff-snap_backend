@@ -66,9 +66,8 @@ class PasswordController {
     resetPassword(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const id = req.user.id;
                 const data = passwordSchema_1.resetPasswordSchema.parse(req.body);
-                const result = yield password.resetPasswordService(data, id);
+                const result = yield password.resetPasswordService(data);
                 res.status(200).json(result);
             }
             catch (err) {

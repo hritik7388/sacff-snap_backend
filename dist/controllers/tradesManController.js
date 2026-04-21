@@ -145,8 +145,9 @@ class tradesManController {
             try {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
+                const id = req.user.id;
                 const data = tradesManSchema_1.searchFilter.parse(req.query);
-                const result = yield tradesMan.getTrademanRequestListServices(data, page, limit);
+                const result = yield tradesMan.getTrademanRequestListServices(id, data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -234,10 +235,11 @@ class tradesManController {
     getAllModifiedRequestDetails(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const id = req.user.id;
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const data = tradesManSchema_1.searchFilter.parse(req.query);
-                const result = yield tradesMan.getAllModifiedRequestsByParentId(data, page, limit);
+                const result = yield tradesMan.getAllModifiedRequestsByParentId(id, data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -280,6 +282,18 @@ class tradesManController {
                 const id = req.user.id;
                 const data = tradesManSchema_1.searchFilter.parse(req.body);
                 const result = yield tradesMan.getFilteredScaffHolds(id, data, page, limit);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    delteTradesManAccount(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const id = req.user.id;
+                const result = yield tradesMan.deleteTradesman(id);
                 res.status(200).json(result);
             }
             catch (err) {

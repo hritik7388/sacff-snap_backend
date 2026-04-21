@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/routes/projectManagerRoutes.ts
 const express_1 = require("express");
 const projectManagerController_1 = require("../controllers/projectManagerController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
@@ -70,4 +71,10 @@ router.get('/getScaffholdRequestsByCreator', authMiddleware_2.clientAuthMiddlewa
  * @access  Private
  */
 router.put('/updateProfileImage', authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, projectManagerRoutes.updateProfileImage.bind(projectManagerRoutes));
+/**
+ * @route   PUT /api/v1/user/updateUserProfileImage
+ * @desc    Update user profile image
+ * @access  Private
+ */
+router.put('/updateUserProfileImage', authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, projectManagerRoutes.updateUserProfileImage.bind(projectManagerRoutes));
 exports.default = router;

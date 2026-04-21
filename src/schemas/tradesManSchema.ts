@@ -1,3 +1,4 @@
+// src/schemas/tradesManSchema.ts
 import { Priority } from "@prisma/client";
 import e from "express";
 import z from "zod";
@@ -8,14 +9,14 @@ export const tradesManRegisterSchema = z.object({
     email: z.string().email("Invalid email format").min(1, "Email is required"),
     mobileNumber: z
         .string()
-        .min(10, "Phone number mustbe at least 10 characters long")
-        .max(15, "Phone number cannot exceed 15 characters"),
+        .min(8, "Phone number mustbe at least 10 characters long")
+        .max(16, "Phone number cannot exceed 15 characters"),
     craft: z.string().min(1, "Craft is required"),
     experience: z.string().min(1, "Experience is required"),
     address: z.string().min(1, "Address is required"),
     password: z.string().min(8, "Password must be at least 8 characters long"),
     countryCode: z.string().min(1, "Country code is required").optional(),
-    idProofImage: z.string().min(1, "ID Proof is required"),
+    idProofImage: z.string().optional(),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
 })
@@ -26,8 +27,8 @@ export const updateProfileSchema = z.object({
 
     mobileNumber: z
         .string()
-        .min(10, "Phone number must be at least 10 characters long")
-        .max(15, "Phone number cannot exceed 15 characters").optional(),
+        .min(8, "Phone number must be at least 8 characters long")
+        .max(16, "Phone number cannot exceed 16 characters").optional(),
     craft: z.string().min(1, "Craft is required").optional(),
     experience: z.string().min(1, "Experience is required").optional(),
     address: z.string().min(1, "Address is required").optional(),
@@ -35,7 +36,7 @@ export const updateProfileSchema = z.object({
     countryCode: z.string().min(1, "Country code is required").optional(),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
-     photoImage: z.string().min(1, "ID Proof is required").optional(),
+     photoImage: z.string(). optional(),
 });
 
 export const tradesManLoginSchema = z.object({

@@ -1,4 +1,5 @@
 "use strict";
+// src/routes/awsRoutes.ts
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const awsController_1 = require("../controllers/awsController");
@@ -22,5 +23,11 @@ router.post('/uploadProfileImage', authMiddleware_1.clientAuthMiddleware, awsCre
  * @desc    Generate presigned URL to read/download an image from S3 using the key
  * @access  Private (Client)
  */
-router.post('/readImageUrl', authMiddleware_1.clientAuthMiddleware, awsCredentialRoutes.generateReadUrl.bind(awsCredentialRoutes));
+router.put('/readImageUrl', authMiddleware_1.clientAuthMiddleware, awsCredentialRoutes.generateReadUrl.bind(awsCredentialRoutes));
+/**
+ * @route   POST /api/v1/aws/scaffHoldPdf
+ * @desc    Generate presigned URL to read/download a pdf
+ * @access  Private (Client)
+ */
+router.get('/scaffHoldPdf', authMiddleware_1.clientAuthMiddleware, awsCredentialRoutes.scaffHoldPdf.bind(awsCredentialRoutes));
 exports.default = router;

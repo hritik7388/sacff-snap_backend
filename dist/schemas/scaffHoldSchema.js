@@ -14,7 +14,7 @@ exports.scaffHoldSchema = zod_1.default.object({
     longitude: zod_1.default.number().optional(),
     priority: zod_1.default.enum([client_1.Priority.HIGH, client_1.Priority.MEDIUM, client_1.Priority.LOW]).optional(),
     projectId: zod_1.default.number().optional(),
-    competentPersonIds: zod_1.default.array(zod_1.default.number()).min(2, "At least 2 competent persons are required"),
+    competentPersonIds: zod_1.default.array(zod_1.default.number()),
     descreption: zod_1.default.string().optional(),
 });
 exports.scaffHoldDetailsById = zod_1.default.object({

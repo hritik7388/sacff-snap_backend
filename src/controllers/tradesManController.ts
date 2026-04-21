@@ -1,3 +1,4 @@
+// src/controllers/tradesManController.ts
 import { Response } from "express";
 import { Request } from "express";
 import { tradesManServices } from "../services/tradesManServices";
@@ -111,9 +112,9 @@ export class tradesManController {
 
   async updateScaffHoldRequestController(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
-       const id = req.user!.id;
+      const id = req.user!.id;
       const data = updateScaffOldSRequestchema.parse(req.body);
-      const result = await tradesMan.updateScaffHoldRequest(id,data);
+      const result = await tradesMan.updateScaffHoldRequest(id, data);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -121,11 +122,12 @@ export class tradesManController {
   }
 
   async getTrademanRequestList(req: AuthenticatedRequest, res: Response, next: Function) {
-    try { 
-       const page = Number(req.query.page) || 1;
+    try {
+      const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
+      const id= req.user!.id;
       const data = searchFilter.parse(req.query);
-      const result = await tradesMan.getTrademanRequestListServices( data,page,limit);
+      const result = await tradesMan.getTrademanRequestListServices(id,data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -201,12 +203,13 @@ export class tradesManController {
   }
   async getAllModifiedRequestDetails(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
+      const id=req.user!.id;
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const data = searchFilter.parse(req.query);
 
 
-      const result = await tradesMan.getAllModifiedRequestsByParentId(data, page, limit);
+      const result = await tradesMan.getAllModifiedRequestsByParentId(id,data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -246,14 +249,24 @@ export class tradesManController {
 
       const page = Number(req.body.page) || 1;
       const limit = Number(req.body.limit) || 10;
-      
+
       const id = req.user!.id;
       const data = searchFilter.parse(req.body);
-      const result = await tradesMan.getFilteredScaffHolds(id,data, page, limit);
+      const result = await tradesMan.getFilteredScaffHolds(id, data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
     }
   }
 
+  async delteTradesManAccount(req: AuthenticatedRequest, res: Response, next: Function) {
+    try {
+      const id = req.user!.id;
+      const result = await tradesMan.deleteTradesman(id);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+
+  }
 }

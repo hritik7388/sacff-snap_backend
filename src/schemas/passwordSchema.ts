@@ -1,3 +1,4 @@
+// src/schemas/passwordSchema.ts
 import z from "zod";
 export const chnagePasswordSchema= z.object({
     oldPassword: z.string().min(6, "Old password must be at least 6 characters long"),
@@ -14,6 +15,7 @@ export const verifyOTPSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
+     email: z.string().email("Invalid email address"),
      newPassword: z.string().min(6, "New password must be at least 6 characters long"), 
 })
 

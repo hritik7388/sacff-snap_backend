@@ -84,7 +84,8 @@ class projectManagerController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const data = tradesManSchema_1.searchFilter.parse(req.query);
-                const result = yield projectManager.getTrademanPendingRequestListServices(data, page, limit);
+                const id = req.user.id;
+                const result = yield projectManager.getTrademanPendingRequestListServices(id, data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -98,7 +99,8 @@ class projectManagerController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const data = tradesManSchema_1.searchFilter.parse(req.query);
-                const result = yield projectManager.getAllPendingModifiedRequestsByParentId(data, page, limit);
+                const id = req.user.id;
+                const result = yield projectManager.getAllPendingModifiedRequestsByParentId(id, data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -148,6 +150,19 @@ class projectManagerController {
                 const userId = req.user.id;
                 const data = projectManagerSchema_1.uploadImage.parse(req.body);
                 const result = yield projectManager.updateProfileImage(userId, data);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    updateUserProfileImage(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.user.id;
+                const data = projectManagerSchema_1.ImageSchema.parse(req.body);
+                const result = yield projectManager.updateUserProfileImage(userId, data);
                 res.status(200).json(result);
             }
             catch (err) {

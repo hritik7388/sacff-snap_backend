@@ -1,10 +1,9 @@
+// src/services/competentPersonServices.ts
 import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
-import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import { GetInspectionsDTO, InspectionDTO, statusDTO, TimeLineDTO, TimeLineTagDTO } from "../schemas/competentPersonSchema";
-import { inspect } from "util";
 import { ScaffholdStatus } from "@prisma/client";
 import { pushNotificationDelhi } from "../helpers/utils";
 
@@ -87,6 +86,33 @@ export class CompetentPersonServices {
 
     async createInspection(userId: number, data: InspectionDTO) {
         try {
+            const competentPerson = await prisma.competentPerson.findFirst({
+                where: {
+                    userId: userId,
+                }, select: {
+                    user: {
+                        select: {
+                            status: true,
+                            isDeleted: true
+                        }
+                    }
+                }
+            });
+            if (!competentPerson || competentPerson.user?.status !== "ACTIVE") {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.USER.NOT_FOUND,
+                    404,
+                    "Competent person not found"
+                );
+            }
+
+            if (competentPerson.user?.isDeleted) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.USER.DELETED,
+                    400,
+                    "Competent person is deleted"
+                );
+            }
             const inspection = await prisma.competentPersonInspection.create({
                 data: {
                     scaffholdId: data.scaffholdId,
@@ -117,7 +143,6 @@ export class CompetentPersonServices {
         }
 
     }
-
 
     async getInspectionsByScaffholdId(data: GetInspectionsDTO, page: number = 1, limit: number = 10) {
         try {
@@ -188,19 +213,30 @@ export class CompetentPersonServices {
     async competentPersonTimeline(userId: number, data: TimeLineDTO) {
         try {
             const user = await prisma.user.findFirst({
-                where: { id: userId, status: "ACTIVE" }
+                where: { id: userId, status: "ACTIVE" ,isDeleted: false,
+                    isVerified: true,
+                    
+                },
             });
             if (!user) {
                 throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
             }
 
+                if (user.isDeleted===true) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.USER.DELETED,
+                    400,
+                    "Competent person is deleted"
+                );
+            }
+
             const scaffholdData = await prisma.scaffhold.findFirst({
                 where: { id: data.scaffholdId, isDeleted: false },
-
             });
             if (!scaffholdData) {
                 throw new CustomError(RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404);
             }
+
             if (data.timeLineStatus) {
                 const existingTimeline = await prisma.scaffholdTimeline.findFirst({
                     where: {
@@ -212,6 +248,7 @@ export class CompetentPersonServices {
                     throw new CustomError(RESPONSE_MESSAGES.COMPETENTPERSON.DUPLICATE_TIMELINE_STATUS, 400);
                 }
             }
+
             const timeline = await prisma.scaffholdTimeline.create({
                 data: {
                     uuid: uuidv4(),
@@ -259,49 +296,273 @@ export class CompetentPersonServices {
                 longitude: timeline.longitude,
             }
 
+            const scaffholdFullData = await prisma.scaffhold.findFirst({
+                where: {
+                    id: data.scaffholdId
+                },
+                select: {
+                    companyId: true,
+                    company:true,
+                    createdById: true,
+                    tradesMen: {
+                        select:
+                        {
+                            tradesMan: {
+                                select: {
+                                    userId: true
+                                }
+                            }
+                        }
+                    },
+                    competentPersons: {
+                        select: {
+                            competentPerson: {
+                                select: {
+                                    userId: true,
+                                    
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            const creatorId = scaffholdData.createdById;
+            console.log(
+                "✅ Competent Persons:",
+                scaffholdFullData?.competentPersons
+            );
 
-            const companyId = scaffholdData.companyId;
             const notificationMessage =
                 `Scaffold ${scaffholdData.SCAFFID} for Project ${scaffholdData.projectId} | ${scaffholdData.projectName} has been ${data.timeLineStatus}. Action performed by ${user.name}.`;
-            await prisma.notification.create({
-                data: {
-                    uuid: uuidv4(),
-                    title: `ScaffHold ${data.timeLineStatus}`,
-                    message: notificationMessage,
-                    type: "TIMELINE_UPDATE",
-                    role: "COMPANY",
-                    companyId: companyId,
-                    receiverId: companyId,
-                    senderId: userId.toString(),
-                    isRead: false,
-                },
-            });
-            const companyUsers = await prisma.projectManager.findMany({
-                where: { companyId },
-                select: { id: true }
-            });
 
-            const devices = await prisma.device.findMany({
-                where: {
-                    userId: { in: companyUsers.map(u => u.id) },
-                    deviceToken: { not: null }
-                },
-                select: { deviceToken: true }
-            });
-            for (const d of devices) {
-                if (!d.deviceToken) continue;
+            if (scaffholdFullData) {
+                await prisma.notification.create({
+                    data: {
+                        uuid: uuidv4(),
+                        title: `Scaffold ${data.timeLineStatus}`,
+                        message: notificationMessage,
+                        type: "SCAFFOLD_STATUS_UPDATE",
+                        scaffoldId: data.scaffholdId,
+                         scaffoldRequestId: "", 
+                        role: "COMPANY",
+                        companyId: scaffholdFullData.companyId,
+                        receiverId: scaffholdFullData.companyId,
+                        senderId: userId.toString(),
+                        isRead: false,
+                        notificationImage:
+                            "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/scaffDismented.png"
+                    },
+                });
 
-                await pushNotificationDelhi(
-                    d.deviceToken,
-                    `ScaffHold ${data.timeLineStatus}`,
-                    notificationMessage
-                );
+                const companyDevice = await prisma.device.findMany({
+                    where: {
+                        userId: Number(scaffholdFullData.companyId),
+                        user_type: "COMPANY",
+                        deviceToken: { not: null },
+                        
+                        
+                        
+                        
+                    },
+                    select: { deviceToken: true }
+                });
+                console.log("companyDevice=======================>>>>", companyDevice)
+
+                for (const d of companyDevice) {
+                    if (!d.deviceToken) continue;
+                    await pushNotificationDelhi(
+                        d.deviceToken,
+                        `Scaffold ${data.timeLineStatus}`,
+                        notificationMessage
+                    );
+                }
+            }
+            if (!scaffholdData.projectId) {
+                throw new Error("Project ID is required");
             }
 
-            return {
-                message: RESPONSE_MESSAGES.COMPETENTPERSON.SUCCESS_CREATE_TIMELINE,
-                data: formattedResponse
-            };
+            // ✅ Get all Project Managers of this project
+            const projectWithPMs = await prisma.project.findUnique({
+                where: { id: scaffholdData.projectId },
+                include: {
+                    projectManagers: {
+                        select: { id: true }
+                    }
+                }
+            });
+
+            const projectManagerIds =
+                projectWithPMs?.projectManagers.map(pm => pm.id) || [];
+
+            // ✅ Send notification to ALL Project Managers
+            for (const pmId of projectManagerIds) {
+
+                await prisma.notification.create({
+                    data: {
+                        uuid: uuidv4(),
+                        title: `Scaffold ${data.timeLineStatus}`,
+                        message: notificationMessage,
+                        type: "SCAFFOLD_STATUS_UPDATE",
+                        role: "PROJECT_MANAGER",
+                        companyId: scaffholdData.companyId ?? undefined, // null fix
+                        scaffoldId: data.scaffholdId,
+                         scaffoldRequestId: "", 
+                        receiverId: pmId,
+                        senderId: userId.toString(),
+                        isRead: false,
+                        notificationImage:
+                            "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/status.png"
+                    },
+                });
+
+                // ✅ Get devices of each PM
+                const creatorDevices = await prisma.device.findMany({
+                    where: {
+                        userId: pmId,
+                        user_type: "PROJECT_MANAGER",
+                        deviceToken: { not: null }
+                    },
+                    select: { deviceToken: true }
+                });
+
+                console.log("PM Devices =>", creatorDevices);
+
+                for (const d of creatorDevices) {
+                    if (!d.deviceToken) continue;
+
+                    await pushNotificationDelhi(
+                        d.deviceToken,
+                        `Scaffold ${data.timeLineStatus}`,
+                        notificationMessage
+                    );
+                }
+            }
+            const tradesmenData = await prisma.scaffhold.findFirst({
+                where: { id: data.scaffholdId },
+                select: {
+                    tradesMen: {
+                        select: {
+                            tradesMan: {
+                                select: {
+                                    userId: true
+                                }
+                            },
+                            tradesManId: true
+                        }
+                    }
+                }
+            });
+            const tradeData = tradesmenData?.tradesMen[0]?.tradesMan?.userId || null;
+
+            if (tradesmenData?.tradesMen?.length) {
+                for (const tm of tradesmenData.tradesMen) {
+
+                    const receiverId = tm.tradesMan?.userId;
+                    if (!receiverId) continue;
+
+                    await prisma.notification.create({
+                        data: {
+                            uuid: uuidv4(),
+                            title: `Scaffold ${data.timeLineStatus}`,
+                            message: notificationMessage,
+                            type: "SCAFFOLD_STATUS_UPDATE",
+                            companyId: scaffholdData.companyId ?? undefined,
+                            scaffoldId: data.scaffholdId,
+                             scaffoldRequestId: "", 
+                            role: "TRADESMAN",
+                            receiverId: receiverId, // ✅ FIXED
+                            senderId: userId.toString(),
+                            isRead: false,
+                            notificationImage:
+                                "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/status.png"
+                        },
+                    });
+
+                    const tradesManDevice = await prisma.device.findMany({
+                        where: {
+                            userId: receiverId, // ✅ FIXED
+                            user_type: "TRADESMAN",
+                            deviceToken: { not: null }
+                        },
+                        select: { deviceToken: true }
+                    });
+
+                    for (const d of tradesManDevice) {
+                        if (!d.deviceToken) continue;
+
+                        await pushNotificationDelhi(
+                            d.deviceToken,
+                            `Scaffold ${data.timeLineStatus}`,
+                            notificationMessage
+                        );
+                    }
+                }
+            }
+            const competentPersonsData =
+                scaffholdFullData?.competentPersons
+                    ?.map(cp => ({
+                        userId: cp.competentPerson.userId
+                    })) || [];
+
+            console.log("competentPersonsData=====================>>>>>", competentPersonsData)
+            if (competentPersonsData.length > 0) {
+
+                const competentPersonUserIds = competentPersonsData.map(cp => cp.userId);
+
+                const competentPersonDevices = await prisma.device.findMany({
+                    where: {
+                        userId: { in: competentPersonUserIds },
+                        deviceToken: { not: null }
+                    },
+                    select: { userId: true, deviceToken: true }
+                });
+                console.log("competentPersonDevices========================>>>>", competentPersonDevices)
+
+                const cpNotificationMessage =
+                    `Scaffold ${scaffholdData.SCAFFID} for Project ${scaffholdData.projectName} has been ${data.timeLineStatus}. Action performed by ${user.name}.`;
+
+                const cpNotificationImage =
+                    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/status.png";
+
+                await prisma.notification.createMany({
+                    data: competentPersonsData.map(cp => ({
+                        uuid: uuidv4(),
+                        title: `Scaffold ${data.timeLineStatus}`,
+                        message: cpNotificationMessage,
+                        type: "SCAFFOLD_STATUS_UPDATE",
+                        role: "COMPETENT_PERSON",
+                        isRead: false,
+                        companyId: scaffholdData.companyId ? BigInt(scaffholdData.companyId) : null,
+                        scaffoldId: BigInt(scaffholdData.id),
+                         scaffoldRequestId: "", 
+                        receiverId: BigInt(cp.userId),
+                        senderId: userId.toString(),
+                        notificationImage: cpNotificationImage
+                    })),
+                });
+
+                const device = await prisma.device.findMany({
+                    where: {
+                        userId: { in: competentPersonUserIds },
+                        deviceToken: { not: null }
+                    }
+                });
+                console.log("device================================>>>>>>", device)
+
+                for (const device of competentPersonDevices) {
+                    if (!device.deviceToken) continue;
+                    await pushNotificationDelhi(
+                        device.deviceToken,
+                        "Assigned to Scaffold",
+                        cpNotificationMessage
+                    );
+                }
+                return {
+                    message: RESPONSE_MESSAGES.COMPETENTPERSON.SUCCESS_CREATE_TIMELINE,
+                    data: formattedResponse
+                };
+
+            }
         } catch (error: any) {
             console.error("❗ Error in competentPersonTimeline:", error);
             if (error instanceof CustomError) {
@@ -315,22 +576,46 @@ export class CompetentPersonServices {
         }
     }
 
+
     async Timelinetag(userId: number, data: TimeLineTagDTO) {
         try {
             // Fetch user
             const user = await prisma.user.findFirst({
-                where: { id: userId, status: "ACTIVE" }
+                where: { id: userId, status: "ACTIVE" },
+
             });
             if (!user) {
                 throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
             }
 
             const scaffholdData = await prisma.scaffhold.findFirst({
-                where: { id: data.scaffholdId, isDeleted: false }
+                where: { id: data.scaffholdId, isDeleted: false }, include: {
+                    competentPersons: {
+                        include: {
+                            competentPerson: true
+                        }
+                    }
+                }
             });
             if (!scaffholdData) {
                 throw new CustomError(RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404);
             }
+
+            const existingTagTimeline = await prisma.scaffholdTimeline.findFirst({
+                where: {
+                    scaffholdId: data.scaffholdId,
+                    tag: data.tag
+                }
+            });
+
+            if (existingTagTimeline) {
+                throw new CustomError(
+                    "This tag has already been applied.",
+                    400
+                );
+            }
+
+
             const timeline = await prisma.scaffholdTimeline.create({
                 data: {
                     uuid: uuidv4(),
@@ -356,6 +641,181 @@ export class CompetentPersonServices {
                 createdById: timeline.createdById,
                 createdAt: timeline.createdAt,
                 updatedAt: timeline.updatedAt,
+            }
+            const companyId = scaffholdData.companyId;
+            const notificationMessage =
+                `Scaffold ${scaffholdData.SCAFFID} has been marked as ${data.tag}. ` +
+                `Action performed by ${user.name}. ` +
+                `\nscaffHold_ID: ${data.scaffholdId}` +
+                `\ntype:PM_SCAFFOLD_STATUS_UPDATE` +
+                `\naction: Open screen timeline`;
+
+            await prisma.notification.create({
+                data: {
+                    uuid: uuidv4(),
+                    title: `Scaffold ${data.tag}`,
+                    message: notificationMessage,
+                    type: "SCAFFOLD_STATUS_UPDATE",
+                    role: "COMPANY",
+                    scaffoldId: data.scaffholdId,
+                     scaffoldRequestId: "", 
+                    companyId: companyId,
+                    receiverId: companyId,
+                    senderId: userId.toString(),
+                    isRead: false,
+                    notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/tag.png"
+                },
+            });
+            const creatorId = scaffholdData.createdById;
+
+            if (creatorId) {
+                await prisma.notification.create({
+                    data: {
+                        uuid: uuidv4(),
+                        title: `Scaffold ${data.tag}`,
+                        message: notificationMessage,
+                        type: "SCAFFOLD_STATUS_UPDATE",
+                        role: "PROJECT_MANAGER",
+                        scaffoldId: data.scaffholdId,
+                         scaffoldRequestId: "", 
+                        companyId: scaffholdData.companyId,
+                        receiverId: creatorId,
+                        senderId: userId.toString(),
+                        isRead: false,
+                        notificationImage:
+                            "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/tag.png"
+                    },
+                });
+
+                const creatorDevices = await prisma.device.findMany({
+                    where: {
+                        userId: creatorId,
+                        deviceToken: { not: null }
+                    },
+                    select: { deviceToken: true }
+                });
+
+                for (const d of creatorDevices) {
+                    if (!d.deviceToken) continue;
+                    await pushNotificationDelhi(
+                        d.deviceToken,
+                        `Scaffold ${data.tag}`,
+                        notificationMessage
+                    );
+                }
+            }
+            const tradesmenData = await prisma.scaffhold.findFirst({
+                where: { id: data.scaffholdId },
+                select: {
+                    tradesMen: {
+                        select: {
+                            tradesMan: {
+                                select: {
+                                    userId: true
+                                }
+                            },
+                            tradesManId: true
+                        }
+                    }
+                }
+            });
+            const tradeData = tradesmenData?.tradesMen[0]?.tradesMan?.userId || null;
+            if (tradesmenData?.tradesMen?.length) {
+                for (const tm of tradesmenData.tradesMen) {
+                    await prisma.notification.create({
+                        data: {
+                            uuid: uuidv4(),
+                            title: `Scaffold ${data.tag}`,
+                            message: notificationMessage,
+                            type: "SCAFFOLD_STATUS_UPDATE",
+                            companyId: scaffholdData.companyId,
+                            scaffoldId: data.scaffholdId,
+                             scaffoldRequestId: "", 
+                            role: "TRADESMAN",
+                            receiverId: tradeData,
+                            senderId: userId.toString(),
+                            isRead: false,
+                            notificationImage:
+                                "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/tag.png"
+                        },
+                    });
+                    const tmDevices = await prisma.device.findMany({
+                        where: {
+                            userId: tm.tradesManId,
+                            deviceToken: { not: null }
+                        },
+                        select: { deviceToken: true }
+                    });
+
+                    for (const d of tmDevices) {
+                        if (!d.deviceToken) continue;
+                        await pushNotificationDelhi(
+                            d.deviceToken,
+                            `Scaffold ${data.tag}`,
+                            notificationMessage,
+
+                        );
+                    }
+                }
+            }
+
+
+
+            const competentPersonsData = scaffholdData.competentPersons
+                .map(cp => cp.competentPerson?.userId)
+                .filter(Boolean) as bigint[];
+            if (competentPersonsData.length > 0) {
+
+                const competentPersonUserIds = competentPersonsData;
+
+                const competentPersonDevices = await prisma.device.findMany({
+                    where: {
+                        userId: { in: competentPersonUserIds },
+                        deviceToken: { not: null }
+                    },
+                    select: { userId: true, deviceToken: true }
+                });
+                console.log("competentPersonDevices========================>>>>", competentPersonDevices)
+
+                const cpNotificationMessage =
+                    `Scaffold ${scaffholdData.SCAFFID} for Project ${scaffholdData.projectName} has been ${data.tag}. Action performed by ${user.name}.`;
+
+                const cpNotificationImage =
+                    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/tag.png";
+
+                await prisma.notification.createMany({
+                    data: competentPersonsData.map(cp => ({
+                        uuid: uuidv4(),
+                        title: `Scaffold ${data.tag}`,
+                        message: cpNotificationMessage,
+                        type: "SCAFFOLD_STATUS_UPDATE",
+                        role: "COMPETENT_PERSON",
+                        isRead: false,
+                        companyId: scaffholdData.companyId ? BigInt(scaffholdData.companyId) : null,
+                        scaffoldId: BigInt(scaffholdData.id),
+                         scaffoldRequestId: "", 
+                        receiverId: BigInt(cp),
+                        senderId: userId.toString(),
+                        notificationImage: cpNotificationImage
+                    })),
+                });
+                const device = await prisma.device.findMany({
+                    where: {
+                        userId: { in: competentPersonUserIds },
+                        deviceToken: { not: null }
+                    }
+                });
+
+
+                for (const cpDevice of competentPersonDevices) {
+                    if (!cpDevice.deviceToken) continue;
+
+                    await pushNotificationDelhi(
+                        cpDevice.deviceToken,
+                        `Scaffold ${data.tag}`,
+                        cpNotificationMessage
+                    );
+                }
             }
             return {
                 message: RESPONSE_MESSAGES.COMPETENTPERSON.SUCCESS_CREATE_TIMELINE,
@@ -499,29 +959,19 @@ export class CompetentPersonServices {
             }
             if (user.user_type === "PROJECT_MANAGER") {
                 scaffholdWhere.project = {
-                    projectManagerId: userId
+                    projectManagers: {
+                        some: {
+                            id: userId
+                        }
+                    }
                 };
             }
             const [scaffHoldList, total] = await Promise.all([
                 prisma.scaffhold.findMany({
                     where: scaffholdWhere,
                     include: {
-                        project: {
-                            select: {
-                                clientName: true,
-                                clientEmail: true,
-                                clientMobile: true,
-                                clientCountryCode: true,
-                                clientAddress: true,
-                                projectManagerId: true,
-                            },
-                        },
-                        company: {
-                            select: {
-                                CMPId: true,
-                                name: true,
-                            }
-                        }
+                        project: true,
+                        company: true
                     },
                     orderBy: { createdAt: "desc" },
                     skip: (page - 1) * limit,

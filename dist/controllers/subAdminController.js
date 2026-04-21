@@ -12,6 +12,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.subAdminController = void 0;
 const subAdminServices_1 = require("../services/subAdminServices");
 const subAdminSchema_1 = require("../schemas/subAdminSchema");
+const tradesManSchema_1 = require("../schemas/tradesManSchema");
+const superAdminSchema_1 = require("../schemas/superAdminSchema");
 const subAdmin = new subAdminServices_1.subAdminServices();
 class subAdminController {
     subAdminLogin(req, res, next) {
@@ -70,7 +72,9 @@ class subAdminController {
             try {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
-                const result = yield subAdmin.getCompetentPersonListServices(page, limit);
+                const data = tradesManSchema_1.searchFilter.parse(req.query);
+                const id = req.user.id;
+                const result = yield subAdmin.getCompetentPersonListServices(id, data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -270,6 +274,34 @@ class subAdminController {
                 const id = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
                 const scaffHoldData = yield subAdmin.getUserDetails(id);
                 res.status(200).json(scaffHoldData);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    deleteUserBySubAdmin(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const userId = Number(req.query.userId);
+                const subAdminId = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
+                const result = yield subAdmin.deleteUserBySubAdminServices(subAdminId, userId);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    logOutCompany(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const id = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
+                const data = superAdminSchema_1.logout.parse(req.body);
+                const result = yield subAdmin.logoutCompany(id, data);
+                res.status(200).json(result);
             }
             catch (err) {
                 next(err);

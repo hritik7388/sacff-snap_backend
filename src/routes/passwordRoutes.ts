@@ -1,3 +1,4 @@
+// src/routes/passwordRoutes.ts
 import {Router} from "express";  
 import {authMiddleware} from "../middlewares/authMiddleware";
 import {clientAuthMiddleware} from "../middlewares/authMiddleware"; 
@@ -41,7 +42,7 @@ router.post("/verifyOTP",clientAuthMiddleware, passwordRoutes.verifyOTP.bind(pas
  * @desc    resetPassword
  * @access  Public
  */
-router.post("/resetPassword",clientAuthMiddleware,authMiddleware, passwordRoutes.resetPassword.bind(passwordRoutes));
+router.post("/resetPassword",clientAuthMiddleware, passwordRoutes.resetPassword.bind(passwordRoutes));
 
 
 export default router;

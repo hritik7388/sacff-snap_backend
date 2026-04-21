@@ -8,11 +8,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScaffHoldsServices = void 0;
+// src/services/scaffHoldServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const customError_1 = require("../types/customError");
 const responseMessages_1 = require("../constants/responseMessages");
@@ -21,10 +33,24 @@ const uuid_1 = require("uuid");
 class ScaffHoldsServices {
     createScaffHold(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             try {
                 const userData = yield prismaClient_1.default.projectManager.findFirst({
-                    where: { userId },
+                    where: {
+                        userId: userId,
+                        user: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "PROJECT_MANAGER"
+                        },
+                        company: {
+                            isApproved: "APPROVED",
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "COMPANY"
+                        }
+                    },
                     include: {
                         user: true,
                         company: true
@@ -33,16 +59,17 @@ class ScaffHoldsServices {
                 if (!userData)
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
                 const projectData = yield prismaClient_1.default.project.findFirst({
-                    where: { id: data.projectId, isDeleted: false },
+                    where: {
+                        id: data.projectId,
+                        isDeleted: false,
+                        projectManagers: { some: { id: userId } }
+                    }
                 });
-                if (!projectData)
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project not found");
-                if (data.latitude && data.longitude) {
-                    const existingScaffHold = yield prismaClient_1.default.scaffhold.findFirst({
-                        where: { latitude: data.latitude, longitude: data.longitude, status: "ACTIVE" },
-                    });
-                    if (existingScaffHold)
-                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.ALREADY_EXISTS, 409, "ScaffHold with this location already exists");
+                if (!projectData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project not found or you are not assigned as Project Manager");
+                }
+                if (!data.competentPersonIds || data.competentPersonIds.length < 2) {
+                    throw new customError_1.CustomError("At least 2 competent persons are required", 400);
                 }
                 const competentPersonsData = yield prismaClient_1.default.competentPerson.findMany({
                     where: { id: { in: data.competentPersonIds } },
@@ -84,16 +111,31 @@ class ScaffHoldsServices {
                     where: { id: scaffHold.id },
                     include: {
                         competentPersons: {
+                            where: {
+                                competentPerson: {
+                                    user: {
+                                        isDeleted: false,
+                                        status: "ACTIVE",
+                                        isVerified: true,
+                                        user_type: "COMPETENT_PERSON",
+                                    }
+                                }
+                            },
                             include: {
                                 competentPerson: {
                                     include: {
-                                        user: { include: { userMedias: true } },
-                                    },
-                                },
-                            },
-                        },
-                    },
+                                        user: {
+                                            include: {
+                                                userMedias: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 });
+                console.log("scaffHoldWithCPs===========================>>>>>>>", scaffHoldWithCPs);
                 if (!scaffHoldWithCPs) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "ScaffHold not found after creation");
                 }
@@ -106,37 +148,45 @@ class ScaffHoldsServices {
                         url: ((_a = cp.competentPerson.user.userMedias[0]) === null || _a === void 0 ? void 0 : _a.url) || null,
                     });
                 });
-                const companyId = userData.companyId;
-                const notificationMessage = `A new scaffold ${scaffHold.SCAFFID} has been created by Project Manager ${userData.user.name}` +
-                    ` for Project ${projectData.id} | ${projectData.projectName} | ${(_a = userData.company) === null || _a === void 0 ? void 0 : _a.name}.`;
-                const companyUsers = yield prismaClient_1.default.projectManager.findMany({
-                    where: { companyId: projectData.createdById },
-                    select: { id: true },
-                });
-                const devices = yield prismaClient_1.default.device.findMany({
+                console.log("formattedCompetentPersons============================>>>", formattedCompetentPersons);
+                const competentPersonUserIds = competentPersonsData.map(cp => cp.userId);
+                console.log("competentPersonUserIds======================>>>>>>", competentPersonUserIds);
+                const competentPersonDevices = yield prismaClient_1.default.device.findMany({
                     where: {
-                        userId: { in: companyUsers.map(u => u.id) },
+                        userId: { in: competentPersonUserIds },
                         deviceToken: { not: null }
                     },
-                    select: { deviceToken: true }
+                    select: { userId: true, deviceToken: true }
                 });
+                console.log("competentPersonDevices=======================>>>>>>", competentPersonDevices);
+                const cpNotificationMessage = `You have been assigned to Scaffold ${scaffHold.SCAFFID} under project ${projectData.projectName}.`;
                 yield prismaClient_1.default.notification.createMany({
-                    data: {
+                    data: competentPersonsData.map(cp => ({
                         uuid: (0, uuid_1.v4)(),
-                        title: "New ScaffHold Created",
-                        message: notificationMessage,
-                        type: "NEW_SCAFFOLD_CREATED",
-                        role: "COMPANY",
-                        companyId: companyId,
+                        title: "SCAFFOLD ASSIGNED",
+                        message: cpNotificationMessage,
+                        type: "SCAFFOLD_ASSIGNED",
+                        role: "COMPETENT_PERSON",
                         isRead: false,
-                        receiverId: userData.companyId,
+                        companyId: scaffHold.companyId ? BigInt(scaffHold.companyId) : null,
+                        scaffoldId: BigInt(scaffHold.id), // FIXED
+                        scaffoldRequestId: "",
+                        receiverId: BigInt(cp.userId),
                         senderId: userId.toString(),
-                    },
+                        notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/assigned.png"
+                    })),
                 });
-                for (const d of devices) {
-                    if (!d.deviceToken)
+                const device = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        userId: { in: competentPersonUserIds },
+                        deviceToken: { not: null }
+                    }
+                });
+                console.log("device=======================>>>>", device);
+                for (const device of competentPersonDevices) {
+                    if (!device.deviceToken)
                         continue;
-                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "New ScaffHold Created", notificationMessage);
+                    yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "Assigned to Scaffold", cpNotificationMessage);
                 }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.CREATE_SUCCESS,
@@ -145,9 +195,6 @@ class ScaffHoldsServices {
             }
             catch (error) {
                 console.error("❌ Create scaffhold error:", error);
-                if (error instanceof customError_1.CustomError) {
-                    throw error;
-                }
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
@@ -208,43 +255,14 @@ class ScaffHoldsServices {
                             in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
                         },
                     },
-                    select: {
-                        id: true,
-                        uuid: true,
-                        startDate: true,
-                        endDate: true,
-                        latitude: true,
-                        longitude: true,
-                        priority: true,
-                        tag: true,
-                        SCAFFID: true,
-                        address: true,
-                        projectName: true,
-                        status: true,
-                        projectId: true,
-                        companyId: true,
-                        createdById: true,
-                        createdAt: true,
-                        updatedAt: true,
-                        project: {
-                            select: {
-                                projectName: true,
-                                clientName: true,
-                                clientMobile: true,
-                            },
-                        },
-                        company: {
-                            select: {
-                                CMPId: true,
-                                name: true,
-                            },
-                        },
+                    include: {
+                        project: true,
+                        company: true,
                     },
                 });
                 if (!scaffhold) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 401, "ScaffHold not found");
                 }
-                // ✅ Flatten the nested fields
                 const formattedResponse = {
                     id: scaffhold.id,
                     uuid: scaffhold.uuid,
@@ -310,7 +328,7 @@ class ScaffHoldsServices {
                         latitude: true,
                         longitude: true,
                         createdById: true,
-                        projectManagerId: true,
+                        projectManagers: true,
                         status: true,
                         isDeleted: true,
                         createdAt: true,
@@ -408,23 +426,53 @@ class ScaffHoldsServices {
             }
         });
     }
-    addCompetentPersonToScaffHold(data) {
+    addCompetentPersonToScaffHold(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const userData = yield prismaClient_1.default.projectManager.findFirst({
+                    where: {
+                        userId: userId,
+                        user: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "PROJECT_MANAGER"
+                        },
+                        company: {
+                            isApproved: "APPROVED",
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "COMPANY"
+                        }
+                    },
+                });
+                if (!userData)
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
                 const scaffData = yield prismaClient_1.default.scaffhold.findUnique({
                     where: {
                         id: data.scaffHoldId,
                         status: {
-                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
+                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED",],
                         },
-                        isDeleted: false
+                        isDeleted: false,
+                        project: {
+                            isDeleted: false
+                        }
                     }
                 });
                 if (!scaffData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 401, "ScaffHold not found");
                 }
                 const competentPersonsData = yield prismaClient_1.default.competentPerson.findMany({
-                    where: { id: { in: data.competentPersonIds.map(BigInt) } },
+                    where: { id: { in: data.competentPersonIds.map(BigInt) },
+                        user: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "COMPETENT_PERSON"
+                        }
+                    },
                 });
                 if (competentPersonsData.length !== data.competentPersonIds.length) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "Some competent persons not found");
@@ -482,6 +530,37 @@ class ScaffHoldsServices {
                         url: ((_a = cp.competentPerson.user.userMedias[0]) === null || _a === void 0 ? void 0 : _a.url) || null,
                     });
                 });
+                if (newIdsToAdd.length > 0) {
+                    const newCPUsers = formattedCompetentPersons.filter(cp => newIdsToAdd.includes(Number(cp.id)));
+                    const cpNotificationMessage = `You have been assigned to Scaffold ${scaffData.SCAFFID}.`;
+                    yield prismaClient_1.default.notification.createMany({
+                        data: newCPUsers.map(cp => ({
+                            uuid: (0, uuid_1.v4)(),
+                            title: "SCAFFOLD ASSIGNED",
+                            message: cpNotificationMessage,
+                            type: "SCAFFOLD_ASSIGNED",
+                            role: "COMPETENT_PERSON",
+                            isRead: false,
+                            companyId: scaffData.companyId ? BigInt(scaffData.companyId) : null,
+                            scaffoldId: BigInt(scaffData.id),
+                            scaffoldRequestId: "",
+                            receiverId: BigInt(cp.userId),
+                            senderId: userId.toString(),
+                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/assigned.png",
+                        })),
+                    });
+                }
+                const devices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        userId: { in: competentPersonsData.map(cp => Number(cp.userId)) },
+                        deviceToken: { not: null }
+                    }
+                });
+                for (const device of devices) {
+                    if (!device.deviceToken)
+                        continue;
+                    yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "SCAFFOLD_ASSIGNED", `You have been assigned to Scaffold ${scaffData.SCAFFID}.`);
+                }
                 return {
                     message: "Competent persons updated successfully",
                     data: Object.assign(Object.assign({}, updatedScaffHold), { competentPersons: formattedCompetentPersons }),
@@ -502,10 +581,18 @@ class ScaffHoldsServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const scaffData = yield prismaClient_1.default.scaffhold.findUnique({
-                    where: { id: data.scaffHoldId },
-                    select: { id: true, status: true, isDeleted: true },
+                    where: {
+                        id: data.scaffHoldId,
+                        status: {
+                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED",],
+                        },
+                        isDeleted: false,
+                        project: {
+                            isDeleted: false
+                        }
+                    }
                 });
-                if (!scaffData || scaffData.status !== "ACTIVE" || scaffData.isDeleted) {
+                if (!scaffData || scaffData.status === "DISMANTLED" || scaffData.isDeleted) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 401, "ScaffHold not found");
                 }
                 const competentPersonData = yield prismaClient_1.default.competentPerson.findUnique({
@@ -513,6 +600,14 @@ class ScaffHoldsServices {
                 });
                 if (!competentPersonData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 401, "Competent person not found");
+                }
+                const cpCount = yield prismaClient_1.default.competentPersonOnScaffhold.count({
+                    where: {
+                        scaffholdId: data.scaffHoldId,
+                    },
+                });
+                if (cpCount <= 2) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.AT_LEAST_TWO_CP, 400, "At least two Competent Person must be assigned to this ScaffHold");
                 }
                 const mapping = yield prismaClient_1.default.competentPersonOnScaffhold.findUnique({
                     where: {
@@ -550,14 +645,34 @@ class ScaffHoldsServices {
     }
     scaffAndCompetentPersons(data) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c;
             try {
                 const scaffData = yield prismaClient_1.default.scaffhold.findUnique({
                     where: {
                         id: data.id,
                         status: {
-                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
+                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"],
                         },
-                    }
+                        isDeleted: false,
+                        project: {
+                            isDeleted: false
+                        }
+                    },
+                    include: {
+                        TradesManRequests: {
+                            orderBy: {
+                                createdAt: "desc",
+                            },
+                            take: 1,
+                            include: {
+                                createdBy: {
+                                    include: {
+                                        user: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
                 });
                 if (!scaffData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 401, "ScaffHold not found");
@@ -565,6 +680,14 @@ class ScaffHoldsServices {
                 const competentPersons = yield prismaClient_1.default.competentPersonOnScaffhold.findMany({
                     where: {
                         scaffholdId: data.id,
+                        competentPerson: {
+                            user: {
+                                isDeleted: false,
+                                status: "ACTIVE",
+                                isVerified: true,
+                                user_type: "COMPETENT_PERSON"
+                            }
+                        }
                     },
                     orderBy: {
                         createdAt: "desc",
@@ -587,17 +710,18 @@ class ScaffHoldsServices {
                         },
                     },
                 });
-                const formatted = competentPersons.map(cp => {
-                    var _a, _b, _c;
-                    return ({
-                        id: cp.competentPersonId,
-                        name: (_a = cp.competentPerson.user) === null || _a === void 0 ? void 0 : _a.name,
-                        image: ((_c = (_b = cp.competentPerson.user) === null || _b === void 0 ? void 0 : _b.userMedias[0]) === null || _c === void 0 ? void 0 : _c.url) || null,
-                    });
-                });
+                const formatted = competentPersons.map((cp) => { var _a, _b, _c; return ({ id: cp.competentPersonId, name: (_a = cp.competentPerson.user) === null || _a === void 0 ? void 0 : _a.name, image: ((_c = (_b = cp.competentPerson.user) === null || _b === void 0 ? void 0 : _b.userMedias[0]) === null || _c === void 0 ? void 0 : _c.url) || null, }); });
+                // 🔥 last request info
+                const lastRequest = ((_a = scaffData.TradesManRequests) === null || _a === void 0 ? void 0 : _a[0]) || null;
+                const lastRequestedByName = ((_c = (_b = lastRequest === null || lastRequest === void 0 ? void 0 : lastRequest.createdBy) === null || _b === void 0 ? void 0 : _b.user) === null || _c === void 0 ? void 0 : _c.name) || null;
+                // ❌ remove TradesManRequests from response
+                const { TradesManRequests } = scaffData, safeScaffData = __rest(scaffData, ["TradesManRequests"]);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
-                    data: { scaffData, formatted, }
+                    data: {
+                        scaffData: Object.assign(Object.assign({}, safeScaffData), { lastRequestedByName }),
+                        formatted,
+                    },
                 };
             }
             catch (error) {
@@ -605,9 +729,7 @@ class ScaffHoldsServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED, 500, error.message);
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED, 500, error.message);
             }
         });
     }
@@ -618,8 +740,12 @@ class ScaffHoldsServices {
                 const scaffhold = yield prismaClient_1.default.scaffhold.findUnique({
                     where: {
                         id: data.scaffholdId, status: {
-                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"],
+                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED",],
                         },
+                        isDeleted: false,
+                        project: {
+                            isDeleted: false
+                        }
                     }
                 });
                 if (!scaffhold) {
@@ -635,11 +761,11 @@ class ScaffHoldsServices {
                 const userData = yield prismaClient_1.default.projectManager.findUnique({
                     where: { userId: (_a = scaffhold === null || scaffhold === void 0 ? void 0 : scaffhold.createdById) !== null && _a !== void 0 ? _a : undefined }
                 });
-                const notificationMessage = `ScaffHold ${scaffhold.SCAFFID} has been marked as Tagged – Safe to Use.`;
+                const notificationMessage = `Scaffold ${scaffhold.SCAFFID} has been marked as Tagged – Safe to Use.`;
                 yield prismaClient_1.default.notification.create({
                     data: {
                         uuid: (0, uuid_1.v4)(),
-                        title: "ScaffHold Tagged – Safe to Use",
+                        title: "Scaffold Tagged – Safe to Use",
                         message: notificationMessage,
                         type: "SCAFFOLD_STATUS_UPDATE",
                         role: "COMPANY",
@@ -663,7 +789,7 @@ class ScaffHoldsServices {
                 for (const d of devices) {
                     if (!d.deviceToken)
                         continue;
-                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "ScaffHold Tagged – Safe to Use", notificationMessage);
+                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "Scaffold Tagged – Safe to Use", notificationMessage);
                 }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.UPDATE_SUCCESS,

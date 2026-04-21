@@ -1,3 +1,4 @@
+// src/routes/projectManagerRoutes.ts
 import {Router} from "express";  
 import { projectManagerController } from "../controllers/projectManagerController";
 import {authMiddleware} from "../middlewares/authMiddleware";
@@ -82,6 +83,14 @@ router.get('/getScaffholdRequestsByCreator', clientAuthMiddleware,authMiddleware
  * @access  Private
  */
 router.put('/updateProfileImage',clientAuthMiddleware,authMiddleware, projectManagerRoutes.updateProfileImage.bind(projectManagerRoutes)
+);
+
+/**
+ * @route   PUT /api/v1/user/updateUserProfileImage
+ * @desc    Update user profile image
+ * @access  Private
+ */
+router.put('/updateUserProfileImage',clientAuthMiddleware,authMiddleware, projectManagerRoutes.updateUserProfileImage.bind(projectManagerRoutes)
 );
 
  

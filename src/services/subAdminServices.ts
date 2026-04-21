@@ -1,24 +1,44 @@
+// src/services/subAdminServices.ts
 import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
-import { generateToken, } from "../helpers/utils";
-import dotenv from "dotenv";
+import { generateToken, pushNotificationDelhi, sendMail } from "../helpers/utils";
 import { AddNewProjectDTO, AddTeamMemberDTO, LoginSubAdminDTO, ScaffHoldRequestDTO, SearchTeamMemberDTO, TeamMemberDTO, TimelineImageFilterDTO, updateProjectDTO, UpdateTeamMemberDTO, } from "../schemas/subAdminSchema";
-import { timeLine } from "../schemas/competentPersonSchema";
+import { teamMemberAddTemplate } from "../helpers/templates";
+import { SearchScaffHoldDTO } from "../schemas/tradesManSchema";
+import { LogoutDTO } from "../schemas/superAdminSchema";
 
 export class subAdminServices {
     async loginSubAdminServices(data: LoginSubAdminDTO) {
         try {
 
             const subAdminData = await prisma.company.findUnique({
-                where: { email: data.email, isDeleted: false, status: "ACTIVE" },
+                where: {
+                    email: data.email, isDeleted: false, isVerified: true,
+                    user_type: "COMPANY"
+                },
             });
 
             if (!subAdminData) {
-                throw new CustomError(RESPONSE_MESSAGES.SUB_ADMIN.NOT_FOUND, 500, "The provided companyId and email do not match");
+                throw new CustomError(RESPONSE_MESSAGES.SUB_ADMIN.NOT_FOUND, 500, "The provided  email do not match");
+            }
+
+            
+            if (subAdminData.status === "SUSPENDED") {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.SUSPENDED,
+                    500,
+                    "Your account has been suspended. Please contact support for assistance."
+                );
+            }
+            if (subAdminData.isApproved !== "APPROVED") {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.NOT_APPROVED,
+                    500,
+                    "Your company is not approved yet"
+                );
             }
 
             const isPasswordValid = subAdminData.password && (await bcrypt.compare(data.password, subAdminData.password));
@@ -73,6 +93,21 @@ export class subAdminServices {
     async addTeamMemberServices(id: number, data: AddTeamMemberDTO) {
         try {
 
+            const companyData = await prisma.company.findFirst({
+                where: {
+                    id: id, isDeleted: false, status: "ACTIVE",
+                    isApproved: "APPROVED", isVerified: true,
+                    user_type: "COMPANY"
+                },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to add a team member to does not exist"
+                );
+            }
 
             const existingTeamMember = await prisma.user.findFirst({
                 where: { email: data.email, isDeleted: false, status: "ACTIVE" },
@@ -83,17 +118,6 @@ export class subAdminServices {
                     RESPONSE_MESSAGES.SUB_ADMIN.TEAM_MEMBER_EXISTS,
                     500,
                     "A team member with this email already exists under your company"
-                );
-            }
-            const companyData = await prisma.company.findFirst({
-                where: { id: id, isDeleted: false, status: "ACTIVE" },
-            });
-
-            if (!companyData) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
-                    500,
-                    "The company you are trying to add a team member to does not exist"
                 );
             }
             const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -157,7 +181,20 @@ export class subAdminServices {
                     },
                 });
             }
+            const html = teamMemberAddTemplate(
+                teamMemberData.name,
+                teamMemberData.user_type,
+                teamMemberData.email,
+                data.password,
+                companyData.CMPId || ""
+            );
+            await sendMail(
+                teamMemberData.email,
+                "Your Scaff Snap Account Details",
+                html
+            );
             const teamMember = {
+                id: teamMemberData.id,
                 uuid: teamMemberData.uuid,
                 name: teamMemberData.name,
                 user_type: teamMemberData.user_type,
@@ -322,7 +359,15 @@ export class subAdminServices {
                         companyId: companyId,
                         user: {
                             user_type: "PROJECT_MANAGER",
+                            isDeleted: false,
                         },
+                        company: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isApproved: "APPROVED",
+                            isVerified: true,
+                            user_type: "COMPANY"
+                        }
                     },
                     include: {
                         user: {
@@ -402,22 +447,76 @@ export class subAdminServices {
         }
     }
 
-
-
-    async getCompetentPersonListServices(page: number = 1, limit: number = 10) {
+    async getCompetentPersonListServices(userId:number,data: SearchScaffHoldDTO, page: number = 1, limit: number = 10) {
         try {
+
+        const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        user_type: true,
+        projectManager: {
+          select: { companyId: true }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new CustomError("User not found", 404);
+    }
             const skip = (page - 1) * limit;
+            const whereCondition: any = {
+                 companyId:user.projectManager?.companyId, 
+                user: {
+                    user_type: "COMPETENT_PERSON",
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isVerified: true,
+
+                },
+            };
+            const searchTerm = data?.search?.trim();
+
+            if (searchTerm && searchTerm !== "") {
+                const term = searchTerm;
+
+                if (!isNaN(Number(term))) {
+                    whereCondition.id = Number(term);
+                } else {
+                    whereCondition.OR = [
+                        {
+                            user: {
+                                name: {
+                                    contains: searchTerm,
+                                },
+                            },
+                        },
+                        {
+                            user: {
+                                email: {
+                                    contains: searchTerm,
+                                },
+                            },
+                        },
+                        {
+                            user: {
+                                mobileNumber: {
+                                    contains: searchTerm,
+                                },
+                            },
+                        },
+                    ];
+                }
+            }
+
 
             const [competentPerson, totalCount] = await Promise.all([
                 prisma.competentPerson.findMany({
                     skip,
                     take: limit,
                     orderBy: { id: "desc" },
-                    where: {
-                        user: {
-                            user_type: "COMPETENT_PERSON",
-                        },
-                    },
+                    where: whereCondition,
+
                     include: {
                         user: {
                             select: {
@@ -440,7 +539,7 @@ export class subAdminServices {
                     },
                 }),
                 prisma.competentPerson.count({
-                    where: { user: { user_type: "COMPETENT_PERSON" } },
+                    where: { user: { user_type: "COMPETENT_PERSON", isDeleted: false, isVerified: true } },
                 }),
             ]);
 
@@ -507,8 +606,18 @@ export class subAdminServices {
                     where: {
                         companyId: companyId,
                         user: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
                             user_type: "COMPETENT_PERSON",
                         },
+                        company: {
+                            isDeleted: false,
+                            isApproved: "APPROVED",
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "COMPANY"
+                        }
                     },
                     include: {
                         user: {
@@ -587,9 +696,6 @@ export class subAdminServices {
         }
     }
 
-
-
-
     async getTradesManListServices(page: number = 1, limit: number = 10) {
         try {
 
@@ -653,29 +759,72 @@ export class subAdminServices {
     async createNewProject(subAdminId: number, data: AddNewProjectDTO) {
         try {
 
-            const projectManager = await prisma.user.findFirst({
+            const companyData = await prisma.company.findFirst({
                 where: {
-                    id: data.projectManagerId,
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    user_type: "PROJECT_MANAGER"
+                    id: subAdminId, isDeleted: false, status: "ACTIVE",
+                    isApproved: "APPROVED", isVerified: true,
+                    user_type: "COMPANY",
+
+                },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to create a project for does not exist"
+                );
+            }
+            const projectManagersData = await prisma.projectManager.findMany({
+                where: { userId: { in: data.projectManagerId } },
+                include: {
+                    user: true,
+                    company: true
                 }
             });
-            if (data.projectManagerId && !projectManager) {
-                throw new CustomError(RESPONSE_MESSAGES.SUB_ADMIN.PROJECT_MANAGER_NOT_FOUND, 500, "The provided project manager does not exist");
+
+            if (projectManagersData.length !== data.projectManagerId.length) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND,
+                    404,
+                    "Some project managers were not found for this company"
+                );
             }
+            const userPMs = await prisma.user.findMany({
+                where: {
+                    id: { in: data.projectManagerId },
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    user_type: "PROJECT_MANAGER",
+                    isVerified: true,
+                }
+            });
+
+            if (userPMs.length !== data.projectManagerId.length) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.PROJECT_MANAGER_NOT_FOUND,
+                    400,
+                    "Some project manager accounts are not active or valid"
+                );
+            }
+
             const existingProject = await prisma.project.findFirst({
                 where: {
                     clientEmail: data.clientEmail,
                     projectName: data.projectName,
                     createdById: subAdminId,
-                    isDeleted: false,
+                    isDeleted: false
                 }
             });
+
             if (existingProject) {
-                throw new CustomError(RESPONSE_MESSAGES.PROJECT.ALREADY_EXISTS, 500, "A project with the same name and client email already exists under your company");
+                throw new CustomError(
+                    RESPONSE_MESSAGES.PROJECT.ALREADY_EXISTS,
+                    409,
+                    "A project with this client email and name already exists"
+                );
             }
-            const newProject = await prisma.project.create({
+            const project = await prisma.project.create({
                 data: {
                     uuid: uuidv4(),
                     projectName: data.projectName,
@@ -688,66 +837,181 @@ export class subAdminServices {
                     endDate: data.endDate,
                     latitude: data.latitude,
                     longitude: data.longitude,
-                    createdById: subAdminId,
-                    projectManagerId: data.projectManagerId,
                     status: "CREATED",
-                    isDeleted: false,
+                    createdById: subAdminId,
+                    isDeleted: false
                 }
-
             });
-            console.log("newProject==============================>>>", newProject)
+            await prisma.project.update({
+                where: { id: project.id },
+                data: {
+                    projectManagers: {
+                        connect: data.projectManagerId.map(id => ({ id }))
+                    }
+                }
+            });
+            const projectWithPMs = await prisma.project.findUnique({
+                where: { id: project.id },
+                include: {
+                    projectManagers: {
+                        include: {
+                            userMedias: true
+                        }
+                    }
+                }
+            });
+
+            if (!projectWithPMs) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.PROJECT.NOT_FOUND,
+                    404,
+                    "Project created but not found"
+                );
+            }
+            const formattedPMs = projectWithPMs.projectManagers.map(pm => ({
+                id: pm.id,
+                name: pm.name,
+                email: pm.email,
+                url: pm.userMedias[0]?.url || null
+            }));
+            const pmIds = data.projectManagerId;
+
+            const deviceTokens = await prisma.device.findMany({
+                where: { userId: { in: pmIds }, deviceToken: { not: null } },
+                select: { userId: true, deviceToken: true }
+            });
+
+            const notificationMessage =
+                `You have been assigned as Project Manager for project "${project.projectName}".`;
+
+            await prisma.notification.createMany({
+                data: pmIds.map(pmId => ({
+                    uuid: uuidv4(),
+                    title: "Project Assigned",
+                    message: notificationMessage,
+                    type: "PROJECT_ASSIGNED",
+                    role: "PROJECT_MANAGER",
+                    isRead: false,
+                    companyId: subAdminId,
+                     scaffoldRequestId: "", 
+                    projectId: BigInt(project.id),
+                    receiverId: BigInt(pmId),
+                    senderId: subAdminId.toString(),
+                    notificationImage:
+                        "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/Frame+2087325149.png"
+                }))
+            });
+
+            for (const dev of deviceTokens) {
+                if (!dev.deviceToken) continue;
+                await pushNotificationDelhi(
+                    dev.deviceToken,
+                    "PROJECT_ASSIGNED",
+                    notificationMessage
+                );
+            }
+
             return {
                 message: RESPONSE_MESSAGES.PROJECT.CREATE_SUCCESS,
-                data: newProject,
-            }
+                data: {
+                    ...projectWithPMs,
+                    projectManagers: formattedPMs,
+                }
+            };
 
         } catch (error: any) {
-            console.error("❌ Create New Project error:=======================>>>>", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.PROJECT.CREATE_FAILED, 500, error.message);
+            console.error("❌ Create project error:", error);
+
+            if (error instanceof CustomError) throw error;
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.PROJECT.CREATE_FAILED,
+                500,
+                "Create project failed due to server error"
+            );
         }
     }
-
 
     async updateProject(subAdminId: number, data: updateProjectDTO) {
         try {
 
-            const projectManager = await prisma.user.findFirst({
-                where: {
-                    id: data.projectManagerId,
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    user_type: "PROJECT_MANAGER"
+            const companyData = await prisma.company.findFirst({
+                where: { id: subAdminId, isDeleted: false, status: "ACTIVE" },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to create a project for does not exist"
+                );
+            }
+            // 1️⃣ Validate project exists
+            const oldProject = await prisma.project.findFirst({
+                where: { id: data.id, isDeleted: false },
+                include: {
+                    projectManagers: {
+                        select: { id: true }
+                    }
                 }
             });
-            if (data.projectManagerId && !projectManager) {
-                throw new CustomError(RESPONSE_MESSAGES.SUB_ADMIN.PROJECT_MANAGER_NOT_FOUND, 500, "The provided project manager does not exist");
+
+            if (!oldProject) {
+                throw new CustomError("Project not found", 404, "Project not found");
             }
-            const existingProject = await prisma.project.findFirst({
+
+            // 👉 Extract existing PM IDs
+            const existingPMIds = oldProject.projectManagers.map(pm => pm.id);
+
+            // 2️⃣ Validate all project managers exist
+            const projectManagersData = await prisma.projectManager.findMany({
+                where: { userId: { in: data.projectManagerId } },
+                include: { user: true, company: true }
+            });
+
+            if (projectManagersData.length !== data.projectManagerId.length) {
+                throw new CustomError("Some project managers not found", 400, "Some project managers are invalid");
+            }
+
+            const validPMUsers = await prisma.user.findMany({
+                where: {
+                    id: { in: data.projectManagerId },
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    user_type: "PROJECT_MANAGER",
+                    isVerified: true,
+
+                }
+            });
+
+            if (validPMUsers.length !== data.projectManagerId.length) {
+                throw new CustomError("Some project manager accounts are not valid", 400, "Some PMs are inactive or deleted");
+            }
+
+            // 3️⃣ Check duplicate project (excluding current)
+            const duplicateProject = await prisma.project.findFirst({
                 where: {
                     clientEmail: data.clientEmail,
                     projectName: data.projectName,
                     createdById: subAdminId,
                     isDeleted: false,
+                    NOT: { id: data.id }
                 }
             });
-            if (existingProject) {
-                throw new CustomError(RESPONSE_MESSAGES.PROJECT.ALREADY_EXISTS, 500, "A project with the same name and client email already exists under your company");
-            }
-            const newProject = await prisma.project.update({
-                where: {
-                    id: data.id,
-                    status: {
-                        not: "CANCELLED"
-                    }
 
-                },
+            if (duplicateProject) {
+                throw new CustomError("Duplicate project", 409, "Project with same name/email exists");
+            }
+
+            // 4️⃣ Find newly added PMs
+            const newlyAddedPMIds = data.projectManagerId.filter(
+                id => !existingPMIds.includes(BigInt(id))
+            );
+
+            // 5️⃣ Update project
+            const updatedProject = await prisma.project.update({
+                where: { id: data.id },
                 data: {
-                    uuid: uuidv4(),
                     projectName: data.projectName,
                     clientName: data.clientName,
                     clientEmail: data.clientEmail,
@@ -759,37 +1023,122 @@ export class subAdminServices {
                     latitude: data.latitude,
                     longitude: data.longitude,
                     createdById: subAdminId,
-                    projectManagerId: data.projectManagerId,
                     status: "CREATED",
                     isDeleted: false,
+                    projectManagers: {
+                        set: data.projectManagerId.map(id => ({ id }))
+                    }
                 }
-
             });
-            console.log("newProject==============================>>>", newProject)
-            return {
-                message: RESPONSE_MESSAGES.PROJECT.UPDATE_SUCCESS,
-                data: newProject,
+
+            await prisma.scaffhold.updateMany({
+    where: {
+        projectId: data.id,
+        isDeleted: false
+    },
+    data: {
+        projectName: data.projectName
+    }
+});
+            if (newlyAddedPMIds.length > 0) {
+
+                const deviceTokens = await prisma.device.findMany({
+                    where: {
+                        userId: { in: newlyAddedPMIds },
+                        deviceToken: { not: null }
+                    },
+                    select: { userId: true, deviceToken: true }
+                });
+
+                const notificationMessage = `You have been assigned as Project Manager for project "${updatedProject.projectName}".`;
+
+                await prisma.notification.createMany({
+                    data: newlyAddedPMIds.map(pmId => ({
+                        uuid: uuidv4(),
+                        title: "Project Modified",
+                        message: notificationMessage,
+                        type: "PROJECT_MODIFIED",
+                        role: "PROJECT_MANAGER",
+                         scaffoldRequestId: "", 
+                        isRead: false,
+                        companyId: projectManagersData[0].company?.id ?? undefined,
+                        projectId: BigInt(updatedProject.id),
+                        receiverId: BigInt(pmId),
+                        senderId: subAdminId.toString(),
+                        notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/Frame+2087325149.png"
+                    }))
+                });
+
+                for (const dev of deviceTokens) {
+                    if (!dev.deviceToken) continue;
+                    await pushNotificationDelhi(
+                        dev.deviceToken,
+                        "PROJECT_ASSIGNED",
+                        notificationMessage
+                    );
+                }
             }
+            const projectWithPMs = await prisma.project.findUnique({
+                where: { id: updatedProject.id },
+                include: {
+                    projectManagers: {
+                        include: { userMedias: true }
+                    }
+                }
+            });
+
+            const formattedPMs = projectWithPMs?.projectManagers.map(pm => ({
+                id: pm.id,
+                name: pm.name,
+                email: pm.email,
+                url: pm.userMedias[0]?.url || null
+            }));
+
+            return {
+                message: "Project updated successfully",
+                data: {
+                    ...projectWithPMs,
+                    projectManagers: formattedPMs
+                }
+            };
 
         } catch (error: any) {
-            console.error("❌ Create New Project error:=======================>>>>", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.PROJECT.UPDATE_FAILED, 500, error.message);
+            console.error("❌ Update Project Error:", error);
+
+            if (error instanceof CustomError) throw error;
+
+            throw new CustomError(
+                "Project update failed",
+                500,
+                error.message
+            );
         }
     }
 
 
-
     async teamMemberDashboard(companyId: number) {
         try {
+
+            const companyData = await prisma.company.findFirst({
+                where: {
+                    id: companyId, isDeleted: false, status: "ACTIVE",
+                    isVerified: true,
+                },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to fetch does not exist"
+                );
+            }
             const totalProjectManagers = await prisma.user.count({
                 where: {
                     status: "ACTIVE",
                     user_type: "PROJECT_MANAGER",
+                    isVerified: true,
+                    isDeleted: false,
                     projectManager: {
                         companyId: companyId,
                     },
@@ -800,6 +1149,8 @@ export class subAdminServices {
                 where: {
                     status: "ACTIVE",
                     user_type: "COMPETENT_PERSON",
+                    isVerified: true,
+                    isDeleted: false,
                     competentPerson: {
                         companyId: companyId,
                     },
@@ -810,6 +1161,8 @@ export class subAdminServices {
                 where: {
                     status: "ACTIVE",
                     user_type: "TRADESMAN",
+                    isVerified: true,
+                    isDeleted: false,
                     tradesman: {
                         scaffholds: {
                             some: {
@@ -840,6 +1193,19 @@ export class subAdminServices {
 
     async scaffholdDashboard(companyId: number) {
         try {
+
+            const companyData = await prisma.company.findFirst({
+                where: { id: companyId, isDeleted: false, status: "ACTIVE" },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to fetch  does not exist"
+                );
+            }
+
             const [totalActiveScaffHold, totalDismentedScaffhold, totalActiveProjects, totalProjectManagers, totalCompetentPersons] = await Promise.all([
                 prisma.scaffhold.count({ where: { status: "ACTIVE", companyId: companyId }, }),
                 prisma.scaffhold.count({ where: { status: "DISMANTLED", companyId: companyId } }),
@@ -879,9 +1245,20 @@ export class subAdminServices {
 
     async projectDashboard(companyId: number) {
         try {
+            const companyData = await prisma.company.findFirst({
+                where: { id: companyId, isDeleted: false, status: "ACTIVE" },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to create a project for does not exist"
+                );
+            }
             // Fetch counts
             const [totalProjects, ongoingProjects, completedProjects, projectsWithoutScaffhold] = await Promise.all([
-                prisma.project.count({ where: { isDeleted: false } }),
+                prisma.project.count({ where: { isDeleted: false, createdById: companyId } }),
                 prisma.project.count({ where: { status: "ONGOING", isDeleted: false, createdById: companyId } }),
                 prisma.project.count({ where: { status: "COMPLETED", isDeleted: false, createdById: companyId } }),
                 prisma.project.count({
@@ -912,6 +1289,18 @@ export class subAdminServices {
 
     async scaffholdStatusDashboard(companyId: number) {
         try {
+
+            const companyData = await prisma.company.findFirst({
+                where: { id: companyId, isDeleted: false, status: "ACTIVE" },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to create a project for does not exist"
+                );
+            }
             const [totalScaffholds, totalErected, totalDismantled, totalRedTag] = await Promise.all([
                 prisma.scaffhold.count({ where: { isDeleted: false, companyId: companyId } }),
                 prisma.scaffhold.count({
@@ -962,6 +1351,7 @@ export class subAdminServices {
                 user_type: userType,
                 isDeleted: false,
                 status: "ACTIVE",
+                isVerified: true,
             };
             if (data.search) {
                 const search = data.search.trim();
@@ -1064,12 +1454,38 @@ export class subAdminServices {
                     "Invalid user type. Allowed: PROJECT_MANAGER, COMPETENT_PERSON, TRADESMAN"
                 );
             }
-
-            // Fetch the scaffhold with related users and their media
             const scaffhold = await prisma.scaffhold.findUnique({
-                where: { id: data.scaffHoldId },
-                include: {
+                   where: { id: data.scaffHoldId },
+    include: {
+        project: {
+            include: {
+                projectManagers: {
+                    where: {
+                        user_type: "PROJECT_MANAGER",
+                        isDeleted: false,
+                        isVerified: true,
+                        status: "ACTIVE",
+                    },
+                    include: {
+                        userMedias: {
+                            where: { mediaType: "PHOTO_IMAGE" },
+                            take: 1,
+                        },
+                    },
+                },
+            },
+        },
+                     
                     competentPersons: {
+                        where: {
+                            competentPerson: {
+                                user: {
+                                    isDeleted: false,
+                                    isVerified: true,
+                                    status: "ACTIVE",
+                                },
+                            },
+                        },
                         include: {
                             competentPerson: {
                                 include: {
@@ -1077,7 +1493,7 @@ export class subAdminServices {
                                         include: {
                                             userMedias: {
                                                 where: { mediaType: "PHOTO_IMAGE" },
-                                                take: 1, // Only fetch one image
+                                                take: 1,
                                             },
                                         },
                                     },
@@ -1086,6 +1502,15 @@ export class subAdminServices {
                         },
                     },
                     tradesMen: {
+                        where: {
+                            tradesMan: {
+                                user: {
+                                    isDeleted: false,
+                                    isVerified: true,
+                                    status: "ACTIVE",
+                                },
+                            },
+                        },
                         include: {
                             tradesMan: {
                                 include: {
@@ -1100,8 +1525,10 @@ export class subAdminServices {
                                 },
                             },
                         },
+
                     },
                     createdBy: {
+                       
                         include: {
                             userMedias: {
                                 where: { mediaType: "PHOTO_IMAGE" },
@@ -1109,6 +1536,8 @@ export class subAdminServices {
                             },
                         },
                     },
+
+                    
                 },
             });
 
@@ -1122,17 +1551,14 @@ export class subAdminServices {
 
             let users: any[] = [];
 
-            if (userType === "PROJECT_MANAGER") {
-                const pm = scaffhold.createdBy;
-                if (pm) {
-                    users.push({
-                        name: pm.name,
-                        email: pm.email,
-                        mobileNumber: pm.mobileNumber,
-                        image: pm.userMedias[0]?.url || null,
-                    });
-                }
-            }
+if (userType === "PROJECT_MANAGER") {
+    users = scaffhold.project?.projectManagers.map((pm: any) => ({
+        name: pm.name,
+        email: pm.email,
+        mobileNumber: pm.mobileNumber,
+        image: pm.userMedias[0]?.url || null,
+    })) || [];
+}
 
             if (userType === "COMPETENT_PERSON") {
                 users = scaffhold.competentPersons.map((cp) => {
@@ -1191,6 +1617,7 @@ export class subAdminServices {
             const searchTerm = data?.search?.trim() || "";
             const whereCondition: any = {
                 scaffholdId: data.scaffHoldId,
+
             };
 
             if (searchTerm !== "") {
@@ -1373,7 +1800,10 @@ export class subAdminServices {
             const skip = (page - 1) * limit;
             const companyData = await prisma.company.findUnique({
                 where: {
-                    id: companyId
+                    id: companyId,
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isApproved: "APPROVED"
                 }
             })
             if (!companyData) {
@@ -1403,7 +1833,7 @@ export class subAdminServices {
                         latitude: true,
                         longitude: true,
                         createdById: true,
-                        projectManagerId: true,
+                        projectManagers: true,
                         status: true,
                         isDeleted: true,
                         createdAt: true,
@@ -1423,6 +1853,7 @@ export class subAdminServices {
                 }),
                 prisma.project.count({ where: whereCondition }),
             ]);
+
             const formattedProjects = projects.map((p) => ({
                 id: p.id,
                 uuid: p.uuid,
@@ -1437,7 +1868,7 @@ export class subAdminServices {
                 latitude: p.latitude,
                 longitude: p.longitude,
                 createdById: p.createdById,
-                projectManagerId: p.projectManagerId,
+                projectManagers: p.projectManagers,
                 status: p.status,
                 isDeleted: p.isDeleted,
                 createdAt: p.createdAt,
@@ -1471,6 +1902,18 @@ export class subAdminServices {
 
     async getAllScaffHolds(companyId: number, page: number, limit: number) {
         try {
+
+            const companyData = await prisma.company.findFirst({
+                where: { id: companyId, isDeleted: false, status: "ACTIVE" },
+            });
+
+            if (!companyData) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND,
+                    500,
+                    "The company you are trying to create a project for does not exist"
+                );
+            }
             const skip = (page - 1) * limit;
 
             const [scaffholds, totalCount] = await Promise.all([
@@ -1525,7 +1968,7 @@ export class subAdminServices {
         try {
             // ✅ Fetch user with relations
             const user = await prisma.company.findUnique({
-                where: { id },
+                where: { id, isApproved: "APPROVED", status: "ACTIVE", isDeleted: false, isVerified: true },
                 select: {
                     id: true,
                     uuid: true,
@@ -1535,8 +1978,11 @@ export class subAdminServices {
                     countryCode: true,
                     user_type: true,
                     status: true,
+                    address: true,
                     createdAt: true,
                     lastLogin: true,
+                    image: true,
+
                 },
             });
 
@@ -1552,8 +1998,12 @@ export class subAdminServices {
                 mobileNumber: user.mobileNumber,
                 user_type: user.user_type,
                 status: user.status,
+                address: user.address,
                 createdAt: user.createdAt,
-                lastLogin: user.lastLogin
+                lastLogin: user.lastLogin,
+
+                    image: user.image,
+
             }
             return {
                 message: "User details fetched successfully",
@@ -1568,6 +2018,102 @@ export class subAdminServices {
                 ? error
                 : new CustomError("FETCH_FAILED", 500, error.message);
         }
+    }
+
+    async deleteUserBySubAdminServices(subAdminId: number, userId: number) {
+        try {
+            // 1️⃣ Validate SubAdmin
+            const subAdminUser = await prisma.company.findFirst({
+                where: {
+                    id: subAdminId,
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    user_type: "COMPANY",
+                    isApproved: "APPROVED",
+                    isVerified: true,
+                }
+            });
+
+            if (!subAdminUser) {
+                throw new CustomError("Unauthorized", 403);
+            }
+
+            // 2️⃣ Check user exists
+            const user = await prisma.user.findFirst({
+                where: {
+                    id: userId,
+                    isDeleted: false
+                }
+            });
+
+            if (!user) {
+                throw new CustomError("User not found", 404);
+            }
+
+            // 3️⃣ Prevent deleting ADMIN / SUB_ADMIN
+            if (["ADMIN", "SUB_ADMIN"].includes(user.user_type)) {
+                throw new CustomError("You cannot delete this user", 403);
+            }
+
+            // 4️⃣ Soft delete
+            await prisma.user.update({
+                where: { id: userId },
+                data: {
+                    isDeleted: true, 
+                }
+            });
+
+            return {
+                message: "User deleted successfully"
+            };
+
+        } catch (error: any) {
+            if (error instanceof CustomError) throw error;
+
+            throw new CustomError("Delete failed", 500, error.message);
+        }
+    }
+
+        async logoutCompany(id: number, data: LogoutDTO) {
+      try {
+        const user = await prisma.company.findFirst({
+          where: {
+            id: id,
+            status: "ACTIVE",
+            isDeleted: false, 
+            isVerified:true,
+            isApproved:"APPROVED"
+
+          },
+        });
+    
+        if (!user) {
+          throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+        }
+    
+        // ✅ Delete ONLY current device
+        await prisma.device.deleteMany({
+          where: {
+            userId: user.id,
+            deviceToken:data. deviceToken,
+          },
+        });
+    
+        return {
+          status: 200,
+          message: RESPONSE_MESSAGES.AUTH.LOGOUT_SUCCESS,
+        };
+    
+      } catch (error: any) {
+        if (error instanceof CustomError) {
+          throw error;
+        }
+        throw new CustomError(
+          RESPONSE_MESSAGES.AUTH.LOGOUT_FAIL,
+          500,
+          error.message
+        );
+      }
     }
 
 

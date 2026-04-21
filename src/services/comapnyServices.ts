@@ -1,29 +1,24 @@
+// src/services/comapnyServices.ts
 import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
-import { generateCompanyId, generateToken, pushNotificationDelhi } from "../helpers/utils";
+import { generateCompanyId, pushNotificationDelhi, sendMail, generateOTP, generateToken, generateReadUrl } from "../helpers/utils";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import { CompanyIdDTO, RegisterCompanyDTO, UpdateCompanyDTO } from "../schemas/companySchema";
+import { otpTemplate, } from "../helpers/templates";
+import { ChangePasswordDTO, CompanyIdDTO, RegisterCompanyDTO, UpdateCompanyDTO, UpdateCompanyProfileDTO, ForgotPasswordDTO, verifyOTPDTO, ResetPasswordDTO, UpdateProfileImageDTO } from "../schemas/companySchema";
+import { uploadImageDTO } from "../schemas/uploadImageSChema";
 export class CompanyServices {
     async registerCompany(data: RegisterCompanyDTO,) {
         try {
             const existingCompany = await prisma.company.findUnique({
                 where: {
-                    email: data.email,
-                    name: data.name,
-                    mobileNumber: data.mobileNumber,
-                },
+                    email: data.email
+                }
             });
 
-            if (existingCompany) {
-                if (existingCompany.isApproved === "PENDING") {
-                    throw new CustomError(RESPONSE_MESSAGES.COMPANY.PENDING_APPROVAL, 500, "Your company registration is still pending approval");
-                } else {
-
-                    throw new CustomError(RESPONSE_MESSAGES.COMPANY.ALREADY_EXISTS, 500, "Company already exists");
-                }
+            if (existingCompany && existingCompany.email === data.email) {
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.ALREADY_EXISTS, 409, "This emailis alreday use with the other Compnay.Please use differnet email");
             }
 
 
@@ -43,7 +38,7 @@ export class CompanyServices {
                     latitude: data.latitude,
                     longitude: data.longitude,
                     CMPId: cmpId,
-                    image: data.image
+                    image: data.image || ""
                 },
             });
             const superAdmins = await prisma.user.findMany({
@@ -66,11 +61,12 @@ export class CompanyServices {
                         title: "New Company Registered",
                         message: `A new company "${newCompany.name}" has been registered and is awaiting approval.`,
                         type: "NEW_COMPANY_REGISTERED",
-                        role: "SUPER_ADMIN", // Custom enum value from NotificationRole
+                        role: "SUPER_ADMIN",  
                         companyId: newCompany.id,
                         isRead: false,
                         receiverId: Number(superAdmin.id),
                         senderId: newCompany.id.toString(),
+                        notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/companyReg.png"
 
                     },
                 });
@@ -79,7 +75,8 @@ export class CompanyServices {
                     await pushNotificationDelhi(
                         superAdminDevice.deviceToken,
                         "New Company Registered",
-                        `${data.name} has registered and is awaiting approval.`
+                        `A new ${data.name} has submitted a registration request ${newCompany.CMPId}. Please review`
+
                     );
                 }
             }
@@ -98,14 +95,10 @@ export class CompanyServices {
                 longitude: newCompany.longitude,
                 CMPId: newCompany.CMPId
             }
-
-
             return {
                 message: RESPONSE_MESSAGES.COMPANY.REGISTER_SUCCESS,
                 data:
                     companyData,
-
-
             };
         } catch (error: any) {
             if (error instanceof CustomError) {
@@ -117,7 +110,6 @@ export class CompanyServices {
         }
     }
 
-
     async updateCompanyDetails(data: UpdateCompanyDTO) {
         try {
             const companyData = await prisma.company.findUnique({
@@ -125,21 +117,23 @@ export class CompanyServices {
                     id: data.id,
                     isDeleted: false,
                     status: "ACTIVE",
+                    isApproved: "APPROVED",
+                    isVerified:true,
+                    user_type:"COMPANY"
                 },
             });
 
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Not found");
             }
-            const emailExists = await prisma.company.findUnique({
-                where: {
-                    email: data.email,
-                },
-            });
-            if (emailExists) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.ALREADY_EXISTS, 500, "Conflict");
-            }
-
+            // const emailExists = await prisma.company.findUnique({
+            //     where: {
+            //         email: data.email,
+            //     },
+            // });
+            // if (emailExists) {
+            //     throw new CustomError(RESPONSE_MESSAGES.COMPANY.ALREADY_EXISTS, 409, "Conflict");
+            // }
 
             const updatedComapny = await prisma.company.update({
                 where: {
@@ -149,6 +143,7 @@ export class CompanyServices {
                     name: data.name,
                     email: data.email,
                     address: data.address,
+                    mobileNumber: data.mobileNumber,
                     countryCode: data.countryCode,
                     latitude: data.latitude,
                     longitude: data.longitude,
@@ -156,9 +151,49 @@ export class CompanyServices {
                 },
             });
 
+            return {
+                message: RESPONSE_MESSAGES.COMPANY.UPDATE_SUCCESS,
+                data:
+                    updatedComapny,
+            };
+        } catch (error: any) {
+            console.log("error===================>>>", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw error instanceof CustomError
+                ? error
+                : new CustomError(RESPONSE_MESSAGES.COMPANY.UPDATE_FAILED, 500, error.message);
+        }
+    }
 
+    async updateCompanyProfile(data: UpdateCompanyProfileDTO) {
+        try {
+            const companyData = await prisma.company.findUnique({
+                where: {
+                    id: data.id,
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isApproved: "APPROVED",
+                    isVerified:true,
+                    user_type:"COMPANY"
+                },
+            });
 
+            if (!companyData) {
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Not found");
+            }
 
+            const updatedComapny = await prisma.company.update({
+                where: {
+                    id: companyData.id,
+                },
+                data: {
+                    address: data.address,
+                    mobileNumber: data.mobileNumber,
+                    countryCode: data.countryCode,
+                },
+            });
 
             return {
                 message: RESPONSE_MESSAGES.COMPANY.UPDATE_SUCCESS,
@@ -183,6 +218,13 @@ export class CompanyServices {
             const skip = (page - 1) * limit;
             const [companyData, totalCount] = await Promise.all([
                 prisma.company.findMany({
+                    where: {
+                        isDeleted: false,
+                    status: "ACTIVE",
+                    isApproved: "APPROVED",
+                    isVerified:true,
+                    user_type:"COMPANY"
+                    },
                     skip,
                     take: limit,
                     orderBy: {
@@ -196,12 +238,23 @@ export class CompanyServices {
                         }
                     }
                 }),
-                prisma.company.count()
+                prisma.company.count({
+                    where: {
+                         isDeleted: false,
+                    status: "ACTIVE",
+                    isApproved: "APPROVED",
+                    isVerified:true,
+                    user_type:"COMPANY"
+                    },
+                })
             ]);
-            const companyWithProjectsCount = companyData.map(({ _count, ...company }) => ({
-                ...company,
-                totalProjects: _count.projects
-            }));
+            const companyWithProjectsCount = await Promise.all(
+                companyData.map(async ({ _count, ...company }) => ({
+                    ...company,
+                    totalProjects: _count.projects,
+                    image:company.image
+                }))
+            );
             const totalPages = Math.ceil(totalCount / limit);
             return {
                 message: RESPONSE_MESSAGES.COMPANY.FETCH_ALL_SUCCESS,
@@ -226,42 +279,75 @@ export class CompanyServices {
             const companySCaffholds = await prisma.scaffhold.findMany({
                 where: {
                     companyId: data.id,
-                    isDeleted: false,
-                    status: "ACTIVE",
+                    company:{
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified:true,
+                    },
+                    isDeleted: false, 
                 },
             });
+            console.log("companySCaffholds==================>>>>>", companySCaffholds)
 
             const companyProjects = await prisma.project.findMany({
                 where: {
                     createdById: data.id,
-                    isDeleted: false,
-                    status: "ONGOING",
+                    isDeleted: false, 
                 },
             });
+            console.log("companyProjects==================>>>>>", companyProjects)
 
-            const companyData = await prisma.company.findUnique({
+            const companyDataRaw = await prisma.company.findUnique({
                 where: { id: data.id },
-                select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    address: true,
-                    mobileNumber: true,
-                    CMPId: true,
-                    image: true,
-                    countryCode: true,
-                    latitude: true,
-                    longitude: true,
-                    status: true,
-                    isApproved: true,
-                    competentPersons: true,
-                    projectManagers: true,
-                },
-            });
+                include: {
+                    competentPersons: {
+            where: {   // ✅ competentPerson deleted na ho
+                user: {
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isVerified: true
+                }
+            },
+            include: {
+                user: true
+            }
+        },
+        projectManagers: {
+            where: {   // ✅ projectManager deleted na ho
+                user: {
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isVerified: true
+                }
+            },
+            include: {
+                user: true
+            }
+        }
+    },
+});
+            console.log("companyDataRaw==================>>>>>", companyDataRaw)
 
-            if (!companyData) {
+            if (!companyDataRaw) {
                 throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not Found");
             }
+            const companyData = {
+                ...companyDataRaw,
+                 image: companyDataRaw.image   ,
+
+                competentPersons: companyDataRaw.competentPersons.map(cp => ({
+                    id: cp.user.id,
+                    name: cp.user.name,
+                    email: cp.user.email
+                })),
+
+                projectManagers: companyDataRaw.projectManagers.map(pm => ({
+                    id: pm.user.id,
+                    name: pm.user.name,
+                    email: pm.user.email
+                }))
+            };
 
             return {
                 message: RESPONSE_MESSAGES.COMPANY.FETCH_BY_ID_SUCCESS,
@@ -302,6 +388,9 @@ export class CompanyServices {
                 },
                 skip,
                 take,
+                orderBy: {
+                    createdAt: "desc"
+                }
             });
 
             const totalCompanies = await prisma.company.count({
@@ -343,7 +432,13 @@ export class CompanyServices {
             const skip = (Number(page) - 1) * Number(limit);
             const take = Number(limit);
 
-            let whereCondition: any = {};
+            let whereCondition: any = {
+                isApproved: { in: ["APPROVED", "REJECTED"] },
+                status: {
+                    in: ["ACTIVE", "SUSPENDED"], // include both statuses
+                },
+                isDeleted: false,
+            };
 
             if (data && typeof data === "string" && data.trim() !== "") {
                 const conditions: any[] = [
@@ -363,6 +458,7 @@ export class CompanyServices {
                 }
 
                 whereCondition = {
+                    ...whereCondition,
                     OR: conditions,
                 };
             }
@@ -395,9 +491,248 @@ export class CompanyServices {
         }
     }
 
+    async changePasswordService(data: ChangePasswordDTO, userId: number) {
+        try {
+            const user = await prisma.company.findFirst({
+                where: { id: userId, isDeleted: false, status: "ACTIVE", }
+            });
+            if (!user) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this user");
+            }
+            const isOldPasswordValid = await bcrypt.compare(data.oldPassword, user.password);
+            if (!isOldPasswordValid) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.OLD_PASSWORD_MISSMATCH, 401, "Invalid old password");
+            }
+
+            const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+
+            await prisma.company.update({
+                where: { id: user.id },
+                data: { password: hashedPassword }
+            });
+
+            return {
+                message: "Password changed successfully"
+            };
+        } catch (error) {
+            console.error("❌ Change password error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(RESPONSE_MESSAGES.USER.PASSWORD_MISMATCH, 500, "Change password failed due to server error");
+        }
+    }
+
+    async forgotPasswordServices(data: ForgotPasswordDTO) {
+        try {
+            const user = await prisma.company.findUnique({
+                where: { email: data.email, isDeleted: false, status: "ACTIVE" }
+            });
+            if (!user) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this email");
+            }
+            const emailOTP = generateOTP();
+            const otp = await prisma.company.update({
+                where: { id: user.id },
+                data: {
+                    otp: emailOTP.otp.toString(),
+                    otpExpireTime: emailOTP.expiresAt,
+                    isVerified: false
+                }
+            });
+            const html = otpTemplate(user.name, emailOTP.otp.toString());
+
+            await sendMail(
+                user.email,
+                "Scaff Snap - OTP Verification",
+                html
+            );
 
 
 
+            return {
+                message: RESPONSE_MESSAGES.USER.FORGOT_PASSWORD_SUCCESS,
+                data: otp
+
+            }
+
+        } catch (error) {
+            console.error("❌ Forgot password error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(RESPONSE_MESSAGES.USER.FORGOT_PASSWORD_FAILED, 500, "Forgot password failed due to server error");
+        }
+    }
+
+    async verifyOTPService(data: verifyOTPDTO) {
+        try {
+            const user = await prisma.company.findUnique({
+                where: { email: data.email, isDeleted: false, status: "ACTIVE" }
+            });
+            if (!user) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this email");
+            }
+            if (user.otp !== data.otp || !user.otpExpireTime || user.otpExpireTime < new Date()) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.INVALID_OTP, 500, "Invalid or expired OTP");
+            }
+            const updatedData = await prisma.company.update({
+                where: { id: user.id },
+                data: {
+                    isVerified: true,
+                    otp: null,
+                    otpExpireTime: null
+                }
+            });
+            const jwtPayload = {
+                id: user.id.toString(),
+                uuid: user.uuid,
+                login_id: user.email,
+                user_type: user.user_type,
+            };
+            const token = generateToken(jwtPayload);
+
+            return {
+                message: RESPONSE_MESSAGES.USER.VERIFY_OTP_SUCCESS,
+                token,
+                data: updatedData
+
+
+
+            }
+
+        } catch (error) {
+            console.error("❌ Verify OTP error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(RESPONSE_MESSAGES.USER.VERIFY_OTP_FAILED, 500, "Verify OTP failed due to server error");
+        }
+    }
+
+    async resetPasswordService(data: ResetPasswordDTO, userId: number) {
+        try {
+            const user = await prisma.company.findFirst({
+                where: { id: userId, isDeleted: false, status: "ACTIVE", }
+            });
+            if (!user) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 401, "Not found with this user");
+            }
+
+            if (user.password === data.newPassword) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.SAME_AS_OLD_PASSWORD, 400, "New password cannot be same as old password")
+            }
+
+            const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+
+            await prisma.company.update({
+                where: { id: user.id },
+                data: { password: hashedPassword }
+            });
+
+            return {
+                message: "Password changed successfully"
+            };
+        } catch (error) {
+            console.error("❌ Change password error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(RESPONSE_MESSAGES.USER.PASSWORD_MISMATCH, 500, "Change password failed due to server error");
+        }
+    }
+
+    async resendOTPServices(data: ForgotPasswordDTO) {
+        try {
+            const user = await prisma.company.findUnique({
+                where: { email: data.email, isDeleted: false, status: "ACTIVE" }
+            });
+            if (!user) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this email");
+            }
+            const emailOTP = generateOTP();
+            const otp = await prisma.company.update({
+                where: { id: user.id },
+                data: {
+                    otp: emailOTP.otp.toString(),
+                    otpExpireTime: emailOTP.expiresAt,
+                }
+            });
+
+            const html = otpTemplate(user.name, emailOTP.otp.toString());
+
+            await sendMail(
+                user.email,
+                "Scaff Snap - OTP Verification",
+                html
+            );
+
+            return {
+                message: RESPONSE_MESSAGES.USER.FORGOT_PASSWORD_SUCCESS,
+                data: otp
+            }
+        } catch (error) {
+            console.error("❌ Forgot password error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(RESPONSE_MESSAGES.USER.FORGOT_PASSWORD_FAILED, 500, "Forgot password failed due to server error");
+        }
+    }
+
+
+        async updateProfileImage(userId: number, data: UpdateProfileImageDTO) {
+            try {
+    
+                const userExists = await prisma.company.findFirst({
+                    where: { id: userId,isApproved: "APPROVED", status: "ACTIVE", isDeleted: false, isVerified:true, user_type:"COMPANY" },
+                });
+                if (!userExists) {
+                    throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT found ")
+                }
+    
+                const updatedImage = await prisma.company.update({
+                    where: { id: userExists.id }, 
+                    data: { image: data.profileImage },
+                });
+    
+                return {
+                    message: RESPONSE_MESSAGES.IMAGE.UPADTE_IMAGE,
+                    data: updatedImage,
+                };
+    
+    
+            } catch (error: any) {
+                console.error("Error fetching image data:", error);
+                if (error instanceof CustomError) {
+                    throw error;
+                }
+                throw error instanceof CustomError
+                    ? error
+                    : new CustomError(
+                        RESPONSE_MESSAGES.IMAGE.FAIL_UPADTE_IMAGE,
+                        500,
+                        error.message
+                    );
+    
+            }
+    
+        }
 
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

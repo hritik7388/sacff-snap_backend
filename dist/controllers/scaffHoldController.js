@@ -94,7 +94,8 @@ class scaffHoldController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = scaffHoldSchema_1.ScaffCompetentPerson.parse(req.body);
-                const competentData = yield scaffHold.addCompetentPersonToScaffHold(data);
+                const userId = req.user.id;
+                const competentData = yield scaffHold.addCompetentPersonToScaffHold(userId, data);
                 res.status(200).json(competentData);
             }
             catch (err) {

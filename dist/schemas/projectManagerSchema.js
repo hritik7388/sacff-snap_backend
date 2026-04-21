@@ -3,11 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadImage = exports.getScaffholdRequestsByCreator = exports.getJobCraftSchema = exports.searchScaffHold = exports.approveRejectRequestSchema = exports.requestedScaffolds = exports.GetUserDetailsSchema = exports.projectDetailById = exports.projectManagerLoginSchema = void 0;
+exports.ImageSchema = exports.uploadImage = exports.getScaffholdRequestsByCreator = exports.getJobCraftSchema = exports.searchScaffHold = exports.approveRejectRequestSchema = exports.requestedScaffolds = exports.GetUserDetailsSchema = exports.projectDetailById = exports.projectManagerLoginSchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 exports.projectManagerLoginSchema = zod_1.default.object({
     user_type: zod_1.default.string(),
-    companyId: zod_1.default.string().optional(),
+    companyId: zod_1.default.string(),
     email: zod_1.default.string().email(),
     password: zod_1.default.string(),
 });
@@ -37,4 +37,7 @@ exports.getScaffholdRequestsByCreator = zod_1.default.object({
 });
 exports.uploadImage = zod_1.default.object({
     idProofImage: zod_1.default.string().min(1, "ID Proof is required"),
+});
+exports.ImageSchema = zod_1.default.object({
+    profileImage: zod_1.default.string(),
 });

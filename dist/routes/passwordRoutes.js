@@ -33,5 +33,5 @@ router.post("/verifyOTP", authMiddleware_2.clientAuthMiddleware, passwordRoutes.
  * @desc    resetPassword
  * @access  Public
  */
-router.post("/resetPassword", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, passwordRoutes.resetPassword.bind(passwordRoutes));
+router.post("/resetPassword", authMiddleware_2.clientAuthMiddleware, passwordRoutes.resetPassword.bind(passwordRoutes));
 exports.default = router;

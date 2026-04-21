@@ -7,12 +7,11 @@ function errorMiddleware(err, req, res, next) {
     console.error(err.stack);
     // Handle Zod validation errors
     if (err instanceof zod_1.ZodError) {
-        res.status(500).json({
+        const firstError = err.errors[0];
+        return res.status(400).json({
             success: false,
-            message: 'Validation error',
-            errors: err.errors,
+            message: firstError.message,
         });
-        return;
     }
     //Handle Custom Errors
     if (err instanceof customError_1.CustomError) {

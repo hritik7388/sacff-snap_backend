@@ -1,3 +1,4 @@
+// src/schemas/subAdminSchema.ts
 
 import z, { late, string } from "zod";
 
@@ -26,7 +27,7 @@ export const updateTeamMemberSchema = z.object({
   email: z.string().email(),
   mobileNumber: z.string().min(6).max(15).optional(),
   countryCode: z.string().min(1).max(5).optional(),
-  address: z.string().min(5).max(200).optional(), 
+  address: z.string().min(5).max(200).optional(),
   idProofImage: z.string().min(1).max(500).optional(),
   photoImage: z.string().min(1).max(500).optional(),
   latitude: z.number().optional(),
@@ -41,7 +42,7 @@ export const addNewProjectSchema = z.object({
   clientAddress: z.string().min(5).max(200).optional(),
   startDate: z.string(), // ✅ required and valid date
   endDate: z.string(),
-  projectManagerId: z.number().optional(),
+  projectManagerId: z.array(z.number()).min(1, "At least 1 projectManger persons are required"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
 
@@ -57,7 +58,7 @@ export const updateProjectSchema = z.object({
   clientAddress: z.string().min(5).max(200).optional(),
   startDate: z.string().optional(), // ✅ required and valid date
   endDate: z.string().optional(),
-  projectManagerId: z.number().optional(),
+  projectManagerId: z.array(z.number()).min(1, "At least 1 projectManger persons are required"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
 
@@ -76,7 +77,7 @@ export const TeamMemberSchema = z.object({
 
 export const scaffHoldRequest = z.object({
   scaffHoldId: z.coerce.number(),
-    search: z.string().min(0).max(100).optional(),
+  search: z.string().min(0).max(100).optional(),
 });
 
 export const TimelineImageFilter = z.object({

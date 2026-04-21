@@ -1,3 +1,4 @@
+// src/services/jobServices.ts
 import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
@@ -9,6 +10,19 @@ export class JobServices {
 
     async updateJobDescreption(userId: number, data: JobSchemaDTO) {
         try {
+
+            const userData= await prisma.user.findUnique({
+                where:{
+                    id:userId,
+                    status:"ACTIVE",
+                    isDeleted:false,
+                    isVerified:true,
+                }
+            })
+
+            if(!userData){
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND,404,"User not found or inactive")
+            }
             const scaffData = await prisma.scaffhold.findUnique({
                 where: {
                     id: data.scaffHoldId,

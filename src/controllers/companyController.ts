@@ -1,3 +1,4 @@
+// src/controllers/companyController.ts
 import { Response } from "express";
 import { Request } from "express";
 import {
@@ -5,6 +6,11 @@ import {
 
     companyUpdateSchema,
     companyIdSchema,
+    chnagePasswordSchema,
+    forgotPasswordSchema,
+    verifyOTPSchema,
+    resetPasswordSchema,
+    updateProfileImageSchema,
 } from "../schemas/companySchema";
 import { CompanyServices } from "../services/comapnyServices";
 import { AuthenticatedRequest } from "../types/index";
@@ -33,6 +39,17 @@ export class CompanyControllers {
             next(err);
         }
     }
+    async updatedCompanyProfileDetails(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
+            const data = companyUpdateSchema.parse(req.body);
+            const company = await companyServiceController.updateCompanyProfile(data);
+            res.status(200).json(company);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+
 
     async getAllCompnay(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
@@ -80,6 +97,78 @@ export class CompanyControllers {
             next(err);
         }
     }
+
+
+    async changePassword(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
+            const id = req.user!.id;
+            const data = chnagePasswordSchema.parse(req.body);
+            const result = await companyServiceController.changePasswordService(data, id);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+
+    }
+
+
+
+
+
+    async forgotPassword(req: Request, res: Response, next: Function) {
+        try {
+            const data = forgotPasswordSchema.parse(req.body);
+            const result = await companyServiceController.forgotPasswordServices(data);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+
+    }
+
+    async resendOTP(req: Request, res: Response, next: Function) {
+        try {
+            const data = forgotPasswordSchema.parse(req.body);
+            const result = await companyServiceController.resendOTPServices(data);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+
+    }
+
+    async verifyOTP(req: Request, res: Response, next: Function) {
+        try {
+            const data = verifyOTPSchema.parse(req.body);
+            const result = await companyServiceController.verifyOTPService(data);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async resetPassword(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
+            const id = req.user!.id;
+            const data = resetPasswordSchema.parse(req.body);
+            const result = await companyServiceController.resetPasswordService(data, id);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async updateProfileImage(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
+            const id = req.user!.id;
+            const data = updateProfileImageSchema.parse(req.body);
+            const result = await companyServiceController.updateProfileImage(id, data);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
 
 
 }

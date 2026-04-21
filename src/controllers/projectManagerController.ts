@@ -1,7 +1,8 @@
+// src/controllers/projectManagerController.ts
 import { Response } from "express";
 import { Request } from "express";
 import { ProjectManagerServices } from "../services/projectManagerServices";
-import { projectManagerLoginSchema, projectDetailById, GetUserDetailsSchema, requestedScaffolds, approveRejectRequestSchema, getJobCraftSchema, getScaffholdRequestsByCreator, uploadImage } from "../schemas/projectManagerSchema";
+import { projectManagerLoginSchema, projectDetailById, GetUserDetailsSchema, requestedScaffolds, approveRejectRequestSchema, getJobCraftSchema, getScaffholdRequestsByCreator, uploadImage, ImageSchema } from "../schemas/projectManagerSchema";
 import { AuthenticatedRequest } from "../types/index";
 import { searchFilter } from "../schemas/tradesManSchema";
 const projectManager = new ProjectManagerServices();
@@ -77,7 +78,8 @@ export class projectManagerController {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const data = searchFilter.parse(req.query);
-      const result = await projectManager.getTrademanPendingRequestListServices(data, page, limit);
+        const id = req.user!.id;
+      const result = await projectManager.getTrademanPendingRequestListServices(id,data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -90,8 +92,10 @@ export class projectManagerController {
       const limit = Number(req.query.limit) || 10;
       const data = searchFilter.parse(req.query);
 
+        const id = req.user!.id;
 
-      const result = await projectManager.getAllPendingModifiedRequestsByParentId(data, page, limit);
+
+      const result = await projectManager.getAllPendingModifiedRequestsByParentId(id,data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -139,6 +143,18 @@ export class projectManagerController {
       const userId = req.user!.id;
       const data=uploadImage.parse(req.body)
       const result = await projectManager.updateProfileImage(userId,data);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+     async updateUserProfileImage(req: AuthenticatedRequest, res: Response, next: Function) {
+    try { 
+
+      const userId = req.user!.id;
+      const data=ImageSchema.parse(req.body)
+      const result = await projectManager.updateUserProfileImage(userId,data);
       res.status(200).json(result);
     } catch (err) {
       next(err);

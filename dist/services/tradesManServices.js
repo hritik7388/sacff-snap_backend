@@ -24,6 +24,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tradesManServices = void 0;
+// src/services/tradesManServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const customError_1 = require("../types/customError");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
@@ -71,7 +72,7 @@ class tradesManServices {
     registerTradesManServices(data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const existingTradesMan = yield prismaClient_1.default.user.findUnique({
+                const existingTradesMan = yield prismaClient_1.default.user.findFirst({
                     where: { email: data.email, isDeleted: false, status: "ACTIVE" }
                 });
                 if (existingTradesMan) {
@@ -150,7 +151,7 @@ class tradesManServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const tradesManData = yield prismaClient_1.default.user.findUnique({
-                    where: { email: data.email, isDeleted: false, status: "ACTIVE" },
+                    where: { email: data.email, isDeleted: false, status: "ACTIVE", isVerified: true },
                 });
                 if (!tradesManData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.NOT_FOUND, 500, "The provided email does not match any tradesman");
@@ -206,7 +207,12 @@ class tradesManServices {
             console.log("id========================>>>>>", id);
             try {
                 const user = yield prismaClient_1.default.user.findUnique({
-                    where: { id: id },
+                    where: {
+                        id: id,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
                     select: {
                         id: true,
                         uuid: true,
@@ -345,8 +351,15 @@ class tradesManServices {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CRAFT.NOT_FOUND, 401, "Craft not found");
                 }
                 const assigned = yield prismaClient_1.default.tradesManOnScaffhold.findMany({
-                    where: { scaffholdId: data.scaffHoldId },
-                    select: { tradesManId: true }
+                    where: {
+                        scaffholdId: data.scaffHoldId, scaffhold: {
+                            isDeleted: false,
+                            project: {
+                                isDeleted: false,
+                            }
+                        },
+                    },
+                    select: { tradesManId: true, }
                 });
                 const assignedTradesmanIds = assigned.map(a => a.tradesManId);
                 if (assignedTradesmanIds.length === 0) {
@@ -439,6 +452,7 @@ class tradesManServices {
                     data: formattedTradesmen,
                     pagination: {
                         total: totalCount,
+                        currentPage: page,
                         page,
                         limit,
                         totalPages: Math.ceil(totalCount / limit),
@@ -461,7 +475,12 @@ class tradesManServices {
             var _a, _b, _c, _d, _e;
             try {
                 const user = yield prismaClient_1.default.user.findUnique({
-                    where: { id: data.id },
+                    where: {
+                        id: data.id,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
                 });
                 if (!user) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
@@ -564,6 +583,9 @@ class tradesManServices {
                             in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
                         },
                         isDeleted: false,
+                        project: {
+                            isDeleted: false,
+                        },
                         company: {
                             CMPId: data.CMPID,
                         },
@@ -625,6 +647,7 @@ class tradesManServices {
     }
     requestScaffHoldServices(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             try {
                 const tradesManData = yield prismaClient_1.default.user.findUnique({
                     where: {
@@ -632,6 +655,7 @@ class tradesManServices {
                         status: "ACTIVE",
                         isDeleted: false,
                         user_type: "TRADESMAN",
+                        isVerified: true,
                     }
                 });
                 if (!tradesManData) {
@@ -641,9 +665,18 @@ class tradesManServices {
                     where: {
                         id: data.scaffHoldId,
                         isDeleted: false,
-                        status: {
-                            in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
-                        },
+                        project: {
+                            isDeleted: false,
+                        }
+                    },
+                    include: {
+                        project: {
+                            include: {
+                                projectManagers: {
+                                    select: { id: true }
+                                },
+                            }
+                        }
                     }
                 });
                 if (!scaffholdData) {
@@ -695,6 +728,39 @@ class tradesManServices {
                     createdAt: newRequest.createdAt,
                     updatedAt: newRequest.updatedAt,
                 };
+                const pmUserIds = ((_b = (_a = scaffholdData.project) === null || _a === void 0 ? void 0 : _a.projectManagers) === null || _b === void 0 ? void 0 : _b.map(pm => pm.id)) || [];
+                console.log("pmUserIds========================>>>>>", pmUserIds);
+                const notificationMessage = `New Scaffold request ${newRequest.REQID} has been created for Scaffold ${scaffholdData.SCAFFID} by ${tradesManData.name}.`;
+                if (pmUserIds.length > 0) {
+                    for (const pmId of pmUserIds) {
+                        yield prismaClient_1.default.notification.create({
+                            data: {
+                                uuid: (0, uuid_1.v4)(),
+                                title: "New Scaffold Request",
+                                message: notificationMessage,
+                                type: "SCAFFHOLD_REQUEST",
+                                scaffoldId: requestData === null || requestData === void 0 ? void 0 : requestData.id,
+                                scaffoldRequestId: "",
+                                role: "PROJECT_MANAGER",
+                                receiverId: pmId,
+                                senderId: userId.toString(),
+                                isRead: false,
+                                notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/requestReg.png"
+                            }
+                        });
+                    }
+                }
+                const devices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        userId: Number(scaffholdData.createdById),
+                        deviceToken: { not: null }
+                    }
+                });
+                for (const d of devices) {
+                    if (!d.deviceToken)
+                        continue;
+                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "New Scaffold Request", notificationMessage);
+                }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.REQUEST_SUCCESS,
                     data: requestData
@@ -713,18 +779,32 @@ class tradesManServices {
     }
     updateScaffHoldRequest(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             try {
                 const tradesManData = yield prismaClient_1.default.tradesMan.findUnique({
                     where: {
                         userId: userId,
-                    },
+                    }, include: {
+                        user: {
+                            select: {
+                                name: true,
+                                status: true,
+                                isDeleted: true,
+                                user_type: true,
+                            }
+                        }
+                    }
                 });
                 if (!tradesManData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "USER not found");
                 }
+                if (tradesManData.user.isDeleted === true || tradesManData.user.status !== "ACTIVE") {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.INACTIVE_ACCOUNT, 403, "You are not allowed to perform this action");
+                }
                 const request = yield prismaClient_1.default.scaffholdRequest.findUnique({
                     where: {
                         id: data.requestId,
+                        status: "PENDING",
                     },
                 });
                 if (!request) {
@@ -773,6 +853,15 @@ class tradesManServices {
                 });
                 const scaffholdData = yield prismaClient_1.default.scaffhold.findUnique({
                     where: { id: updatedRequest.scaffholdId },
+                    include: {
+                        project: {
+                            include: {
+                                projectManagers: {
+                                    select: { id: true }
+                                },
+                            }
+                        }
+                    }
                 });
                 const responseData = {
                     id: updatedRequest.id,
@@ -796,6 +885,38 @@ class tradesManServices {
                     updatedAt: updatedRequest.updatedAt,
                     parentId: updatedRequest.parentId,
                 };
+                const pmUserIds = ((_b = (_a = scaffholdData === null || scaffholdData === void 0 ? void 0 : scaffholdData.project) === null || _a === void 0 ? void 0 : _a.projectManagers) === null || _b === void 0 ? void 0 : _b.map(pm => pm.id)) || [];
+                const notificationMessage = `Scaffold request ${updatedRequest.REQID} has been modified for Scaffold ${scaffholdData === null || scaffholdData === void 0 ? void 0 : scaffholdData.SCAFFID} by ${tradesManData.user.name}.`;
+                if (pmUserIds.length > 0) {
+                    for (const pmId of pmUserIds) {
+                        yield prismaClient_1.default.notification.create({
+                            data: {
+                                uuid: (0, uuid_1.v4)(),
+                                title: "Modification Request",
+                                message: notificationMessage,
+                                scaffoldId: responseData === null || responseData === void 0 ? void 0 : responseData.id,
+                                scaffoldRequestId: "",
+                                type: "MODIFICATION_REQUEST",
+                                role: "PROJECT_MANAGER",
+                                receiverId: pmId,
+                                senderId: userId.toString(),
+                                isRead: false,
+                                notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/modifictaionReq.png"
+                            }
+                        });
+                    }
+                }
+                const devices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        userId: Number(scaffholdData === null || scaffholdData === void 0 ? void 0 : scaffholdData.createdById),
+                        deviceToken: { not: null }
+                    }
+                });
+                for (const d of devices) {
+                    if (!d.deviceToken)
+                        continue;
+                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "Modification Scaffold Request", notificationMessage);
+                }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.UPDATE_SUCCESS,
                     data: responseData
@@ -812,13 +933,32 @@ class tradesManServices {
             }
         });
     }
-    getTrademanRequestListServices(data_1) {
-        return __awaiter(this, arguments, void 0, function* (data, page = 1, limit = 10) {
+    getTrademanRequestListServices(userId_1, data_1) {
+        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10) {
             var _a;
             console.log("📩 Incoming pagination:", { page, limit });
             try {
+                // Step 1: Find tradesman corresponding to this user
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: {
+                        userId: userId,
+                        user: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                        }
+                    }
+                });
+                if (!tradesman) {
+                    throw new customError_1.CustomError("Tradesman not found for this user", 404);
+                }
                 const skip = (page - 1) * limit;
-                const whereCondition = {};
+                // Step 2: Build where condition
+                const whereCondition = {
+                    createdById: tradesman.id,
+                    parentId: null,
+                };
+                // Step 3: Search filter
                 const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
                 if (searchTerm && searchTerm !== "") {
                     const term = searchTerm;
@@ -827,16 +967,22 @@ class tradesManServices {
                     }
                     else {
                         whereCondition.OR = [
-                            { REQID: { contains: term, } },
-                            { scaffhold: { projectName: { contains: term, } } },
-                            { scaffhold: { address: { contains: term, } } },
-                            { createdBy: { user: { name: { contains: term, } } } },
+                            { REQID: { contains: term } },
+                            { scaffhold: { projectName: { contains: term } } },
+                            { scaffhold: { address: { contains: term } } },
+                            { createdBy: { user: { name: { contains: term } } } },
                         ];
                     }
                 }
+                // Step 4: Fetch requests + total count
                 const [requests, totalCount] = yield Promise.all([
                     prismaClient_1.default.scaffholdRequest.findMany({
-                        where: whereCondition,
+                        where: Object.assign(Object.assign({}, whereCondition), { scaffhold: {
+                                isDeleted: false,
+                                project: {
+                                    isDeleted: false
+                                }
+                            } }),
                         include: {
                             scaffhold: true,
                             createdBy: {
@@ -910,44 +1056,38 @@ class tradesManServices {
     joinProjectServices(tradesManId, data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                // 1️⃣ Fetch tradesman linked to user
                 const tradesManData = yield prismaClient_1.default.user.findUnique({
-                    where: { id: tradesManId },
+                    where: { id: tradesManId, status: "ACTIVE", isDeleted: false, user_type: "TRADESMAN", isVerified: true },
                     include: { tradesman: true },
                 });
-                if (!tradesManData ||
-                    tradesManData.status !== "ACTIVE" ||
-                    tradesManData.isDeleted ||
-                    tradesManData.user_type !== "TRADESMAN" ||
-                    !tradesManData.tradesman) {
+                if (!tradesManData || !tradesManData.tradesman) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.AUTH.UNAUTHORIZED, 401, "Unauthorized");
                 }
                 const tradesmanCraft = tradesManData.tradesman.craft;
                 if (!tradesmanCraft) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.JOB.APPLICATION_FAILED, 400, "Tradesman craft not specified");
                 }
-                // 2️⃣ Fetch scaffhold with job crafts
                 const scaffholdData = yield prismaClient_1.default.scaffhold.findUnique({
                     where: {
                         id: data.scaffHoldId, status: {
                             in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
                         },
+                        project: {
+                            isDeleted: false,
+                        }
                     },
                     include: { jobCrafts: { include: { craft: true } } },
                 });
                 if (!scaffholdData || scaffholdData.isDeleted) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffhold not found");
                 }
-                // 3️⃣ Check craft match
                 const craftMatch = scaffholdData.jobCrafts.find((jc) => { var _a, _b; return ((_b = (_a = jc.craft) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.toLowerCase()) === tradesmanCraft.toLowerCase(); });
                 if (!craftMatch) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.JOB.CRAFT_MISMATCH, 400, "Ye job aapke liye nahi hai");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.JOB.CRAFT_MISMATCH, 400, "This job is not matching your craft");
                 }
-                // 4️⃣ Check vacancy
                 if (craftMatch.joinedCount >= craftMatch.counts) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.JOB.VACANCY_FULL, 400, "Vacancy full for this craft");
                 }
-                // 5️⃣ Check if tradesman already joined
                 const alreadyJoined = yield prismaClient_1.default.tradesManOnScaffhold.findUnique({
                     where: {
                         scaffholdId_tradesManId: {
@@ -959,28 +1099,72 @@ class tradesManServices {
                 if (alreadyJoined) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.JOB.ALREADY_JOINED, 400, "Already joined this job");
                 }
-                // 6️⃣ Atomic transaction: join + jobCraftTradesman + decrement counts
                 yield prismaClient_1.default.$transaction([
-                    // (A) Add tradesman to scaffhold
                     prismaClient_1.default.tradesManOnScaffhold.create({
                         data: {
                             scaffholdId: data.scaffHoldId,
                             tradesManId: tradesManData.tradesman.id,
                         },
                     }),
-                    // (B) Add tradesman to job craft
                     prismaClient_1.default.jobCraftTradesman.create({
                         data: {
                             jobCraftId: craftMatch.id,
                             tradesmanId: tradesManData.tradesman.id,
                         },
                     }),
-                    // (C) Decrement craft counts
                     prismaClient_1.default.jobCraft.update({
                         where: { id: craftMatch.id },
                         data: { joinedCount: { increment: 1 } },
                     }),
                 ]);
+                const projectWithPMs = scaffholdData.projectId
+                    ? yield prismaClient_1.default.project.findUnique({
+                        where: {
+                            id: scaffholdData.projectId, isDeleted: false,
+                            projectManagers: {
+                                some: {
+                                    isDeleted: false,
+                                    status: "ACTIVE",
+                                    isVerified: true,
+                                }
+                            }
+                        },
+                        include: {
+                            projectManagers: {
+                                select: { id: true }
+                            }
+                        }
+                    })
+                    : null;
+                const projectManagerIds = (projectWithPMs === null || projectWithPMs === void 0 ? void 0 : projectWithPMs.projectManagers.map(pm => pm.id)) || [];
+                const notificationMessage = `Tradesman ${tradesManData.name} (${tradesManData.tradesman.craft}) and  has joined Scaffold ${scaffholdData.SCAFFID}.`;
+                for (const pmId of projectManagerIds) {
+                    yield prismaClient_1.default.notification.create({
+                        data: {
+                            uuid: (0, uuid_1.v4)(),
+                            title: "TRADESMAN JOINED PROJECT",
+                            message: notificationMessage,
+                            type: "TRADESMAN_JOINED_PROJECT",
+                            scaffoldId: scaffholdData === null || scaffholdData === void 0 ? void 0 : scaffholdData.id,
+                            scaffoldRequestId: "",
+                            role: "PROJECT_MANAGER",
+                            receiverId: BigInt(pmId),
+                            senderId: tradesManData.id.toString(),
+                            isRead: false,
+                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/join.png",
+                            tradesmanCraft: tradesManData.tradesman.craft
+                        }
+                    });
+                }
+                const devices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        userId: { in: projectManagerIds },
+                        deviceToken: { not: null }
+                    }
+                });
+                yield Promise.all(devices.map(d => d.deviceToken
+                    ? (0, utils_1.pushNotificationDelhi)(d.deviceToken, "TRADESMAN JOINED PROJECT", notificationMessage)
+                    : null));
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.JOB.JOIN_SUCCESS,
                 };
@@ -997,15 +1181,12 @@ class tradesManServices {
     getJoinedScaffholds(userId_1) {
         return __awaiter(this, arguments, void 0, function* (userId, page = 1, limit = 10) {
             try {
-                // 1️⃣ Find tradesman by userId
                 const tradesManData = yield prismaClient_1.default.tradesMan.findUnique({
-                    where: { userId },
+                    where: { userId: userId, user: { isDeleted: false, status: "ACTIVE", isVerified: true, user_type: "TRADESMAN" } },
                 });
                 if (!tradesManData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.AUTH.UNAUTHORIZED, 401, "Tradesman not found");
                 }
-                console.log("Tradesman found with ID:", tradesManData.id);
-                // 2️⃣ Calculate pagination values
                 const skip = (page - 1) * limit;
                 // 3️⃣ Fetch total count for pagination
                 const totalCount = yield prismaClient_1.default.scaffhold.count({
@@ -1015,7 +1196,6 @@ class tradesManServices {
                         },
                     },
                 });
-                // 4️⃣ Fetch paginated scaffholds
                 const joinedScaffholds = yield prismaClient_1.default.scaffhold.findMany({
                     where: {
                         tradesMen: {
@@ -1188,10 +1368,20 @@ class tradesManServices {
     }
     deleteScaffHoldRequest(requestId) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             try {
                 const existingRequest = yield prismaClient_1.default.scaffholdRequest.findUnique({
-                    where: {
-                        id: requestId.scaffHoldId,
+                    where: { id: requestId.scaffHoldId },
+                    include: {
+                        scaffhold: {
+                            include: {
+                                project: {
+                                    include: {
+                                        projectManagers: true, // fetch all PMs of the project
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
                 if (!existingRequest) {
@@ -1205,6 +1395,16 @@ class tradesManServices {
                         requestId: requestId.scaffHoldId,
                     },
                 });
+                const pmUserIds = ((_b = (_a = existingRequest.scaffhold.project) === null || _a === void 0 ? void 0 : _a.projectManagers) === null || _b === void 0 ? void 0 : _b.map(pm => pm.id)) || [];
+                if (pmUserIds.length > 0) {
+                    // Delete only notifications sent to those PMs for this request
+                    yield prismaClient_1.default.notification.deleteMany({
+                        where: {
+                            scaffoldId: requestId.scaffHoldId,
+                            receiverId: { in: pmUserIds },
+                        },
+                    });
+                }
                 yield prismaClient_1.default.scaffholdRequest.delete({
                     where: {
                         id: requestId.scaffHoldId,
@@ -1326,7 +1526,7 @@ class tradesManServices {
                 // Fetch updates
                 const updates = yield prismaClient_1.default.updateScaffHoldRequest.findMany({
                     where: { requestId: mainRequest.id },
-                    orderBy: { createdAt: 'asc' },
+                    orderBy: { createdAt: 'desc' },
                 });
                 const mappedUpdates = updates.map((u) => ({
                     length: u.length,
@@ -1380,32 +1580,42 @@ class tradesManServices {
             }
         });
     }
-    getAllModifiedRequestsByParentId(data_1) {
-        return __awaiter(this, arguments, void 0, function* (data, page = 1, limit = 10) {
+    getAllModifiedRequestsByParentId(userId_1, data_1) {
+        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10) {
             var _a;
             try {
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: { userId: userId }
+                });
+                if (!tradesman) {
+                    throw new customError_1.CustomError("Tradesman not found for this user", 404);
+                }
                 const skip = (page - 1) * limit;
+                // Step 2: Build where condition
                 const whereCondition = {
                     parentId: { not: null },
+                    createdById: tradesman.id // Use tradesman.id instead of userId
                 };
+                // Step 3: Add search filter
                 const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
                 if (searchTerm && searchTerm !== "") {
                     const term = searchTerm;
                     if (!isNaN(Number(term))) {
                         whereCondition.OR = [
                             { id: Number(term) },
-                            { REQID: { contains: term, } },
+                            { REQID: { contains: term } },
                         ];
                     }
                     else {
                         whereCondition.OR = [
-                            { REQID: { contains: term, } },
-                            { scaffhold: { projectName: { contains: term, } } },
-                            { scaffhold: { address: { contains: term, } } },
-                            { createdBy: { user: { name: { contains: term, } } } },
+                            { REQID: { contains: term } },
+                            { scaffhold: { projectName: { contains: term } } },
+                            { scaffhold: { address: { contains: term } } },
+                            { createdBy: { user: { name: { contains: term } } } },
                         ];
                     }
                 }
+                // Step 4: Fetch requests + total count
                 const [requests, totalCount] = yield Promise.all([
                     prismaClient_1.default.scaffholdRequest.findMany({
                         where: whereCondition,
@@ -1725,7 +1935,13 @@ class tradesManServices {
                 }
                 const userType = user.user_type;
                 if (userType === "PROJECT_MANAGER") {
-                    whereCondition.createdById = id;
+                    whereCondition.project = {
+                        projectManagers: {
+                            some: {
+                                id: id
+                            }
+                        }
+                    };
                 }
                 else if (userType === "COMPETENT_PERSON") {
                     whereCondition.competentPersons = {
@@ -1737,6 +1953,59 @@ class tradesManServices {
                     };
                 }
                 else if (userType === "TRADESMAN") {
+                    // 1️⃣ Pehle Tradesman ka record le userId se
+                    const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                        where: { userId: BigInt(id) },
+                        select: { id: true }
+                    });
+                    if (!tradesman) {
+                        // Agar Tradesman nahi milta → empty data return
+                        return {
+                            success: true,
+                            message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
+                            data: [],
+                            pagination: {
+                                total: 0,
+                                totalPages: 0,
+                                currentPage: page,
+                                limit,
+                            }
+                        };
+                    }
+                    // 2️⃣ Usne join kiye huye jobCraft se projectIds nikaal
+                    const joinedScaffholdsRaw = yield prismaClient_1.default.jobCraftTradesman.findMany({
+                        where: { tradesmanId: tradesman.id },
+                        select: {
+                            jobCraft: {
+                                select: {
+                                    scaffhold: {
+                                        select: { projectId: true }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    const projectIds = [
+                        ...new Set(joinedScaffholdsRaw
+                            .map(j => j.jobCraft.scaffhold.projectId)
+                            .filter(Boolean))
+                    ];
+                    if (projectIds.length === 0) {
+                        // Tradesman ne abhi tak join nahi kiya → empty array
+                        return {
+                            success: true,
+                            message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
+                            data: [],
+                            pagination: {
+                                total: 0,
+                                totalPages: 0,
+                                currentPage: page,
+                                limit,
+                            }
+                        };
+                    }
+                    // 3️⃣ Filter: only projects where tradesman has joined
+                    whereCondition.projectId = { in: projectIds };
                 }
                 const { search, priority, tags, status, sort } = data || {};
                 const searchTerm = search === null || search === void 0 ? void 0 : search.trim();
@@ -1836,6 +2105,36 @@ class tradesManServices {
                 throw error instanceof customError_1.CustomError
                     ? error
                     : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED, 500, error.message);
+            }
+        });
+    }
+    deleteTradesman(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const existingTradesman = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: id,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                    },
+                });
+                if (!existingTradesman) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.NOT_FOUND, 404, "Tradesman not found");
+                }
+                yield prismaClient_1.default.user.update({
+                    where: { id: existingTradesman.id },
+                    data: { isDeleted: true, status: "DELETED" },
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.DELETE_SUCCESS,
+                };
+            }
+            catch (error) {
+                console.error("❗ Error in deleteTradesman:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.DELETE_FAILED, 500, error.message);
             }
         });
     }

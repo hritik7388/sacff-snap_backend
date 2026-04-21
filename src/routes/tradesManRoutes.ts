@@ -1,3 +1,4 @@
+// src/routes/tradesManRoutes.ts
 import {Router} from "express"; 
 import { tradesManController } from "../controllers/tradesManController";
 import {authMiddleware, isTradesMan} from "../middlewares/authMiddleware";
@@ -25,7 +26,7 @@ router.post("/login",clientAuthMiddleware, tradesManRoutes.tradesManLogin.bind(t
  * @desc    details TradesMan
  * @access  Public
  */
-router.get("/getTradesManDetails",clientAuthMiddleware, authMiddleware,isTradesMan,tradesManRoutes.getTradesManDetails.bind(tradesManRoutes));
+router.get("/getTradesManDetails",clientAuthMiddleware, authMiddleware,tradesManRoutes.getTradesManDetails.bind(tradesManRoutes));
 
 /**
  * @route   GET /api/v1/tradesMan/getCraftList
@@ -39,7 +40,7 @@ router.get("/crafts",clientAuthMiddleware, tradesManRoutes.getCraftManList.bind(
  * @desc    Upadte a existing  tradesMan
  * @access  Public
  */
-router.get("/tradesManCrafts",clientAuthMiddleware, tradesManRoutes.getTradesManCraftList.bind(tradesManRoutes));
+router.get("/tradesManCrafts",clientAuthMiddleware, authMiddleware,tradesManRoutes.getTradesManCraftList.bind(tradesManRoutes));
 
 /**
  * @route   PUT /api/v1/tradesMan/updateProfile
@@ -156,6 +157,13 @@ router.get('/getAllModificationRequest', clientAuthMiddleware,authMiddleware, tr
   * @access  Private (Authenticated Users)
   */
  router.post("/getFilterScaffHolds",clientAuthMiddleware, authMiddleware, tradesManRoutes.getFilterScaffHolds.bind(tradesManRoutes));
+
+    /**
+     * @route   DELETE /api/v1/tradesMan/deleteAccount
+     * @desc    Delete tradesman account
+     * @access  Private (Authenticated Users)
+     */
+   router.delete("/deleteAccount",clientAuthMiddleware, authMiddleware, tradesManRoutes.delteTradesManAccount.bind(tradesManRoutes));
    
 
 export default router;

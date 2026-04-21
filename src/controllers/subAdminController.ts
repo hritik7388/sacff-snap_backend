@@ -1,8 +1,11 @@
+// src/controllers/subAdminController.ts
 import { Response } from "express";
 import { Request } from "express";
 import { subAdminServices } from "../services/subAdminServices";
 import { subAdminLoginSchema, addTeamMemberSchema, addNewProjectSchema, updateTeamMemberSchema, searchTeamMemberSchema, TeamMemberSchema, scaffHoldRequest, TimelineImageFilter, updateProjectSchema, } from "../schemas/subAdminSchema";
 import { AuthenticatedRequest } from "../types/index";
+import { searchFilter } from "../schemas/tradesManSchema";
+import { logout } from "../schemas/superAdminSchema";
 const subAdmin = new subAdminServices();
 export class subAdminController {
     async subAdminLogin(req: Request, res: Response, next: Function) {
@@ -45,7 +48,7 @@ export class subAdminController {
 
             const id = req.user!.id;
 
-            const result = await subAdmin.getProjectManagersListServices(id,page, limit);
+            const result = await subAdmin.getProjectManagersListServices(id, page, limit);
 
             res.status(200).json(result);
         } catch (err) {
@@ -59,7 +62,9 @@ export class subAdminController {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
 
-            const result = await subAdmin.getCompetentPersonListServices(page, limit);
+            const data = searchFilter.parse(req.query);
+            const id = req.user!.id;
+            const result = await subAdmin.getCompetentPersonListServices(id, data, page, limit);
 
             res.status(200).json(result);
         } catch (err) {
@@ -67,14 +72,14 @@ export class subAdminController {
         }
     }
 
-        async getCompanyCompetentPerson(req: AuthenticatedRequest, res: Response, next: Function) {
+    async getCompanyCompetentPerson(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
 
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
-              const id = req.user!.id;
+            const id = req.user!.id;
 
-            const result = await subAdmin.getCompanyCompetentPersonList(id,page, limit);
+            const result = await subAdmin.getCompanyCompetentPersonList(id, page, limit);
 
             res.status(200).json(result);
         } catch (err) {
@@ -119,7 +124,7 @@ export class subAdminController {
 
     async dashboardData(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
-                        const id = req.user!.id;
+            const id = req.user!.id;
             const data = await subAdmin.teamMemberDashboard(id);
             res.status(200).json(data);
         } catch (err) {
@@ -129,7 +134,7 @@ export class subAdminController {
 
     async scaffholdDashboard(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
-                        const id = req.user!.id;
+            const id = req.user!.id;
             const data = await subAdmin.scaffholdDashboard(id);
             res.status(200).json(data);
         } catch (err) {
@@ -139,7 +144,7 @@ export class subAdminController {
 
     async projectDashboard(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
-                        const id = req.user!.id;
+            const id = req.user!.id;
             const data = await subAdmin.projectDashboard(id);
             res.status(200).json(data);
         } catch (err) {
@@ -149,7 +154,7 @@ export class subAdminController {
 
     async scaffStatusDashboard(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
-                        const id = req.user!.id;
+            const id = req.user!.id;
             const data = await subAdmin.scaffholdStatusDashboard(id);
             res.status(200).json(data);
         } catch (err) {
@@ -231,8 +236,8 @@ export class subAdminController {
     }
 
 
-        async getUserData(req: AuthenticatedRequest, res: Response, next: Function) {
-        try { 
+    async getUserData(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
             const id = Number(req.user?.id!);
             const scaffHoldData = await subAdmin.getUserDetails(id);
             res.status(200).json(scaffHoldData);
@@ -241,4 +246,36 @@ export class subAdminController {
         }
     }
 
+
+    async deleteUserBySubAdmin(
+        req: AuthenticatedRequest,
+        res: Response,
+        next: Function
+    ) {
+        try {
+            const userId = Number(req.query.userId);
+            const subAdminId = Number(req.user?.id);
+
+
+            const result = await subAdmin.deleteUserBySubAdminServices(subAdminId, userId);
+
+            res.status(200).json(result);
+
+        } catch (err) {
+            next(err);
+        }
+    }
+
+
+
+    async logOutCompany(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
+            const id = Number(req.user?.id!);
+            const data = logout.parse(req.body);
+            const result = await subAdmin.logoutCompany(id, data);
+            res.status(200).json(result)
+        } catch (err) {
+            next(err);
+        }
+    }
 }

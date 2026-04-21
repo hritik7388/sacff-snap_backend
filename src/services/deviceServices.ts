@@ -1,3 +1,4 @@
+// src/services/deviceServices.ts
 import prisma from "../config/prismaClient";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import { pushNotificationDelhi } from "../helpers/utils";
@@ -48,13 +49,6 @@ export class DeviceServices {
                         data: deviceData,
                     });
 
-                if (device.deviceToken) {
-                    await pushNotificationDelhi(
-                        device.deviceToken,
-                        "Device Token Updated",
-                        `🎉 Welcome back, ${company.name}! You’ve successfully signed in to your SCAFF-SNAP Journey account. 🚀`
-                    );
-                }
 
                 return {
                     message: RESPONSE_MESSAGES.DEVICE.DEVICE_SUCCESS,
@@ -102,13 +96,7 @@ export class DeviceServices {
                         data: deviceData,
                     });
 
-                if (device.deviceToken) {
-                    await pushNotificationDelhi(
-                        device.deviceToken,
-                        "Device Token Updated",
-                        `🎉 Welcome back, ${user.name}! You’ve successfully signed in to your SCAFF_SNAP Journey account. 🚀`
-                    );
-                }
+
 
                 return {
                     message: RESPONSE_MESSAGES.DEVICE.DEVICE_SUCCESS,

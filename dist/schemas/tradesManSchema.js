@@ -11,14 +11,14 @@ exports.tradesManRegisterSchema = zod_1.default.object({
     email: zod_1.default.string().email("Invalid email format").min(1, "Email is required"),
     mobileNumber: zod_1.default
         .string()
-        .min(10, "Phone number mustbe at least 10 characters long")
-        .max(15, "Phone number cannot exceed 15 characters"),
+        .min(8, "Phone number mustbe at least 10 characters long")
+        .max(16, "Phone number cannot exceed 15 characters"),
     craft: zod_1.default.string().min(1, "Craft is required"),
     experience: zod_1.default.string().min(1, "Experience is required"),
     address: zod_1.default.string().min(1, "Address is required"),
     password: zod_1.default.string().min(8, "Password must be at least 8 characters long"),
     countryCode: zod_1.default.string().min(1, "Country code is required").optional(),
-    idProofImage: zod_1.default.string().min(1, "ID Proof is required"),
+    idProofImage: zod_1.default.string().optional(),
     latitude: zod_1.default.number().optional(),
     longitude: zod_1.default.number().optional(),
 });
@@ -27,8 +27,8 @@ exports.updateProfileSchema = zod_1.default.object({
     name: zod_1.default.string().min(1, "Tradesman Name is required").optional(),
     mobileNumber: zod_1.default
         .string()
-        .min(10, "Phone number must be at least 10 characters long")
-        .max(15, "Phone number cannot exceed 15 characters").optional(),
+        .min(8, "Phone number must be at least 8 characters long")
+        .max(16, "Phone number cannot exceed 16 characters").optional(),
     craft: zod_1.default.string().min(1, "Craft is required").optional(),
     experience: zod_1.default.string().min(1, "Experience is required").optional(),
     address: zod_1.default.string().min(1, "Address is required").optional(),
@@ -36,7 +36,7 @@ exports.updateProfileSchema = zod_1.default.object({
     countryCode: zod_1.default.string().min(1, "Country code is required").optional(),
     latitude: zod_1.default.number().optional(),
     longitude: zod_1.default.number().optional(),
-    photoImage: zod_1.default.string().min(1, "ID Proof is required").optional(),
+    photoImage: zod_1.default.string().optional(),
 });
 exports.tradesManLoginSchema = zod_1.default.object({
     user_type: zod_1.default.string(),

@@ -1,3 +1,4 @@
+// src/controllers/competentPersonController.ts
 import { Response } from "express";
 import { Request } from "express";
 
@@ -94,4 +95,4 @@ export class competentPersonController {
             next(err);
         }
     }
-}
+} 

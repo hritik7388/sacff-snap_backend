@@ -24,6 +24,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JobServices = void 0;
+// src/services/jobServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const customError_1 = require("../types/customError");
 const responseMessages_1 = require("../constants/responseMessages");
@@ -31,6 +32,17 @@ class JobServices {
     updateJobDescreption(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    }
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found or inactive");
+                }
                 const scaffData = yield prismaClient_1.default.scaffhold.findUnique({
                     where: {
                         id: data.scaffHoldId,

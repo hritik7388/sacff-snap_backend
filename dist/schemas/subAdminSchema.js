@@ -44,7 +44,7 @@ exports.addNewProjectSchema = zod_1.default.object({
     clientAddress: zod_1.default.string().min(5).max(200).optional(),
     startDate: zod_1.default.string(), // ✅ required and valid date
     endDate: zod_1.default.string(),
-    projectManagerId: zod_1.default.number().optional(),
+    projectManagerId: zod_1.default.array(zod_1.default.number()).min(1, "At least 1 projectManger persons are required"),
     latitude: zod_1.default.number().optional(),
     longitude: zod_1.default.number().optional(),
 });
@@ -58,7 +58,7 @@ exports.updateProjectSchema = zod_1.default.object({
     clientAddress: zod_1.default.string().min(5).max(200).optional(),
     startDate: zod_1.default.string().optional(), // ✅ required and valid date
     endDate: zod_1.default.string().optional(),
-    projectManagerId: zod_1.default.number().optional(),
+    projectManagerId: zod_1.default.array(zod_1.default.number()).min(1, "At least 1 projectManger persons are required"),
     latitude: zod_1.default.number().optional(),
     longitude: zod_1.default.number().optional(),
 });

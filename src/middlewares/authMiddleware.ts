@@ -1,6 +1,8 @@
+// src/middlewares/authMiddleware.ts
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { AuthenticatedRequest } from '../types';
+import prisma from "../config/prismaClient";
 
 interface TokenPayload extends JwtPayload {
   user_id: number;
@@ -8,13 +10,64 @@ interface TokenPayload extends JwtPayload {
   id: number
 }
 
-export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     try {
       const decoded = (jwt.verify(token, process.env.JWT_SECRET!)) as TokenPayload;
+
+     let account: any = null;
+
+    // 🔥 Check based on user_type
+    if (decoded.user_type === "COMPANY") {
+      account = await prisma.company.findUnique({
+        where: { id: Number(decoded.id) },
+      });
+    } else {
+      account = await prisma.user.findUnique({
+        where: { id: Number(decoded.id) },
+      });
+    }
+
+    // ❌ Not Found
+    if (!account) {
+      return res.status(401).json({
+        success: false,
+        statusCode: 401,
+        message: "Account not found",
+      });
+    }
+
+    // ❌ Deleted
+    if (account.isDeleted) {
+      return res.status(403).json({
+        success: false,
+        statusCode: 403,
+        message: "Your account has been deleted by Admin.",
+      });
+    }
+
+    // ❌ Inactive
+    if (account.status === "INACTIVE" || account.status === "SUSPENDED") {
+      return res.status(403).json({
+        success: false,
+        statusCode: 403,
+        message: "Your account is not active.",
+      });
+    }
+
+    // ❌ Not Verified
+    if (!account.isVerified) {
+      return res.status(403).json({
+        success: false,
+        statusCode: 403,
+        message: "Your account is not verified.",
+      });
+    }
+
+
       req.user = {
         user_id: decoded.user_id as number,
         user_uuid: decoded.user_uuid as string,

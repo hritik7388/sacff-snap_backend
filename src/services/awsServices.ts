@@ -1,12 +1,19 @@
+// src/services/awsServices.ts
 
 import { CustomError } from "../types/customError";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import dotenv from "dotenv";
-import { generatePresignedUrl, generateReadUrl } from "../helpers/utils";
+import { generatePresignedUrl, generateReadUrl, pdfGenerator } from "../helpers/utils";
 import { ImageKeyDTO, uploadImageDTO } from "../schemas/uploadImageSChema";
 dotenv.config();
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png"];
 const allowedDocumentTypes = ["application/pdf", "image/jpg", "image/png"];
+import { qrCodeGenerator } from "../helpers/utils";
+import { ScaffHoldDetailsDTO } from "../schemas/tradesManSchema";
+import prisma from "../config/prismaClient";
+import fs from "fs";
+import path from "path";
+
 
 
 export class awsCredentialServices {
@@ -67,5 +74,94 @@ export class awsCredentialServices {
                 : new CustomError(RESPONSE_MESSAGES.AWS.READ_URL_FAILED, 500, error.message);
         }
     }
+
+    async scaffHoldPdf(data: ScaffHoldDetailsDTO) {
+        try {
+            const scaffhold = await prisma.scaffhold.findFirst({
+                where: {
+                    id: data.id,
+                    isDeleted: false,
+                    status: {
+                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"],
+                    },
+                },
+                include: {
+                    project: true,
+                    company: true,
+                },
+            });
+
+            if (!scaffhold) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
+                    401,
+                    "ScaffHold not found"
+                );
+            } 
+            
+            const formattedResponse = {
+                id: scaffhold.id,
+                uuid: scaffhold.uuid,
+                startDate: scaffhold.startDate,
+                endDate: scaffhold.endDate,
+                latitude: scaffhold.latitude,
+                longitude: scaffhold.longitude,
+                priority: scaffhold.priority,
+                tag: scaffhold.tag,
+                SCAFFID: scaffhold.SCAFFID,
+                address: scaffhold.address,
+                projectName: scaffhold.projectName,
+                status: scaffhold.status,
+                projectId: scaffhold.projectId,
+                companyId: scaffhold.companyId,
+                createdById: scaffhold.createdById,
+                createdAt: scaffhold.createdAt,
+                updatedAt: scaffhold.updatedAt,
+                CMPId: scaffhold.company?.CMPId || null,
+                companyName: scaffhold.company?.name || null,
+                clientName: scaffhold.project?.clientName || null,
+                clientMobile: scaffhold.project?.clientMobile || null,
+            };
+        
+            const pdfBuffer = await pdfGenerator(formattedResponse);
+            
+
+            // 3. Prepare uploads folder
+            const fileName = `scaffhold-${scaffhold.id}.pdf`;
+            const uploadsPath = path.join(process.cwd(), "uploads");
+            if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
+
+            const pdfPath = path.join(uploadsPath, fileName);
+
+            // 4. Save PDF
+            fs.writeFileSync(pdfPath, pdfBuffer);
+
+            // 5. Return URL
+            const SERVER_URL = process.env.SERVER_URL || "http://localhost:3001";
+            const pdfUrl = `${SERVER_URL}/uploads/${fileName}`;
+
+            return {
+                message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_BY_ID_SUCCESS,
+                pdfUrl: pdfUrl
+            };
+
+        } catch (error: any) {
+            console.error("❌ Get scaffhold by id error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw error instanceof CustomError
+                ? error
+                : new CustomError(
+                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
+                    500,
+                    error.message
+                );
+        }
+    }
+
+ 
 }
+
+
 

@@ -17,5 +17,6 @@ exports.verifyOTPSchema = zod_1.default.object({
     otp: zod_1.default.string().length(6, "OTP must be 6 characters long"),
 });
 exports.resetPasswordSchema = zod_1.default.object({
+    email: zod_1.default.string().email("Invalid email address"),
     newPassword: zod_1.default.string().min(6, "New password must be at least 6 characters long"),
 });

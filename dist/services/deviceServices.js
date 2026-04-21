@@ -13,9 +13,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeviceServices = void 0;
+// src/services/deviceServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const responseMessages_1 = require("../constants/responseMessages");
-const utils_1 = require("../helpers/utils");
 // import { pushNotificationDelhi } from "../helpers/utils";
 const customError_1 = require("../types/customError");
 // import { pushNotificationDelhi } from "../helpers/utils";
@@ -55,9 +55,6 @@ class DeviceServices {
                         : yield prismaClient_1.default.device.create({
                             data: deviceData,
                         });
-                    if (device.deviceToken) {
-                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "Device Token Updated", `🎉 Welcome back, ${company.name}! You’ve successfully signed in to your SCAFF-SNAP Journey account. 🚀`);
-                    }
                     return {
                         message: responseMessages_1.RESPONSE_MESSAGES.DEVICE.DEVICE_SUCCESS,
                         data: Object.assign(Object.assign({}, device), { id: device.id.toString(), userId: device.userId.toString() }),
@@ -94,9 +91,6 @@ class DeviceServices {
                         : yield prismaClient_1.default.device.create({
                             data: deviceData,
                         });
-                    if (device.deviceToken) {
-                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "Device Token Updated", `🎉 Welcome back, ${user.name}! You’ve successfully signed in to your SCAFF_SNAP Journey account. 🚀`);
-                    }
                     return {
                         message: responseMessages_1.RESPONSE_MESSAGES.DEVICE.DEVICE_SUCCESS,
                         data: device,

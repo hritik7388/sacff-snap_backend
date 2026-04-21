@@ -1,3 +1,4 @@
+// src/middlewares/errorMiddleware.ts
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { CustomError } from '../types/customError';
@@ -6,13 +7,13 @@ export function errorMiddleware(err: any, req: Request, res: Response, next: Nex
   console.error(err.stack);
 
   // Handle Zod validation errors
-   if (err instanceof ZodError) {
-      res.status(500).json({
-        success: false,
-        message: 'Validation error',
-        errors: err.errors, 
-      });
-      return;
+  if (err instanceof ZodError) {
+    const firstError = err.errors[0];
+
+    return res.status(400).json({
+      success: false,
+      message: firstError.message,
+    });
   }
 
   //Handle Custom Errors
@@ -29,11 +30,11 @@ export function errorMiddleware(err: any, req: Request, res: Response, next: Nex
   const statusCode = err.status || 500;
 
   // Handle generic errors
-   res.status(statusCode).json({
+  res.status(statusCode).json({
     success: false,
     message: err.message || 'Internal Server Error',
     // Optionally include stack trace (avoid in production)
     // stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
- 
+
 }

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.awsCredentialController = void 0;
 const awsServices_1 = require("../services/awsServices");
 const uploadImageSChema_1 = require("../schemas/uploadImageSChema");
+const tradesManSchema_1 = require("../schemas/tradesManSchema");
 const awsData = new awsServices_1.awsCredentialServices();
 class awsCredentialController {
     awsCredentials(req, res, next) {
@@ -42,6 +43,18 @@ class awsCredentialController {
             try {
                 const data = uploadImageSChema_1.ImageKeySchema.parse(req.body); // ✅ Zod validation
                 const urlData = yield awsData.generateReadUrl(data);
+                res.status(200).json(urlData);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    scaffHoldPdf(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = tradesManSchema_1.scaffHoldDetailsById.parse(req.query); // ✅ Zod validation
+                const urlData = yield awsData.scaffHoldPdf(data);
                 res.status(200).json(urlData);
             }
             catch (err) {

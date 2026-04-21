@@ -13,11 +13,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PasswordServices = void 0;
+// src/services/passwordServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const customError_1 = require("../types/customError");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
+const templates_1 = require("../helpers/templates");
+const utils_2 = require("../helpers/utils");
 class PasswordServices {
     changePasswordService(data, userId) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -26,11 +29,11 @@ class PasswordServices {
                     where: { id: userId, isDeleted: false, status: "ACTIVE", }
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this user");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this user");
                 }
                 const isOldPasswordValid = yield bcryptjs_1.default.compare(data.oldPassword, user.password);
                 if (!isOldPasswordValid) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.OLD_PASSWORD_MISSMATCH, 500, "Invalid old password");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.OLD_PASSWORD_MISSMATCH, 400, "Invalid old password");
                 }
                 const hashedPassword = yield bcryptjs_1.default.hash(data.newPassword, 10);
                 yield prismaClient_1.default.user.update({
@@ -57,7 +60,7 @@ class PasswordServices {
                     where: { email: data.email, isDeleted: false, status: "ACTIVE" }
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this email");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this email");
                 }
                 const emailOTP = (0, utils_1.generateOTP)();
                 const otp = yield prismaClient_1.default.user.update({
@@ -68,6 +71,8 @@ class PasswordServices {
                         isVerified: false
                     }
                 });
+                const html = (0, templates_1.otpTemplate)(user.name, emailOTP.otp.toString());
+                yield (0, utils_2.sendMail)(user.email, "Scaff Snap - OTP Verification", html);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.USER.FORGOT_PASSWORD_SUCCESS,
                     data: otp
@@ -89,10 +94,10 @@ class PasswordServices {
                     where: { email: data.email, isDeleted: false, status: "ACTIVE" }
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this email");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this email");
                 }
                 if (user.otp !== data.otp || !user.otpExpireTime || user.otpExpireTime < new Date()) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.INVALID_OTP, 500, "Invalid or expired OTP");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.INVALID_OTP, 400, "Invalid or expired OTP");
                 }
                 const updatedData = yield prismaClient_1.default.user.update({
                     where: { id: user.id },
@@ -124,11 +129,11 @@ class PasswordServices {
             }
         });
     }
-    resetPasswordService(data, userId) {
+    resetPasswordService(data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const user = yield prismaClient_1.default.user.findFirst({
-                    where: { id: userId, isDeleted: false, status: "ACTIVE", }
+                    where: { email: data.email, isDeleted: false, status: "ACTIVE", }
                 });
                 if (!user) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 401, "Not found with this user");
@@ -161,7 +166,7 @@ class PasswordServices {
                     where: { email: data.email, isDeleted: false, status: "ACTIVE" }
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "Not found with this email");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this email");
                 }
                 const emailOTP = (0, utils_1.generateOTP)();
                 const otp = yield prismaClient_1.default.user.update({

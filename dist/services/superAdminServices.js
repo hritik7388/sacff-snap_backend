@@ -24,8 +24,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.superAdminServices = void 0;
+// src/services/superAdminServices.ts
 const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const customError_1 = require("../types/customError");
+const templates_1 = require("../helpers/templates");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const uuid_1 = require("uuid");
 const responseMessages_1 = require("../constants/responseMessages");
@@ -37,7 +39,7 @@ class superAdminServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const userData = yield prismaClient_1.default.user.findUnique({
-                    where: { email: data.email },
+                    where: { email: data.email, status: "ACTIVE", isDeleted: false, isVerified: true },
                 });
                 if (!userData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "User not found");
@@ -163,8 +165,8 @@ class superAdminServices {
                         status: "ACTIVE"
                     },
                 });
-                //   const mail = await sendMailApproval(updatedCompany.email, updatedCompany.password);
-                // console.log("mail====================>>>>", mail);
+                const html = (0, templates_1.companyStatusTemplate)(updatedCompany.name, updatedCompany.CMPId || "", updatedCompany.isApproved);
+                yield (0, utils_1.sendMail)(updatedCompany.email, "Company Approved Mail", html);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.COMPANY.APPROVE_SUCCESS,
                     company: updatedCompany,
@@ -185,18 +187,17 @@ class superAdminServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const companyData = yield prismaClient_1.default.company.findUnique({
-                    where: { id: data.id, isDeleted: false, isApproved: "PENDING" },
+                    where: { id: data.id, isDeleted: false, isApproved: "PENDING", isVerified: true },
                 });
                 if (!companyData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
                 }
-                const updatedCompany = yield prismaClient_1.default.company.update({
+                const updatedCompany = yield prismaClient_1.default.company.delete({
                     where: { id: companyData.id },
-                    data: {
-                        isApproved: "REJECTED",
-                        status: "SUSPENDED"
-                    },
                 });
+                const html = (0, templates_1.companyStatusTemplate)(updatedCompany.name, updatedCompany.CMPId || "", "REJECTED");
+                const mail = yield (0, utils_1.sendMail)(updatedCompany.email, "Company REJECTED Mail", html);
+                console.log("mail====================>>>>", mail);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.COMPANY.REJECT_SUCCESS,
                     data: updatedCompany,
@@ -251,6 +252,9 @@ class superAdminServices {
                         image: data.image
                     },
                 });
+                const html = (0, templates_1.companyAddTemplate)(newCompany.name, newCompany.user_type, newCompany.email, data.password);
+                const mail = yield (0, utils_1.sendMail)(newCompany.email, "Welcome to ScaffSnapp Team!", html);
+                console.log("mail====================>>>", mail);
                 const companyData = {
                     id: newCompany.id,
                     name: newCompany.name,
@@ -288,6 +292,7 @@ class superAdminServices {
                         id: data.id,
                         isDeleted: false,
                         status: "ACTIVE",
+                        isVerified: true
                     },
                 });
                 if (!companyData) {
@@ -323,6 +328,7 @@ class superAdminServices {
                         id: data.id,
                         isDeleted: false,
                         status: "SUSPENDED",
+                        isVerified: true
                     },
                 });
                 if (!companyData) {
@@ -332,7 +338,8 @@ class superAdminServices {
                     where: { id: companyData.id },
                     data: {
                         status: "ACTIVE",
-                        isApproved: "PENDING"
+                        isApproved: "APPROVED",
+                        isDeleted: false,
                     },
                 });
                 return {
@@ -357,6 +364,7 @@ class superAdminServices {
                 const [companies, totalCount] = yield Promise.all([
                     prismaClient_1.default.company.findMany({
                         where: {
+                            isApproved: "APPROVED",
                             status: "ACTIVE",
                             isDeleted: false,
                         },
@@ -465,51 +473,82 @@ class superAdminServices {
             }
         });
     }
-    getSuperAdminNotifications() {
-        return __awaiter(this, void 0, void 0, function* () {
+    getSuperAdminNotifications(userId_1) {
+        return __awaiter(this, arguments, void 0, function* (userId, page = 1, limit = 10) {
             try {
-                const notifications = yield prismaClient_1.default.notification.findMany({
-                    where: {
-                        role: "SUPER_ADMIN"
-                    },
-                    orderBy: {
-                        createdAt: 'desc'
+                let role;
+                // 1️⃣ check user table
+                const user = yield prismaClient_1.default.user.findUnique({
+                    where: { id: BigInt(userId) },
+                    select: { user_type: true }
+                });
+                if (user) {
+                    role = user.user_type;
+                }
+                else {
+                    // 2️⃣ check company table
+                    const company = yield prismaClient_1.default.company.findUnique({
+                        where: { id: BigInt(userId) },
+                        select: { user_type: true }
+                    });
+                    if (!company) {
+                        throw new customError_1.CustomError("User or Company not found", 404);
                     }
+                    role = company.user_type;
+                }
+                const skip = (page - 1) * limit;
+                const notifications = yield prismaClient_1.default.notification.findMany({
+                    where: { receiverId: userId,
+                        role: role
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: limit
+                });
+                const mappedNotifications = notifications.map(n => {
+                    var _a, _b, _c, _d;
+                    return ({
+                        id: n.id.toString(),
+                        uuid: n.uuid,
+                        title: n.title,
+                        message: n.message,
+                        type: n.type,
+                        role: n.role,
+                        companyId: ((_a = n.companyId) === null || _a === void 0 ? void 0 : _a.toString()) || "", // null -> ""
+                        projectId: ((_b = n.projectId) === null || _b === void 0 ? void 0 : _b.toString()) || "", // null -> ""
+                        scaffoldId: ((_c = n.scaffoldId) === null || _c === void 0 ? void 0 : _c.toString()) || "", // BigInt -> string
+                        scaffoldRequestId: n.scaffoldRequestId || "", // null -> ""
+                        receiverId: ((_d = n.receiverId) === null || _d === void 0 ? void 0 : _d.toString()) || "", // BigInt -> string
+                        senderId: n.senderId || "", // string or "" if null
+                        isRead: n.isRead,
+                        notificationImage: n.notificationImage || "",
+                        createdAt: n.createdAt,
+                        updatedAt: n.updatedAt,
+                        tradesmanCraft: n.tradesmanCraft || ""
+                    });
                 });
                 const unreadCount = yield prismaClient_1.default.notification.count({
-                    where: {
-                        role: "SUPER_ADMIN",
-                        isRead: false
-                    }
+                    where: { receiverId: userId, isRead: false }
+                });
+                const totalCount = yield prismaClient_1.default.notification.count({
+                    where: { receiverId: userId }
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.NOTIFICATION.SUCCESS_GET,
                     data: {
-                        count: unreadCount,
-                        notifications: notifications.map(n => ({
-                            id: n.id,
-                            uuid: n.uuid,
-                            title: n.title,
-                            message: n.message,
-                            type: n.type,
-                            role: n.role,
-                            isRead: n.isRead,
-                            companyId: n.companyId,
-                            projectId: n.projectId,
-                            scaffoldId: n.scaffoldId,
-                            receiverId: n.receiverId,
-                            senderId: n.senderId,
-                            createdAt: n.createdAt,
-                            updatedAt: n.updatedAt
-                        }))
+                        unreadCount: unreadCount,
+                        total: totalCount,
+                        page,
+                        limit,
+                        totalPages: Math.ceil(totalCount / limit),
+                        notifications: mappedNotifications
                     }
                 };
             }
             catch (error) {
-                console.error("❗ Error in getSuperAdminNotifications:", error);
-                if (error instanceof customError_1.CustomError) {
+                console.error("❌ Error in getSuperAdminNotifications:", error);
+                if (error instanceof customError_1.CustomError)
                     throw error;
-                }
                 throw new customError_1.CustomError("Failed to fetch notifications", 500, error.message);
             }
         });
@@ -541,33 +580,574 @@ class superAdminServices {
             }
         });
     }
+    getUserDetails(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const user = yield prismaClient_1.default.user.findUnique({
+                    where: { id },
+                    select: {
+                        id: true,
+                        uuid: true,
+                        name: true,
+                        email: true,
+                        mobileNumber: true,
+                        countryCode: true,
+                        user_type: true,
+                        status: true,
+                        createdAt: true,
+                        lastLogin: true,
+                        userMedias: {
+                            where: {
+                                mediaType: "PHOTO_IMAGE",
+                            },
+                            select: {
+                                url: true,
+                                mediaType: true,
+                            },
+                            take: 1, // ✅ only one profile image
+                            orderBy: {
+                                createdAt: "desc", // latest image first
+                            },
+                        },
+                    },
+                });
+                if (!user) {
+                    throw new customError_1.CustomError("USER_NOT_FOUND", 404, "User not found");
+                }
+                const profileImage = (_a = user.userMedias[0]) !== null && _a !== void 0 ? _a : null;
+                return {
+                    message: "User details fetched successfully",
+                    data: {
+                        id: user.id,
+                        uuid: user.uuid,
+                        name: user.name,
+                        email: user.email,
+                        countryCode: user.countryCode,
+                        mobileNumber: user.mobileNumber,
+                        user_type: user.user_type,
+                        status: user.status,
+                        createdAt: user.createdAt,
+                        lastLogin: user.lastLogin,
+                        image: profileImage ? profileImage.url : null,
+                    },
+                };
+            }
+            catch (error) {
+                console.error("❌ Get user details error:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("FETCH_FAILED", 500, error.message);
+            }
+        });
+    }
+    blogCreationBySuperAdmin(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true
+                    }
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
+                }
+                const newBlog = yield prismaClient_1.default.blog.create({
+                    data: {
+                        uuid: (0, uuid_1.v4)(),
+                        blogTitle: data.blogTitle,
+                        category: data.category,
+                        publishDate: data.publishDate,
+                        image: data.image,
+                        blogBody: data.blogBody,
+                        createdById: userData.id,
+                        status: data.status
+                    }
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_CREATION_SUCCESS,
+                    data: newBlog
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError("BLOG_CREATION_FAILED", 500, error.message);
+            }
+        });
+    }
+    publishBlog(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true
+                    }
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
+                }
+                const blogData = yield prismaClient_1.default.blog.findUnique({
+                    where: {
+                        id: data.id,
+                    }
+                });
+                if (!blogData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404, "Provided blog id not in the databse");
+                }
+                const imageKey = data.image
+                    ? (0, utils_1.extractS3Key)(data.image)
+                    : blogData.image;
+                const newBlog = yield prismaClient_1.default.blog.update({
+                    where: {
+                        id: data.id
+                    },
+                    data: {
+                        uuid: blogData.uuid,
+                        blogTitle: data.blogTitle,
+                        category: data.category,
+                        publishDate: data.publishDate,
+                        status: data.status,
+                        image: imageKey,
+                        blogBody: data.blogBody,
+                        createdById: userData.id
+                    }
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_PUBLISH_SUCCESS,
+                    data: newBlog
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError("BLOG_CREATION_FAILED", 500, error.message);
+            }
+        });
+    }
+    delteBlog(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true
+                    }
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
+                }
+                const blogData = yield prismaClient_1.default.blog.findUnique({
+                    where: {
+                        id: data.id,
+                    }
+                });
+                if (!blogData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404, "Provided blog id not in the databse");
+                }
+                if (blogData.status === "DELETED") {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.ALREADY_DELETED, 400, "This blog has already been deleted");
+                }
+                const newBlog = yield prismaClient_1.default.blog.update({
+                    where: {
+                        id: data.id
+                    },
+                    data: {
+                        status: "DELETED",
+                    }
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_DELETE_SUCCESS,
+                    data: newBlog
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_DELETE_FAILED, 500, error.message);
+            }
+        });
+    }
+    getpublishBlog(status_1, search_1) {
+        return __awaiter(this, arguments, void 0, function* (status, search, page = 1, limit = 10) {
+            try {
+                const skip = (page - 1) * limit;
+                const endOfToday = new Date();
+                endOfToday.setHours(23, 59, 59, 999);
+                const whereClause = Object.assign(Object.assign(Object.assign({ status: { not: "DELETED" } }, (status && { status })), { publishDate: {
+                        lte: endOfToday
+                    } }), (search && {
+                    OR: [
+                        { blogTitle: { contains: search } },
+                        { blogBody: { contains: search } },
+                        { category: { contains: search } }
+                    ]
+                }));
+                const [blogs, total] = yield Promise.all([
+                    prismaClient_1.default.blog.findMany({
+                        where: whereClause,
+                        select: {
+                            id: true,
+                            blogTitle: true,
+                            category: true,
+                            publishDate: true,
+                            image: true,
+                            blogBody: true,
+                            status: true,
+                            createdById: true,
+                            createdAt: true,
+                            updatedAt: true,
+                        },
+                        skip,
+                        take: limit,
+                        orderBy: { publishDate: "desc" }
+                    }),
+                    prismaClient_1.default.blog.count({ where: whereClause })
+                ]);
+                const formattedBlogs = yield Promise.all(blogs.map((blog) => __awaiter(this, void 0, void 0, function* () {
+                    return ({
+                        id: blog.id,
+                        blogTitle: blog.blogTitle,
+                        category: blog.category,
+                        publishDate: blog.publishDate,
+                        image: blog.image ? yield (0, utils_1.generateReadUrl)(blog.image) : null,
+                        blogBody: blog.blogBody,
+                        status: blog.status,
+                        createdById: blog.createdById,
+                        createdAt: blog.createdAt,
+                        updatedAt: blog.updatedAt,
+                    });
+                })));
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_FETCH_SUCCESS,
+                    data: formattedBlogs,
+                    pagination: {
+                        total,
+                        page,
+                        limit,
+                        totalPages: Math.ceil(total / limit)
+                    }
+                };
+            }
+            catch (error) {
+                console.error("Error fetching blogs:", error);
+                throw error;
+            }
+        });
+    }
+    contactInfo(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const submission = yield prismaClient_1.default.contactSubmission.create({
+                    data: {
+                        uuid: (0, uuid_1.v4)(),
+                        name: data.name,
+                        email: data.email,
+                        mobileNumber: data.mobileNumber,
+                        countryCode: data.countryCode,
+                        message: data.message,
+                        submittedAt: data.submittedAt,
+                    }
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.SUBMIT_SUCCESS, // ✅ Using RESPONSE_MESSAGES
+                    data: submission
+                };
+            }
+            catch (error) {
+                console.error("Error creating contact submission:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.SUBMIT_FAILED, 500, error.message);
+            }
+        });
+    }
+    getContactInfo(search_1) {
+        return __awaiter(this, arguments, void 0, function* (search, page = 1, limit = 10) {
+            try {
+                const skip = (page - 1) * limit;
+                const whereClause = Object.assign({}, (search && {
+                    OR: [
+                        { name: { contains: search } },
+                        { email: { contains: search } },
+                        { mobileNumber: { contains: search } },
+                        { message: { contains: search } }
+                    ]
+                }));
+                const [contacts, total] = yield Promise.all([
+                    prismaClient_1.default.contactSubmission.findMany({
+                        where: whereClause,
+                        skip,
+                        take: limit,
+                        orderBy: { createdAt: "desc" }
+                    }),
+                    prismaClient_1.default.contactSubmission.count({ where: whereClause })
+                ]);
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_SUCCESS,
+                    data: contacts,
+                    pagination: {
+                        total,
+                        page,
+                        limit,
+                        totalPages: Math.ceil(total / limit)
+                    }
+                };
+            }
+            catch (error) {
+                console.error("Error fetching contact submissions:", error);
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_FAIL, 500, error.message);
+            }
+        });
+    }
+    delteContact(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true
+                    }
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
+                }
+                const blogData = yield prismaClient_1.default.contactSubmission.findUnique({
+                    where: {
+                        id: data.id,
+                    }
+                });
+                if (!blogData) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.NOT_FOUND, 404, "Provided contact id not in the databse");
+                }
+                const newBlog = yield prismaClient_1.default.contactSubmission.delete({
+                    where: {
+                        id: data.id
+                    },
+                });
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.CONTACT_DELETE_SUCCESS,
+                    data: newBlog
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.CONTACT_DELETE_FAILED, 500, error.message);
+            }
+        });
+    }
+    getContactById(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const contact = yield prismaClient_1.default.contactSubmission.findUnique({
+                    where: {
+                        id: data.id,
+                    }
+                });
+                if (!contact) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.NOT_FOUND, 404);
+                }
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_SUCCESS,
+                    data: contact
+                };
+            }
+            catch (error) {
+                console.error("Error fetching contact by ID:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_FAIL, 500, error.message);
+            }
+        });
+    }
+    getBlogbyId(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const blog = yield prismaClient_1.default.blog.findUnique({
+                    where: { id: data.id }
+                });
+                if (!blog) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404);
+                }
+                const formattedBlog = {
+                    id: blog.id,
+                    blogTitle: blog.blogTitle,
+                    category: blog.category,
+                    publishDate: blog.publishDate,
+                    image: blog.image ? yield (0, utils_1.generateReadUrl)(blog.image) : null,
+                    blogBody: blog.blogBody,
+                    status: blog.status,
+                    createdById: blog.createdById,
+                    createdAt: blog.createdAt,
+                    updatedAt: blog.updatedAt,
+                };
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_FETCH_SUCCESS,
+                    data: formattedBlog
+                };
+            }
+            catch (error) {
+                console.error("Error fetching blog by ID:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_FETCH_FAILED, 500, error.message);
+            }
+        });
+    }
+    updateUserProfileImage(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userExists = yield prismaClient_1.default.user.findFirst({
+                    where: {
+                        id: userId,
+                        user_type: "SUPER_ADMIN",
+                        isDeleted: false,
+                        isVerified: true,
+                        status: "ACTIVE"
+                    },
+                });
+                if (!userExists) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT FOUND");
+                }
+                // Check if media already exists
+                const existingMedia = yield prismaClient_1.default.userMedia.findFirst({
+                    where: {
+                        userId: BigInt(userId),
+                        mediaType: "PHOTO_IMAGE",
+                    },
+                });
+                let updatedImage;
+                if (existingMedia) {
+                    // Update existing profile image
+                    updatedImage = yield prismaClient_1.default.userMedia.update({
+                        where: { id: existingMedia.id },
+                        data: {
+                            url: data.profileImage,
+                        },
+                        select: {
+                            url: true,
+                            mediaType: true,
+                        },
+                    });
+                }
+                else {
+                    // Create new profile image if not exists
+                    updatedImage = yield prismaClient_1.default.userMedia.create({
+                        data: {
+                            userId: BigInt(userId),
+                            url: data.profileImage,
+                            mediaType: "PHOTO_IMAGE",
+                        },
+                        select: {
+                            url: true,
+                            mediaType: true,
+                        },
+                    });
+                }
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.IMAGE.UPADTE_IMAGE,
+                    data: updatedImage,
+                };
+            }
+            catch (error) {
+                console.error("Error updating image:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.IMAGE.FAIL_UPADTE_IMAGE, 500, error.message);
+            }
+        });
+    }
+    logoutUser(id, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const user = yield prismaClient_1.default.user.findFirst({
+                    where: {
+                        id: id,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                    },
+                });
+                if (!user) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                }
+                // ✅ Delete ONLY current device
+                yield prismaClient_1.default.device.deleteMany({
+                    where: {
+                        userId: user.id,
+                        deviceToken: data.deviceToken,
+                    },
+                });
+                return {
+                    status: 200,
+                    message: responseMessages_1.RESPONSE_MESSAGES.AUTH.LOGOUT_SUCCESS,
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.AUTH.LOGOUT_FAIL, 500, error.message);
+            }
+        });
+    }
 }
 exports.superAdminServices = superAdminServices;
-// (async () => {
-//     const superadminEmail = "dushyant.kumar@gamil.com";
-//     const superadminPassword = "Agicent@1";
-//     try {
-//         const existingSuperAdmin = await prisma.user.findFirst({
-//             where: { user_type: "SUPER_ADMIN" },
-//         });
-//         if (existingSuperAdmin) {
-//             console.log("✅ Default superadmin already created.");
-//         } else {
-//             const hashedPassword = await bcrypt.hash(superadminPassword, 10);
-//             await prisma.user.create({
-//                 data: {
-//                     uuid: uuidv4(),
-//                     email: superadminEmail,
-//                     password: hashedPassword,
-//                     user_type: "SUPER_ADMIN",
-//                     name: "Super Admin",
-//                     mobileNumber: "7388503329",
-//                     countryCode: "+91",
-//                 },
-//             });
-//             console.log("✅ Default superadmin created successfully.");
-//         }
-//     } catch (error) {
-//         console.error("❌ Error while checking or creating superadmin:", error);
-//     }
-// })();
+(() => __awaiter(void 0, void 0, void 0, function* () {
+    const superadminEmail = "dushyant.kumar@mailinator.com";
+    const superadminPassword = "Agicent@1";
+    try {
+        const existingSuperAdmin = yield prismaClient_1.default.user.findFirst({
+            where: { user_type: "SUPER_ADMIN" },
+        });
+        if (existingSuperAdmin) {
+            console.log("✅ Default superadmin already created.");
+        }
+        else {
+            const hashedPassword = yield bcryptjs_1.default.hash(superadminPassword, 10);
+            yield prismaClient_1.default.user.create({
+                data: {
+                    uuid: (0, uuid_1.v4)(),
+                    email: superadminEmail,
+                    password: hashedPassword,
+                    isVerified: true,
+                    user_type: "SUPER_ADMIN",
+                    name: "Super Admin",
+                    mobileNumber: "7388503329",
+                    countryCode: "+91",
+                },
+            });
+            console.log("✅ Default superadmin created successfully.");
+        }
+    }
+    catch (error) {
+        console.error("❌ Error while checking or creating superadmin:", error);
+    }
+}))();
