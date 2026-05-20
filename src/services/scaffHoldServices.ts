@@ -2,823 +2,81 @@
 import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
-import { pushNotificationDelhi, scaffHoldIdGenerator } from "../helpers/utils";
+import { pushNotificationDelhi, sendMail, scaffHoldIdGenerator } from "../helpers/utils";
 
 import { v4 as uuidv4 } from "uuid";
 import { changePriorityAndTagsDTO, ProjectScaffHoldDTO, RemoveScaffCompetentPersonDTO, scaffCompetentPersonDTO, ScaffCompetentPersonDTO, ScaffHoldDetailsDTO, ScaffHoldDTO } from "../schemas/scaffHoldSchema";
 
 
 export class ScaffHoldsServices {
-    async createScaffHold(userId: number, data: ScaffHoldDTO) {
-        try {
-            const userData = await prisma.projectManager.findFirst({
-                where: {
-                    userId: userId,
 
-                    user: { 
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        isVerified: true,
-                        user_type: "PROJECT_MANAGER"
-                    },
-
-                    company: {
-                        isApproved: "APPROVED",
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        isVerified: true,
-                        user_type: "COMPANY"
-                    }
-                },
-                include: {
-                    user: true,
-                    company: true
-                }
-            });
-            if (!userData) throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
-            const projectData = await prisma.project.findFirst({
-                where: {
-                    id: data.projectId,
-                    isDeleted: false,
-                    
-                    projectManagers: { some: { id: userId } }
-                }
-            });
-            if (!projectData) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.PROJECT.NOT_FOUND,
-                    404,
-                    "Project not found or you are not assigned as Project Manager"
-                );
-            }
-
-
-            if (!data.competentPersonIds || data.competentPersonIds.length < 2) {
-                throw new CustomError(
-                    "At least 2 competent persons are required",
-                    400
-                );
-            }
-
-            const competentPersonsData = await prisma.competentPerson.findMany({
-                where: { id: { in: data.competentPersonIds } },
-                include: {
-                    user: { include: { userMedias: true } },
-                },
-            });
-
-            if (competentPersonsData.length !== data.competentPersonIds.length) {
-                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "Some competent persons not found");
-            }
-            const scaffHold = await prisma.scaffhold.create({
-                data: {
-                    uuid: uuidv4(),
-                    startDate: data.startDate,
-                    endDate: data.endDate,
-                    address: data.address,
-                    latitude: data.latitude,
-                    longitude: data.longitude,
-                    priority: data.priority,
-                    SCAFFID: scaffHoldIdGenerator(),
-                    projectName: projectData.projectName,
-                    projectId: data.projectId,
-                    companyId: userData.companyId,
-                    createdById: userData.userId,
-                    descreption: data.descreption || "",
-                },
-            });
-
-            await prisma.competentPersonOnScaffhold.createMany({
-                data: competentPersonsData.map(cp => ({
-                    scaffholdId: scaffHold.id,
-                    competentPersonId: cp.id,
-                })),
-            });
-            await prisma.project.update({
-                where: { id: data.projectId },
-                data: { status: "ONGOING" },
-            });
-            const scaffHoldWithCPs = await prisma.scaffhold.findUnique({
-                where: { id: scaffHold.id },
-                include: {
-                    competentPersons: {
-                        where: {
-                            competentPerson: {
-                                user: {
-                                    isDeleted: false,
-                                    status: "ACTIVE",
-                                    isVerified: true,
-                                    user_type: "COMPETENT_PERSON",
-                                }
-                            }
-                        },
-                        include: {
-                            competentPerson: {
-                                include: {
-                                    user: {
-                                        include: {
-                                            userMedias: true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            console.log("scaffHoldWithCPs===========================>>>>>>>", scaffHoldWithCPs)
-            if (!scaffHoldWithCPs) {
-                throw new CustomError(RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "ScaffHold not found after creation");
-            }
-
-            const formattedCompetentPersons = scaffHoldWithCPs.competentPersons.map(cp => ({
-                id: cp.competentPerson.id,
-                userId: cp.competentPerson.user.id,
-                name: cp.competentPerson.user.name,
-                url: cp.competentPerson.user.userMedias[0]?.url || null,
-            }));
-            console.log("formattedCompetentPersons============================>>>", formattedCompetentPersons)
-
-            const competentPersonUserIds = competentPersonsData.map(cp => cp.userId);
-            console.log("competentPersonUserIds======================>>>>>>", competentPersonUserIds)
-
-            const competentPersonDevices = await prisma.device.findMany({
-                where: {
-                    userId: { in: competentPersonUserIds },
-                    deviceToken: { not: null }
-                },
-                select: { userId: true, deviceToken: true }
-            });
-            console.log("competentPersonDevices=======================>>>>>>", competentPersonDevices)
-
-            const cpNotificationMessage =
-                `You have been assigned to Scaffold ${scaffHold.SCAFFID} under project ${projectData.projectName}.`;
-
-            await prisma.notification.createMany({
-                data: competentPersonsData.map(cp => ({
-                    uuid: uuidv4(),
-                    title: "SCAFFOLD ASSIGNED",
-                    message: cpNotificationMessage,
-                    type: "SCAFFOLD_ASSIGNED",
-                    role: "COMPETENT_PERSON",
-                    isRead: false,
-                    companyId: scaffHold.companyId ? BigInt(scaffHold.companyId) : null,
-                    scaffoldId: BigInt(scaffHold.id),        // FIXED
-                    scaffoldRequestId: "", 
-                    receiverId: BigInt(cp.userId),
-                    senderId: userId.toString(),
-                    notificationImage:
-                        "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/assigned.png"
-                })),
-            });
-            const device = await prisma.device.findMany({
-                where: {
-                    userId: { in: competentPersonUserIds },
-                    deviceToken: { not: null }
-                }
-            });
-            console.log("device=======================>>>>", device)
-
-            for (const device of competentPersonDevices) {
-                if (!device.deviceToken) continue;
-                await pushNotificationDelhi(
-                    device.deviceToken,
-                    "Assigned to Scaffold",
-                    cpNotificationMessage
-                );
-            }
-
-            return {
-                message: RESPONSE_MESSAGES.SCAFFHOLD.CREATE_SUCCESS,
-                data: {
-                    ...scaffHoldWithCPs,
-                    competentPersons: formattedCompetentPersons,
-                },
-            };
-        } catch (error: any) {
-            console.error("❌ Create scaffhold error:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-
-            throw new CustomError(RESPONSE_MESSAGES.SCAFFHOLD.CREATE_FAILED, 500, "Create scaffhold failed due to server error");
-        }
-    }
 
     async getAllScaffHolds(page: number, limit: number) {
         try {
             const skip = (page - 1) * limit;
 
-
-            const [scaffholds, totalCount] = await Promise.all([
-                prisma.scaffhold.findMany({
-
+            const [requests, totalCount] = await Promise.all([
+                prisma.projectScaffholdRequest.findMany({
                     skip,
                     take: limit,
                     where: {
-                        isDeleted: false,
-
+                        project: {
+                            isDeleted: false,
+                        },
+                    },
+                    include: {
+                        project: true,
+                        createdBy: {
+                            include: {
+                                user: true,
+                            },
+                        },
                     },
                     orderBy: {
                         createdAt: "desc",
                     },
                 }),
-                prisma.scaffhold.count({
+
+                prisma.projectScaffholdRequest.count({
                     where: {
-                        isDeleted: false,
+                        project: {
+                            isDeleted: false,
+                        },
                     },
                 }),
             ]);
 
             const totalPages = Math.ceil(totalCount / limit);
 
+            // 🔥 optional clean response mapping
+            const data = requests.map((r) => ({
+                id: r.id,
+                uuid: r.uuid,
+                status: r.status,
+                tag: r.tag,
+                address: r.address,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                priority: r.priority,
+                projectId: r.projectId,
+                projectName: r.project?.projectName || null,
+
+                tradesmanName: r.createdBy?.user?.name || null,
+                tradesmanEmail: r.createdBy?.user?.email || null,
+
+                createdAt: r.createdAt,
+            }));
+
             return {
                 message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
-                data: scaffholds,
+                data,
                 totalCount,
                 totalPages,
                 currentPage: page,
             };
+
         } catch (error: any) {
-            console.error("❌ Get all scaffholds error:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                    500,
-                    error.message
-                );
-        }
-    }
-
-    async getScaffHoldById(data: ScaffHoldDetailsDTO) {
-        try {
-            const scaffhold = await prisma.scaffhold.findFirst({
-                where: {
-                    id: data.id,
-                    isDeleted: false,
-                    status: {
-                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"], // ✅ allowed statuses
-                    },
-                },
-                include: {
-
-                    project: true,
-                    company: true,
-                },
-            });
-
-            if (!scaffhold) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    401,
-                    "ScaffHold not found"
-                );
-            }
-            const formattedResponse = {
-                id: scaffhold.id,
-                uuid: scaffhold.uuid,
-                startDate: scaffhold.startDate,
-                endDate: scaffhold.endDate,
-                latitude: scaffhold.latitude,
-                longitude: scaffhold.longitude,
-                priority: scaffhold.priority,
-                tag: scaffhold.tag,
-                SCAFFID: scaffhold.SCAFFID,
-                address: scaffhold.address,
-                projectName: scaffhold.projectName,
-                status: scaffhold.status,
-                projectId: scaffhold.projectId,
-                companyId: scaffhold.companyId,
-                createdById: scaffhold.createdById,
-                createdAt: scaffhold.createdAt,
-                updatedAt: scaffhold.updatedAt,
-                CMPId: scaffhold.company?.CMPId || null,
-                companyName: scaffhold.company?.name || null,
-                clientName: scaffhold.project?.clientName || null,
-                clientMobile: scaffhold.project?.clientMobile || null,
-            };
-
-            return {
-                message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_BY_ID_SUCCESS,
-                data: formattedResponse,
-            };
-        } catch (error: any) {
-            console.error("❌ Get scaffhold by id error:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                    500,
-                    error.message
-                );
-        }
-    }
-
-    async getProjectScaffHold(data: ProjectScaffHoldDTO, page: number, limit: number) {
-        try {
-            const skip = (page - 1) * limit;
-            const totalCount = await prisma.scaffhold.count({
-                where: {
-                    projectId: data.id,
-                    isDeleted: false,
-                },
-            });
-            const projectData = await prisma.project.findUnique({
-                where: { id: data.id },
-                select: {
-                    id: true,
-                    uuid: true,
-                    projectName: true,
-                    clientName: true,
-                    clientEmail: true,
-                    clientMobile: true,
-                    clientCountryCode: true,
-                    clientAddress: true,
-                    startDate: true,
-                    endDate: true,
-                    latitude: true,
-                    longitude: true,
-                    createdById: true,
-                    projectManagers: true,
-                    status: true,
-                    isDeleted: true,
-                    createdAt: true,
-                    updatedAt: true,
-                    scaffholds: {
-                        where: { isDeleted: false },
-                        orderBy: { createdAt: "desc" },
-                        skip,
-                        take: limit, // ✅ Pagination applied here
-                    },
-                },
-            });
-
-            if (!projectData) {
-                throw new CustomError(RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project not found");
-            }
-
-            const totalPages = Math.ceil(totalCount / limit);
-
-            return {
-                message: RESPONSE_MESSAGES.PROJECT.FETCH_BY_ID_SUCCESS,
-                data: projectData,
-                totalCount,
-                totalPages,
-                currentPage: page,
-            };
-        } catch (error: any) {
-            console.error("❌ Get Project ScaffHold error:", error);
-
-            if (error instanceof CustomError) {
-                throw error;
-            }
-
-            throw new CustomError(
-                RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
-                500,
-                error.message
-            );
-        }
-    }
-
-
-    async scaffHoldCompetentPersons(data: scaffCompetentPersonDTO) {
-        try {
-            const searchTerm = data?.search?.trim() || "";
-            const whereCondition: any = {
-                scaffholdId: data.id,
-            };
-
-            if (searchTerm !== "") {
-                whereCondition.competentPerson = {
-                    user: {
-                        name: {
-                            contains: searchTerm,
-
-                        },
-                    },
-                };
-            }
-
-            const competentPersons = await prisma.competentPersonOnScaffhold.findMany({
-
-                where: whereCondition,
-                orderBy: {
-                    createdAt: "desc",
-                },
-                select: {
-                    competentPersonId: true,
-                    competentPerson: {
-                        select: {
-                            
-                            user: {
-                                
-                                select: {
-                                    name: true,
-                                    
-                                    userMedias: {
-                                        take: 1,
-                                        orderBy: { createdAt: "desc" },
-                                        select: { url: true },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-            const formatted = competentPersons.map(cp => ({
-                id: cp.competentPersonId,
-                name: cp.competentPerson.user?.name,
-                image: cp.competentPerson.user?.userMedias[0]?.url || null,
-
-            }));
-
-
-            return {
-                message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
-                data: formatted,
-            };
-        } catch (error: any) {
-            console.error("❌ Get competent persons error:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                    500,
-                    error.message
-                );
-        }
-    }
-
-
-    async addCompetentPersonToScaffHold(userId: number, data: ScaffCompetentPersonDTO) {
-        try {
-            const userData=await prisma.projectManager.findFirst({
-                where:{
-                    userId:userId,
-                    user:{
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        isVerified: true,
-                        user_type: "PROJECT_MANAGER"
-                    },
-                    company:{
-                        isApproved: "APPROVED",
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        isVerified: true,
-                        user_type: "COMPANY"
-                    }
-                },
-            })
-
-                if(!userData) throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND,404,"User not found");
-            const scaffData = await prisma.scaffhold.findUnique({
-                where: {
-                    id: data.scaffHoldId,
-                    status: {
-                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED",],
-                    },
-                    isDeleted: false,
-                      project: {
-            isDeleted: false
-        }
-                }
-            });
-
-            if (!scaffData) {
-                throw new CustomError(RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 401, "ScaffHold not found");
-            }
-            const competentPersonsData = await prisma.competentPerson.findMany({
-                where: { id: { in: data.competentPersonIds.map(BigInt) } ,
-            user:{
-                isDeleted: false,
-                status: "ACTIVE",
-                isVerified: true,
-                user_type: "COMPETENT_PERSON"
-            }
-            },
-            });
-
-            if (competentPersonsData.length !== data.competentPersonIds.length) {
-                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "Some competent persons not found");
-            }
-            const existingAssociations = await prisma.competentPersonOnScaffhold.findMany({
-                where: { scaffholdId: BigInt(data.scaffHoldId) },
-                select: { competentPersonId: true },
-            });
-
-            const existingCompetentPersonIds = existingAssociations.map(a => Number(a.competentPersonId));
-
-            const newIdsToAdd = data.competentPersonIds.filter(
-                id => !existingCompetentPersonIds.includes(Number(id))
-            );
-
-            const idsToRemove = existingCompetentPersonIds.filter(
-                id => !data.competentPersonIds.includes(Number(id))
-            );
-            if (newIdsToAdd.length > 0) {
-                await prisma.competentPersonOnScaffhold.createMany({
-                    data: newIdsToAdd.map(id => ({
-                        scaffholdId: BigInt(scaffData.id),
-                        competentPersonId: BigInt(id),
-                    })),
-                    skipDuplicates: true,
-                });
-            }
-            if (idsToRemove.length > 0) {
-                await prisma.competentPersonOnScaffhold.deleteMany({
-                    where: {
-                        scaffholdId: BigInt(scaffData.id),
-                        competentPersonId: { in: idsToRemove.map(BigInt) },
-                    },
-                });
-            }
-            const updatedScaffHold = await prisma.scaffhold.findUnique({
-                where: { id: BigInt(data.scaffHoldId) },
-                include: {
-                    competentPersons: {
-                        include: {
-                            competentPerson: {
-                                include: {
-                                    user: {
-                                        select: {
-                                            id: true,
-                                            name: true,
-                                            userMedias: { select: { url: true } },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-            const formattedCompetentPersons = updatedScaffHold!.competentPersons.map(cp => ({
-                id: cp.competentPerson.id,
-                userId: cp.competentPerson.user.id,
-                name: cp.competentPerson.user.name,
-                url: cp.competentPerson.user.userMedias[0]?.url || null,
-            }));
-            if (newIdsToAdd.length > 0) {
-                const newCPUsers = formattedCompetentPersons.filter(cp =>
-                    newIdsToAdd.includes(Number(cp.id))
-                );
-
-                const cpNotificationMessage = `You have been assigned to Scaffold ${scaffData.SCAFFID}.`;
-
-                await prisma.notification.createMany({
-                    data: newCPUsers.map(cp => ({
-                        uuid: uuidv4(),
-                        title: "SCAFFOLD ASSIGNED",
-                        message: cpNotificationMessage,
-                        type: "SCAFFOLD_ASSIGNED",
-                        role: "COMPETENT_PERSON",
-                        isRead: false,
-                        companyId: scaffData.companyId ? BigInt(scaffData.companyId) : null,
-                        scaffoldId: BigInt(scaffData.id),
-                         scaffoldRequestId: "", 
-                        receiverId: BigInt(cp.userId),
-                        senderId: userId.toString(),
-                        notificationImage:
-                            "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/assigned.png",
-                    })),
-                });
-            }
-            const devices = await prisma.device.findMany({
-                where: {
-                    userId: { in: competentPersonsData.map(cp => Number(cp.userId)) },
-                    deviceToken: { not: null }
-                }
-            });
-            for (const device of devices) {
-                if (!device.deviceToken) continue;
-                await pushNotificationDelhi(
-                    device.deviceToken,
-                    "SCAFFOLD_ASSIGNED",
-                    `You have been assigned to Scaffold ${scaffData.SCAFFID}.`
-                );
-            }
-            return {
-                message: "Competent persons updated successfully",
-                data: {
-                    ...updatedScaffHold!,
-                    competentPersons: formattedCompetentPersons,
-                },
-            };
-        } catch (error: any) {
-            console.error("❌ Add competent person error:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                    500,
-                    error.message
-                );
-        }
-    }
-
-
-    async removeCompetentPersonFromScaffHold(data: RemoveScaffCompetentPersonDTO) {
-        try {
-            const scaffData = await prisma.scaffhold.findUnique({
-                 where: {
-                    id: data.scaffHoldId,
-                    status: {
-                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED",],
-                    },
-                    isDeleted: false,
-                      project: {
-            isDeleted: false
-        }
-                }
-            });
-
-            if (!scaffData || scaffData.status === "DISMANTLED" || scaffData.isDeleted) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    401,
-                    "ScaffHold not found"
-                );
-            }
-            const competentPersonData = await prisma.competentPerson.findUnique({
-                where: { id: data.competentPersonIds },
-            });
-
-            if (!competentPersonData) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.USER.NOT_FOUND,
-                    401,
-                    "Competent person not found"
-                );
-            }
-
-            const cpCount = await prisma.competentPersonOnScaffhold.count({
-                where: {
-                    scaffholdId: data.scaffHoldId,
-                },
-            });
-
-            if (cpCount <= 2) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.AT_LEAST_TWO_CP,
-                    400,
-                    "At least two Competent Person must be assigned to this ScaffHold"
-                );
-            }
-            const mapping = await prisma.competentPersonOnScaffhold.findUnique({
-                where: {
-                    scaffholdId_competentPersonId: {
-                        scaffholdId: data.scaffHoldId,
-                        competentPersonId: data.competentPersonIds,
-                    },
-                },
-            });
-
-            if (!mapping) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    400,
-                    "This competent person is not associated with the given ScaffHold"
-                );
-            }
-            await prisma.competentPersonOnScaffhold.delete({
-                where: {
-                    scaffholdId_competentPersonId: {
-                        scaffholdId: data.scaffHoldId,
-                        competentPersonId: data.competentPersonIds,
-                    },
-                },
-            });
-
-            return {
-                message: "Competent person removed successfully",
-            };
-        } catch (error: any) {
-            console.error("❌ Remove competent person error:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                    500,
-                    error.message
-                );
-        }
-    }
-
-    async scaffAndCompetentPersons(data: ScaffHoldDetailsDTO) {
-        try {
-            const scaffData = await prisma.scaffhold.findUnique({
-               where: {
-                    id: data.id,
-                    status: {
-                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED","DISMANTLED"],
-                    },
-                    isDeleted: false,
-                      project: {
-            isDeleted: false
-        }
-                },
-                include: {
-                    TradesManRequests: {
-                        orderBy: {
-                            createdAt: "desc",
-                        },
-                        take: 1,
-                        include: {
-                            createdBy: {
-                                include: {
-                                    user: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-
-            if (!scaffData) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    401,
-                    "ScaffHold not found"
-                );
-            }
-
-const competentPersons =
-    await prisma.competentPersonOnScaffhold.findMany({
-        where: {
-            scaffholdId: data.id,
-            competentPerson: {
-                user: {
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    isVerified: true,
-                    user_type: "COMPETENT_PERSON"
-                }
-            }
-        },
-        orderBy: {
-            createdAt: "desc",
-        },
-        select: {
-            competentPersonId: true,
-            competentPerson: {
-                select: {
-                    user: {
-                        select: {
-                            name: true,
-                            userMedias: {
-                                take: 1,
-                                orderBy: { createdAt: "desc" },
-                                select: { url: true },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-    });
-
-            const formatted = competentPersons.map((cp: any) => ({ id: cp.competentPersonId, name: cp.competentPerson.user?.name, image: cp.competentPerson.user?.userMedias[0]?.url || null, }));
-            // 🔥 last request info
-            const lastRequest = scaffData.TradesManRequests?.[0] || null;
-            const lastRequestedByName =
-                lastRequest?.createdBy?.user?.name || null;
-
-            // ❌ remove TradesManRequests from response
-            const { TradesManRequests, ...safeScaffData } = scaffData;
-
-            return {
-                message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
-                data: {
-                    scaffData: {
-                        ...safeScaffData,
-                        lastRequestedByName, // ✅ inside scaffData
-                    },
-                    formatted,
-                },
-            };
-        } catch (error: any) {
-            console.error("❌ Get competent persons error:", error);
+            console.error("❌ Get all scaffhold requests error:", error);
 
             if (error instanceof CustomError) {
                 throw error;
@@ -832,92 +90,1213 @@ const competentPersons =
         }
     }
 
-
-    async changePriorityAndTags(data: changePriorityAndTagsDTO) {
+    async getScaffHoldById(data: ScaffHoldDetailsDTO) {
         try {
-            const scaffhold = await prisma.scaffhold.findUnique({
+
+            // 🔥 NEW SOURCE: ProjectScaffholdRequest
+            const request = await prisma.projectScaffholdRequest.findFirst({
                 where: {
-                    id: data.scaffholdId,  status: {
-                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED",],
+                    id: data.id,
+                },
+                include: {
+                    project: true,
+                    createdBy: {
+                        include: {
+                            user: true,
+                        },
                     },
-                    isDeleted: false,
-                      project: {
-            isDeleted: false
-        }
-                }
+                },
             });
 
-            if (!scaffhold) {
+            if (!request) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
                     404,
-                    "ScaffHold not found"
+                    "Request not found"
                 );
             }
-            const updatedScaffhold = await prisma.scaffhold.update({
-                where: { id: data.scaffholdId },
-                data: {
-                    priority: data.priority,
-                    tag: data.tag
+
+            // 🔥 FORMATTED RESPONSE (UPDATED STRUCTURE)
+            const formattedResponse = {
+                id: request.id,
+                uuid: request.uuid,
+
+                startDate: request.startDate,
+                endDate: request.endDate,
+                latitude: request.latitude,
+                longitude: request.longitude,
+
+                priority: request.priority,
+                tag: request.tag,
+                SCAFFID: request.SCAFFID,
+                REQID: request.REQID,
+
+                address: request.address,
+                description: request.description,
+
+                craft: request.craft,
+                length: request.length,
+                width: request.width,
+                height: request.height,
+
+                status: request.status,
+                projectId: request.projectId,
+
+                createdAt: request.createdAt,
+                updatedAt: request.updatedAt,
+
+                // 🔥 TRADESMAN INFO
+                createdById: request.createdById,
+                tradesmanName: request.createdBy?.user?.name || null,
+                tradesmanEmail: request.createdBy?.user?.email || null,
+                tradesmanMobile: request.createdBy?.user?.mobileNumber || null,
+
+                // 🔥 PROJECT INFO
+                projectName: request.project?.projectName || null,
+                clientName: request.project?.clientName || null,
+                clientMobile: request.project?.clientMobile || null,
+                clientEmail: request.project?.clientEmail || null,
+            };
+
+            return {
+                message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_BY_ID_SUCCESS,
+                data: formattedResponse,
+            };
+
+        } catch (error: any) {
+            console.error("❌ Get scaffhold request by id error:", error);
+
+            if (error instanceof CustomError) {
+                throw error;
+            }
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
+                500,
+                error.message
+            );
+        }
+    }
+
+    async getProjectScaffHold(
+        data: ProjectScaffHoldDTO,
+        page: number,
+        limit: number,
+        projectId: bigint
+    ) {
+        try {
+            const skip = (page - 1) * limit;
+
+            const { search, priority, status, tags, sort } = data;
+
+            const whereCondition: any = {
+                projectId,
+            };
+
+            // 🔍 SEARCH
+            if (search?.trim()) {
+                const searchTerm = search.trim();
+
+                if (!isNaN(Number(searchTerm))) {
+                    whereCondition.id = Number(searchTerm);
+                } else {
+                    whereCondition.OR = [
+                        { REQID: { contains: searchTerm } },
+                        { SCAFFID: { contains: searchTerm } },
+                        { notes: { contains: searchTerm } },
+                        { craft: { contains: searchTerm } },
+                    ];
+                }
+            }
+
+            // ⚡ PRIORITY
+            if (priority) {
+                const values = Array.isArray(priority)
+                    ? priority
+                    : [priority];
+
+                whereCondition.priority = {
+                    in: values.map((p) => p.toUpperCase()),
+                };
+            }
+
+            // ⚡ STATUS
+            if (status) {
+                const values = Array.isArray(status)
+                    ? status
+                    : [status];
+
+                whereCondition.status = {
+                    in: values.map((s) => s.toUpperCase()),
+                };
+            }
+
+            // ⚡ TAGS
+            if (tags) {
+                const values = Array.isArray(tags)
+                    ? tags
+                    : [tags];
+
+                whereCondition.tag = {
+                    in: values.map((t) => t.toUpperCase()),
+                };
+            }
+
+            // 📊 COUNT
+            const totalCount = await prisma.projectScaffholdRequest.count({
+                where: whereCondition,
+            });
+
+            const totalPages = Math.ceil(totalCount / limit);
+
+            // 📦 PROJECT
+            const projectData = await prisma.project.findUnique({
+                where: {
+                    id: projectId,
+                    status: {
+                        in: ["CREATED", "ONGOING", "COMPLETED"]
+                    }
+                },
+                select: {
+                    id: true,
+                    uuid: true,
+                    projectName: true,
+                    PJT: true,
+                    clientName: true,
+                    clientEmail: true,
+                    clientMobile: true,
+                    clientCountryCode: true,
+                    clientAddress: true,
+                    startDate: true,
+                    endDate: true,
+                    latitude: true,
+                    longitude: true,
+                    status: true,
+
+                    createdAt: true,
+                    updatedAt: true,
+
                 },
             });
 
-            const userData = await prisma.projectManager.findUnique({
+            if (!projectData) {
+                throw new CustomError("Project not found", 404, "PROJECT_NOT_FOUND");
+            }
 
-                where: { userId: scaffhold?.createdById ?? undefined }
+            // 🔥 SORT LOGIC (NEW FIX)
+            const orderBy: any =
+                sort === "ASC"
+                    ? { createdAt: "asc" }
+                    : { createdAt: "desc" };
 
-            })
-            const notificationMessage = `Scaffold ${scaffhold.SCAFFID} has been marked as Tagged – Safe to Use.`;
-            await prisma.notification.create({
+            // 📦 LIST
+            const scaffholdList = await prisma.projectScaffholdRequest.findMany({
+                where: whereCondition,
+                skip,
+                take: limit,
+                orderBy,
+                select: {
+                    id: true,
+                    uuid: true,
+                    REQID: true,
+                    SCAFFID: true,
+                    projectId: true,
+                    expectedEndDate: true,
+                    craft: true,
+                    length: true,
+                    width: true,
+                    height: true,
+                    priority: true,
+                    status: true,
+                    tag: true,
+                    notes: true,
+                    address: true,
+                    latitude: true,
+                    longitude: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    createdBy: {
+                        select: {
+                            id: true,
+                            craft: true,
+
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            return {
+                message: RESPONSE_MESSAGES.PROJECT.FETCH_BY_ID_SUCCESS,
                 data: {
+                    ...projectData,
+                    scaffholdList: scaffholdList.map((item) => ({
+                        id: item.id,
+
+                        uuid: item.uuid,
+
+                        REQID: item.REQID,
+
+                        SCAFFID: item.SCAFFID,
+
+                        projectId: item.projectId,
+
+                        craft: item.craft,
+
+                        length: item.length,
+                        width: item.width,
+                        height: item.height,
+
+                        priority: item.priority,
+
+                        status: item.status,
+
+                        tag: item.tag,
+
+                        notes: item.notes,
+
+                        address: item.address,
+
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+
+                        expectedEndDate:
+                            item.expectedEndDate,
+
+                        createdByCraft:
+                            item.createdBy?.craft,
+
+                        createdAt: item.createdAt,
+
+                        updatedAt: item.updatedAt,
+                    })),
+
+                },
+                pagination: {
+                    total: totalCount,
+                    totalPages,
+                    currentPage: page,
+                    limit,
+                },
+            };
+        } catch (error: any) {
+            console.error("❌ Get Project ScaffHold error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(
+                RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
+                500,
+                error.message
+            );
+        }
+    }
+
+
+    async projectCompetentPersons(data: scaffCompetentPersonDTO) {
+        try {
+            const searchTerm = data?.search?.trim() || "";
+
+            const whereCondition: any = {
+                projectid: BigInt(data.id),
+            };
+
+            if (searchTerm !== "") {
+                whereCondition.competentPerson = {
+                    user: {
+                        name: {
+                            contains: searchTerm,
+                        },
+                    },
+                };
+            }
+
+            const competentPersons = await prisma.competentPersonOnProject.findMany({
+                where: whereCondition,
+                orderBy: {
+                    createdAt: "desc",
+                },
+                select: {
+                    competentPersonId: true,
+                    competentPerson: {
+                        select: {
+                            user: {
+                                select: {
+                                    name: true,
+                                    userMedias: {
+                                        take: 1,
+                                        orderBy: { createdAt: "desc" },
+                                        select: { url: true },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            const formatted = competentPersons.map(cp => ({
+                id: cp.competentPersonId,
+                name: cp.competentPerson.user?.name,
+                image: cp.competentPerson.user?.userMedias[0]?.url || null,
+            }));
+
+            return {
+                message: RESPONSE_MESSAGES.PROJECT.FETCH_ALL_SUCCESS,
+                data: formatted,
+            };
+        } catch (error: any) {
+            console.error("❌ Get project CP error:", error);
+
+            if (error instanceof CustomError) throw error;
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
+                500,
+                error.message
+            );
+        }
+    }
+
+    async addCompetentPersonToProject(userId: number, data: ScaffCompetentPersonDTO) {
+        try {
+
+            // =========================
+            // ✅ VALIDATE PROJECT MANAGER
+            // =========================
+            const userData = await prisma.projectManager.findFirst({
+                where: {
+                    userId: userId,
+                    user: {
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
+                        user_type: "PROJECT_MANAGER",
+                    },
+                    company: {
+                        isApproved: "APPROVED",
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
+                        user_type: "COMPANY",
+                    },
+                },
+            });
+
+            if (!userData) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
+            }
+
+            // =========================
+            // ✅ VALIDATE PROJECT
+            // =========================
+            const projectData = await prisma.project.findUnique({
+                where: {
+                    id: BigInt(data.projectId),
+                    isDeleted: false,
+                },
+            });
+
+            if (!projectData) {
+                throw new CustomError(RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project not found");
+            }
+
+            // =========================
+            // ✅ VALIDATE CPs
+            // =========================
+            const competentPersonsData = await prisma.competentPerson.findMany({
+                where: {
+                    id: { in: data.competentPersonIds.map(BigInt) },
+                    user: {
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
+                        user_type: "COMPETENT_PERSON",
+                    },
+                },
+            });
+
+            if (competentPersonsData.length !== data.competentPersonIds.length) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "Some competent persons not found");
+            }
+
+            // =========================
+            // 🔄 EXISTING RELATION
+            // =========================
+            const existing = await prisma.competentPersonOnProject.findMany({
+                where: { projectid: BigInt(data.projectId) },
+                select: { competentPersonId: true },
+            });
+
+            const existingIds = existing.map(e => Number(e.competentPersonId));
+
+            const newIdsToAdd = data.competentPersonIds.filter(id => !existingIds.includes(Number(id)));
+            const idsToRemove = existingIds.filter(id => !data.competentPersonIds.includes(Number(id)));
+
+            // =========================
+            // ➕ ADD CP
+            // =========================
+            if (newIdsToAdd.length > 0) {
+                await prisma.competentPersonOnProject.createMany({
+                    data: newIdsToAdd.map(id => ({
+                        projectid: BigInt(data.projectId),
+                        competentPersonId: BigInt(id),
+                    })),
+                    skipDuplicates: true,
+                });
+            }
+
+            // =========================
+            // ➖ REMOVE CP
+            // =========================
+            if (idsToRemove.length > 0) {
+                await prisma.competentPersonOnProject.deleteMany({
+                    where: {
+                        projectid: BigInt(data.projectId),
+                        competentPersonId: { in: idsToRemove.map(BigInt) },
+                    },
+                });
+            }
+
+            // =========================
+            // 🔄 UPDATED PROJECT
+            // =========================
+            const updatedProject = await prisma.project.findUnique({
+                where: { id: BigInt(data.projectId) },
+                include: {
+                    competentPersons: {
+                        include: {
+                            competentPerson: {
+                                include: {
+                                    user: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            email: true,
+                                            userMedias: { select: { url: true } },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            const formattedCP = updatedProject!.competentPersons.map(cp => ({
+                id: cp.competentPerson.id,
+                userId: cp.competentPerson.user.id,
+                name: cp.competentPerson.user.name,
+                email: cp.competentPerson.user.email,
+                url: cp.competentPerson.user.userMedias[0]?.url || null,
+            }));
+
+            // =========================
+            // 📩 CP NOTIFICATION (ALWAYS)
+            // =========================
+            if (newIdsToAdd.length > 0) {
+                const newCPUsers = formattedCP.filter(cp =>
+                    newIdsToAdd.includes(Number(cp.id))
+                );
+
+                await prisma.notification.createMany({
+                    data: newCPUsers.map(cp => ({
+                        uuid: uuidv4(),
+                        title: "PROJECT ASSIGNED",
+                        message: `You have been assigned to Project ${projectData.projectName}.`,
+                        type: "PROJECT_ASSIGNED",
+                        role: "COMPETENT_PERSON",
+                        isRead: false,
+                        projectId: BigInt(projectData.id),
+                        receiverId: BigInt(cp.userId),
+                        senderId: userId.toString(),
+                    })),
+                });
+            }
+
+            // =========================
+            // 🏢 SUPER ADMIN + COMPANY OWNER ONLY
+            // =========================
+
+            const superAdmins = await prisma.user.findMany({
+                where: {
+                    user_type: "SUPER_ADMIN",
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isVerified: true,
+                },
+                select: { id: true, email: true }
+            });
+
+            const companyOwner = await prisma.company.findUnique({
+                where: { id: projectData.createdById! },
+                select: { id: true }
+            });
+
+            const receiverIds = [
+                ...superAdmins.map(s => Number(s.id)),
+                Number(companyOwner?.id || 0)
+            ].filter(Boolean);
+
+            const settings = await prisma.notificationSetting.findMany({
+                where: {
+                    userId: { in: receiverIds }
+                }
+            });
+
+            const allowedUsers = receiverIds.filter(id => {
+                const setting = settings.find(s => Number(s.userId) === id);
+                return setting ? setting.teamMemberChanged === true : true;
+            });
+
+            const message = `Competent Person updated in project ${projectData.projectName}`;
+
+            // =========================
+            // 📩 DB NOTIFICATION
+            // =========================
+            await prisma.notification.createMany({
+                data: allowedUsers.map(id => ({
                     uuid: uuidv4(),
-                    title: "Scaffold Tagged – Safe to Use",
-                    message: notificationMessage,
-                    type: "SCAFFOLD_STATUS_UPDATE",
-                    role: "COMPANY",
-                    companyId: scaffhold.companyId,
-                    receiverId: scaffhold.companyId,
-                    senderId: scaffhold?.createdById?.toString() ?? null,
+                    title: "Team Member Updated",
+                    message,
+                    type: newIdsToAdd.length > 0
+                        ? "TRADESMAN_JOINED_PROJECT"
+                        : "TRADESMAN_REMOVED",
+                    role: id === Number(companyOwner?.id)
+                        ? "COMPANY"
+                        : "SUPER_ADMIN",
                     isRead: false,
+                    projectId: BigInt(projectData.id),
+                    receiverId: BigInt(id),
+                    senderId: userId.toString(),
+                }))
+            });
+
+            // =========================
+            // 📧 EMAIL (TOGGLE ONLY)
+            // =========================
+            const emailUsers = await prisma.user.findMany({
+                where: {
+                    id: {
+                        in: settings.filter(s => s.emailEnabled).map(s => Number(s.userId))
+                    }
                 },
+                select: { email: true, id: true }
             });
-            const companyUsers = await prisma.projectManager.findMany({
-                where: { companyId: scaffhold.companyId },
-                select: { id: true },
-            });
+
+            for (const user of emailUsers) {
+                await sendMail(
+                    user.email,
+                    "Team Member Update",
+                    message
+                );
+            }
+
+            // =========================
+            // 📱 PUSH NOTIFICATION (POPUP FIXED)
+            // =========================
             const devices = await prisma.device.findMany({
                 where: {
-                    userId: { in: companyUsers.map(u => u.id) },
+                    userId: { in: allowedUsers },
                     deviceToken: { not: null }
                 },
                 select: { deviceToken: true }
             });
-            for (const d of devices) {
-                if (!d.deviceToken) continue;
 
+            for (const device of devices) {
                 await pushNotificationDelhi(
-                    d.deviceToken,
-                    "Scaffold Tagged – Safe to Use",
-                    notificationMessage
+                    device.deviceToken!,
+                    "Team Member Updated",
+                    message
                 );
             }
+
+            // =========================
+            // RESPONSE
+            // =========================
             return {
-                message: RESPONSE_MESSAGES.SCAFFHOLD.UPDATE_SUCCESS,
-                data: updatedScaffhold
+                message: "Competent persons updated successfully",
+                data: {
+                    ...updatedProject!,
+                    competentPersons: formattedCP,
+                },
             };
 
         } catch (error: any) {
-            console.error("❌ Change priority and tags error:", error);
+            console.error("❌ Add CP error:", error);
+
+            if (error instanceof CustomError) throw error;
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
+                500,
+                error.message
+            );
+        }
+    }
+
+    async removeCompetentPersonFromProject(data: RemoveScaffCompetentPersonDTO) {
+        try {
+
+            // =========================
+            // ✅ VALIDATE PROJECT
+            // =========================
+            const projectData = await prisma.project.findUnique({
+                where: {
+                    id: BigInt(data.projectId),
+                    isDeleted: false,
+                },
+            });
+
+            if (!projectData) {
+                throw new CustomError("Project not found", 404);
+            }
+
+            // =========================
+            // ✅ VALIDATE CP
+            // =========================
+            const cpData = await prisma.competentPerson.findUnique({
+                where: { id: BigInt(data.competentPersonId) },
+                include: { user: true }
+            });
+
+            if (!cpData) {
+                throw new CustomError("Competent person not found", 404);
+            }
+
+            // =========================
+            // ❌ REMOVE RELATION
+            // =========================
+            await prisma.competentPersonOnProject.delete({
+                where: {
+                    projectid_competentPersonId: {
+                        projectid: BigInt(data.projectId),
+                        competentPersonId: BigInt(data.competentPersonId),
+                    },
+                },
+            });
+
+            const message = `You have been removed from project ${projectData.projectName}`;
+
+            // =========================
+            // 📩 CP NOTIFICATION (ALWAYS)
+            // =========================
+            await prisma.notification.create({
+                data: {
+                    uuid: uuidv4(),
+                    title: "REMOVED FROM PROJECT",
+                    message,
+                    type: "TRADESMAN_REMOVED",
+                    role: "COMPETENT_PERSON",
+                    isRead: false,
+                    projectId: BigInt(projectData.id),
+                    receiverId: BigInt(cpData.userId),
+                    senderId: data.projectId.toString(),
+                }
+            });
+
+            // =========================
+            // 🏢 SUPER ADMIN + COMPANY OWNER ONLY
+            // =========================
+
+            const superAdmins = await prisma.user.findMany({
+                where: {
+                    user_type: "SUPER_ADMIN",
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isVerified: true,
+                },
+                select: { id: true, email: true }
+            });
+
+            const companyOwner = await prisma.company.findUnique({
+                where: { id: projectData.createdById! },
+                select: { id: true }
+            });
+
+            const receiverIds = [
+                ...superAdmins.map(s => Number(s.id)),
+                Number(companyOwner?.id || 0)
+            ].filter(Boolean);
+
+            const settings = await prisma.notificationSetting.findMany({
+                where: {
+                    userId: { in: receiverIds }
+                }
+            });
+
+            const allowedUsers = receiverIds.filter(id => {
+                const setting = settings.find(s => Number(s.userId) === id);
+                return setting ? setting.teamMemberChanged === true : true;
+            });
+
+            // =========================
+            // 📩 DB NOTIFICATION
+            // =========================
+            await prisma.notification.createMany({
+                data: allowedUsers.map(id => ({
+                    uuid: uuidv4(),
+                    title: "Team Member Removed",
+                    message,
+                    type: "TRADESMAN_REMOVED",
+                    role: id === Number(companyOwner?.id)
+                        ? "COMPANY"
+                        : "SUPER_ADMIN",
+                    isRead: false,
+                    projectId: BigInt(projectData.id),
+                    receiverId: BigInt(id),
+                    senderId: data.projectId.toString(),
+                }))
+            });
+
+            // =========================
+            // 📧 EMAIL (ONLY IF TOGGLE ON)
+            // =========================
+            const emailSettings = settings.filter(s => s.emailEnabled === true);
+
+            const emailUsers = await prisma.user.findMany({
+                where: {
+                    id: { in: emailSettings.map(s => Number(s.userId)) }
+                },
+                select: { email: true }
+            });
+
+            for (const user of emailUsers) {
+                await sendMail(
+                    user.email,
+                    "Team Member Removed",
+                    message
+                );
+            }
+
+            // =========================
+            // 📱 PUSH NOTIFICATION (POPUP FIXED)
+            // =========================
+            const devices = await prisma.device.findMany({
+                where: {
+                    userId: { in: allowedUsers },
+                    deviceToken: { not: null }
+                },
+                select: { deviceToken: true }
+            });
+
+            for (const device of devices) {
+                await pushNotificationDelhi(
+                    device.deviceToken!,
+                    "Team Member Removed",
+                    message
+                );
+            }
+
+            // =========================
+            // RESPONSE
+            // =========================
+            return {
+                message: "Competent person removed successfully",
+            };
+
+        } catch (error: any) {
+            console.error("❌ Remove CP error:", error);
+
+            if (error instanceof CustomError) throw error;
+
+            throw new CustomError(
+                "Failed to remove competent person",
+                500,
+                error.message
+            );
+        }
+    }
+
+    async projectAndCompetentPersons(data: { id: number }) {
+        try {
+            // =========================
+            // 🔥 FETCH REQUEST (MAIN)
+            // =========================
+            const request = await prisma.projectScaffholdRequest.findFirst({
+                where: {
+                    id: BigInt(data.id),
+                },
+                include: {
+                    project: {
+                        select: {
+                            id: true,
+                            uuid: true,
+                            projectName: true,
+                            PJT: true,
+                            clientName: true,
+                            clientEmail: true,
+                            clientMobile: true,
+                            clientAddress: true,
+                            status: true,
+                        },
+                    },
+
+                    createdBy: {
+                        select: {
+                            id: true,
+                            craft: true,
+                            experience: true,
+                            user: {
+                                select: {
+                                    name: true,
+                                    mobileNumber: true,
+                                    userMedias: {
+                                        take: 1,
+                                        orderBy: { createdAt: "desc" },
+                                        select: {
+                                            url: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+
+                    updatesRequest: {
+                        orderBy: { createdAt: "desc" },
+                    },
+
+                    rentalCycles: {
+                        orderBy: { createdAt: "desc" },
+                    },
+
+                    parent: true,
+                    children: true,
+                },
+            });
+
+            if (!request) {
+                throw new CustomError(
+                    RESPONSE_MESSAGES.PROJECT.NOT_FOUND,
+                    404,
+                    "Request not found"
+                );
+            }
+
+            const projectId = request.projectId;
+
+            // =========================
+            // 👷 COMPETENT PERSONS
+            // =========================
+            const competentPersons =
+                await prisma.competentPersonOnProject.findMany({
+                    where: {
+                        projectid: projectId,
+                        competentPerson: {
+                            user: {
+                                isDeleted: false,
+                                status: "ACTIVE",
+                                isVerified: true,
+                                user_type: "COMPETENT_PERSON",
+                            },
+                        },
+                    },
+                    select: {
+                        competentPersonId: true,
+                        competentPerson: {
+                            select: {
+                                user: {
+                                    select: {
+                                        name: true,
+                                        userMedias: {
+                                            take: 1,
+                                            orderBy: { createdAt: "desc" },
+                                            select: { url: true },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+
+            const formattedCP = competentPersons.map((cp: any) => ({
+                id: cp.competentPersonId,
+                name: cp.competentPerson.user?.name,
+                image: cp.competentPerson.user?.userMedias?.[0]?.url || null,
+            }));
+
+            // =========================
+            // 🔥 FINAL CLEAN RESPONSE
+            // =========================
+
+            return {
+                message: "Request details fetched successfully",
+
+                data: {
+                    // ======================
+                    // REQUEST
+                    // ======================
+                    id: request.id,
+                    uuid: request.uuid,
+
+                    status: request.status,
+                    priority: request.priority,
+                    tag: request.tag,
+
+                    SCAFFID: request.SCAFFID,
+                    REQID: request.REQID,
+
+                    craft: request.craft,
+
+                    description: request.description,
+                    notes: request.notes,
+                    rejectionReason: request.reajectionReason,
+
+                    length: request.length,
+                    width: request.width,
+                    height: request.height,
+
+                    address: request.address,
+                    latitude: request.latitude,
+                    longitude: request.longitude,
+
+                    startDate: request.startDate,
+                    endDate: request.endDate,
+                    expectedEndDate: request.expectedEndDate,
+
+                    isConvertedToScaffold:
+                        request.isConvertedToScaffold,
+
+                    parentId: request.parentId,
+
+                    createdAt: request.createdAt,
+                    updatedAt: request.updatedAt,
+
+                    // ======================
+                    // PROJECT
+                    // ======================
+                    projectId: request.project?.id || null,
+                    projectUuid: request.project?.uuid || null,
+                    PJT: request.project?.PJT || null,
+                    projectName: request.project?.projectName || null,
+
+                    projectStatus: request.project?.status || null,
+
+                    clientName: request.project?.clientName || null,
+                    clientEmail: request.project?.clientEmail || null,
+                    clientMobile: request.project?.clientMobile || null,
+                    clientAddress: request.project?.clientAddress || null,
+
+                    // ======================
+                    // CREATED BY
+                    // ======================
+                    createdById: request.createdBy?.id || null,
+                    createdByName:
+                        request.createdBy?.user?.name || null,
+
+                    createdByMobile:
+                        request.createdBy?.user?.mobileNumber || null,
+
+                    createdByCraft:
+                        request.createdBy?.craft || null,
+
+                    createdByExperience:
+                        request.createdBy?.experience || null,
+
+                    createdByImage:
+                        request.createdBy?.user?.userMedias?.[0]?.url ||
+                        null,
+
+                    rentalCycleId:
+                        request.rentalCycles?.[0]?.id || null,
+
+                    rentalCycleUuid:
+                        request.rentalCycles?.[0]?.uuid || null,
+
+                    rentalCycleErectedAt:
+                        request.rentalCycles?.[0]?.erectedAt || null,
+
+                    rentalCycleTaggedAt:
+                        request.rentalCycles?.[0]?.taggedAt || null,
+
+                    rentalCycleTotalDays:
+                        request.rentalCycles?.[0]?.totalDays || 0,
+
+                    rentalCycleCount:
+                        request.rentalCycles?.[0]?.cycleCount || 0,
+
+                    rentalCycleDays:
+                        request.rentalCycles?.[0]?.rentalDays || 0,
+                },
+            };
+        } catch (error: any) {
+            console.error("❌ Request detail error:", error);
+
             if (error instanceof CustomError) {
                 throw error;
             }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.UPDATE_FAILED,
-                    500,
-                    error.message
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
+                500,
+                error.message
+            );
+        }
+    }
+
+    async changePriorityAndTags(data: changePriorityAndTagsDTO) {
+        try {
+
+
+            const dutyCount = [
+                data.lightDuty,
+                data.mediumDuty,
+                data.heavyDuty,
+            ].filter(Boolean).length;
+
+            if (dutyCount > 1) {
+                throw new CustomError(
+                    "Only one duty type can be selected",
+                    400
                 );
+            }
+
+            // 1. FIND REQUEST (safe + correct)
+            const scaffhold = await prisma.projectScaffholdRequest.findUnique({
+                where: {
+                    id: data.scaffHoldId,
+                },
+                include: {
+                    project: true,
+                },
+            });
+
+            if (!scaffhold) {
+                throw new CustomError(
+                    "Scaffold request not found",
+                    404
+                );
+            }
+
+            // OPTIONAL SAFETY CHECK
+            if (scaffhold.status === "REJECTED") {
+                throw new CustomError(
+                    "Cannot update rejected scaffold",
+                    400
+                );
+            }
+
+            // 2. UPDATE
+            const updatedScaffhold =
+                await prisma.projectScaffholdRequest.update({
+                    where: {
+                        id: data.scaffHoldId,
+                    },
+
+                    data: {
+
+                        priority: data.priority,
+
+                        tag: data.tag,
+
+                        ...(data.lightDuty !== undefined && {
+                            lightDuty: data.lightDuty,
+                        }),
+
+                        ...(data.mediumDuty !== undefined && {
+                            mediumDuty: data.mediumDuty,
+                        }),
+
+                        ...(data.heavyDuty !== undefined && {
+                            heavyDuty: data.heavyDuty,
+                        }),
+                    },
+                });
+
+            // 3. GET PROJECT OWNER
+            const project = await prisma.project.findUnique({
+                where: { id: scaffhold.projectId },
+                select: {
+                    createdById: true,
+                },
+            });
+
+            // 4. NOTIFICATION MESSAGE
+            const notificationMessage =
+                `Scaffold ${scaffhold.SCAFFID} updated to ${data.tag}`;
+
+            // 5. CREATE NOTIFICATION
+            await prisma.notification.create({
+                data: {
+                    uuid: uuidv4(),
+                    title: "Scaffold Updated",
+                    message: notificationMessage,
+                    type: "SCAFFOLD_STATUS_UPDATE",
+
+                    role: "COMPANY",
+                    companyId: project?.createdById ?? null,
+                    receiverId: project?.createdById ?? null,
+
+                    senderId: scaffhold.createdById.toString(), // ✅ FIXED
+
+                    isRead: false,
+                },
+            });
+
+            // 6. GET DEVICES
+            const companyUsers =
+                await prisma.projectManager.findMany({
+                    where: {
+                        companyId: project?.createdById,
+                    },
+                    select: {
+                        userId: true,
+                    },
+                });
+
+            const devices =
+                await prisma.device.findMany({
+                    where: {
+                        userId: {
+                            in: companyUsers.map(u => u.userId),
+                        },
+                        deviceToken: {
+                            not: null,
+                        },
+                    },
+                    select: {
+                        deviceToken: true,
+                    },
+                });
+
+            // 7. PUSH NOTIFICATIONS
+            for (const d of devices) {
+                await pushNotificationDelhi(
+                    d.deviceToken!,
+                    "Scaffold Updated",
+                    notificationMessage
+                );
+            }
+
+            // 8. RESPONSE
+            return {
+                success: true,
+                message: "Scaffold updated successfully",
+                data: updatedScaffhold,
+            };
+
+        } catch (error: any) {
+
+            console.error(
+                "❌ Change priority and tags error:",
+                error
+            );
+            if (error instanceof CustomError) {
+                throw error;
+            }
+
+            throw new CustomError(
+                error.message || "Update failed",
+                error.statusCode || 500
+            );
         }
     }
 
@@ -955,7 +1334,6 @@ const competentPersons =
                         isRead: n.isRead,
                         companyId: n.companyId,
                         projectId: n.projectId,
-                        scaffoldId: n.scaffoldId,
                         receiverId: n.receiverId,
                         senderId: n.senderId,
                         createdAt: n.createdAt,
@@ -972,6 +1350,161 @@ const competentPersons =
         }
     }
 
+
+    async getScaffholdRequestHistory(requestId: number) {
+        try {
+            const request = await prisma.projectScaffholdRequest.findFirst({
+                where: { id: requestId },
+                include: {
+                    project: {
+                        include: {
+                            createdBy: true
+                        }
+                    },
+
+                    createdBy: {
+                        include: {
+                            user: {
+                                include: {
+                                    userMedias: true // ✅ ADD THIS
+                                }
+                            },
+                        }
+                    },
+
+                    updatesRequest: {
+                        orderBy: {
+                            createdAt: "asc"
+                        }
+                    }
+                }
+            });
+
+            if (!request) {
+                throw new CustomError(
+                    "Request not found",
+                    404,
+                    "NOT_FOUND"
+                );
+            }
+
+            const tradesman = request.createdBy;
+            const createdUser = tradesman?.user;
+
+            return {
+                message: "Scaffold request history fetched successfully",
+
+                data: {
+
+                    // =======================
+                    // LATEST REQUEST
+                    // =======================
+                    latestRequest: {
+                        id: request.id,
+                        uuid: request.uuid,
+
+                        projectId: request.projectId,
+
+                        startDate: request.startDate,
+                        endDate: request.endDate,
+
+                        address: request.address,
+                        latitude: request.latitude,
+                        longitude: request.longitude,
+
+                        tag: request.tag,
+                        SCAFFID: request.SCAFFID,
+
+                        createdBy: request.createdById,
+
+                        tradesmanId: tradesman?.id || null,
+                        tradesmanName: tradesman?.user?.name || null,
+
+                        craftName: tradesman?.craft || null,
+
+                        // =======================
+                        // CREATED USER INFO (FIXED)
+                        // =======================
+                        createdByUser: {
+                            name: createdUser?.name || null,
+                            image:
+                                createdUser?.userMedias?.[0]?.url || null, // ✅ FIXED
+                            craftName: tradesman?.craft || null
+                        },
+
+                        company: request.project?.createdBy?.name || null,
+
+                        description: request.description,
+
+                        length: request.length,
+                        width: request.width,
+                        height: request.height,
+
+                        priority: request.priority,
+                        expectedEndDate: request.expectedEndDate,
+
+                        status: request.status,
+                        REQID: request.REQID,
+
+                        notes: request.notes,
+
+                        createdAt: request.createdAt,
+                        updatedAt: request.updatedAt
+                    },
+
+                    // =======================
+                    // HISTORY
+                    // =======================
+                    history: request.updatesRequest.map((item) => ({
+                        id: item.id,
+
+                        requestId: item.requestId,
+                        projectId: item.projectId,
+
+                        company: request.project?.createdBy?.name || null,
+
+                        createdBy: request.createdById,
+
+                        tradesmanId: tradesman?.id || null,
+                        tradesmanName: tradesman?.user?.name || null,
+
+                        craftName: tradesman?.craft || null,
+
+                        createdByUser: {
+                            name: createdUser?.name || null,
+                            image:
+                                createdUser?.userMedias?.[0]?.url || null, // ✅ FIXED
+                            craftName: tradesman?.craft || null
+                        },
+
+                        length: item.length,
+                        width: item.width,
+                        height: item.height,
+
+                        priority: item.priority,
+                        expectedEndDate: item.expectedEndDate,
+
+                        notes: item.notes,
+
+                        createdAt: item.createdAt
+                    }))
+                }
+            };
+
+        } catch (error: any) {
+            console.error("Error in getScaffholdRequestHistory:", error);
+
+            if (error instanceof CustomError) {
+                throw error;
+            }
+
+            throw new CustomError(
+                "Failed to fetch scaffold request history",
+                500,
+                error.message
+            );
+        }
+    }
 }
 
 

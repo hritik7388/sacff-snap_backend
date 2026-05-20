@@ -89,21 +89,13 @@ export class tradesManController {
     }
   }
 
-  async searchJob(req: Request, res: Response, next: Function) {
-    try {
-      const data = seacrchJobSchema.parse(req.body);
-      const result = await tradesMan.searchJob(data);
-      res.status(200).json(result);
-    } catch (err) {
-      next(err);
-    }
-  }
+ 
 
   async requestScaffhold(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
       const id = req.user!.id;
       const data = requestScaffOldSchema.parse(req.body);
-      const result = await tradesMan.requestScaffHoldServices(id, data);
+      const result = await tradesMan.requestProjectScaffHoldServices(id, data);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -114,7 +106,7 @@ export class tradesManController {
     try {
       const id = req.user!.id;
       const data = updateScaffOldSRequestchema.parse(req.body);
-      const result = await tradesMan.updateScaffHoldRequest(id, data);
+      const result = await tradesMan.updateProjectScaffHoldRequest(id, data);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -152,7 +144,7 @@ export class tradesManController {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const id = req.user!.id;
-      const result = await tradesMan.getJoinedScaffholds(id, page, limit);
+      const result = await tradesMan.getJoinedProjects(id, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -165,7 +157,7 @@ export class tradesManController {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const data = searchScaffHold.parse(req.query);
-      const result = await tradesMan.filterScaffHolds(data, page, limit);
+      const result = await tradesMan.filterProjects(data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -175,7 +167,7 @@ export class tradesManController {
   async deleteScaffHoldRequest(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
       const data = deleteRequest.parse(req.body);
-      const result = await tradesMan.deleteScaffHoldRequest(data);
+      const result = await tradesMan.deleteProjectScaffHoldRequest(data);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -235,7 +227,7 @@ export class tradesManController {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
       const data = searchFilter.parse(req.body);
-      const result = await tradesMan.getSearchFilterData(data, page, limit);
+      const result = await tradesMan.getProjectRequestFilterData(data, page, limit);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -244,20 +236,30 @@ export class tradesManController {
 
 
 
-  async getFilterScaffHolds(req: AuthenticatedRequest, res: Response, next: Function) {
-    try {
+async getFilterScaffHolds(req: AuthenticatedRequest, res: Response, next: Function) {
+  try {
+    const page = Number(req.body.page) || 1;
+    const limit = Number(req.body.limit) || 10;
 
-      const page = Number(req.body.page) || 1;
-      const limit = Number(req.body.limit) || 10;
+    // ✅ GET PROJECT ID FROM PARAMS (NOT USER)
+  const projectId = Number(req.query.projectId);
 
-      const id = req.user!.id;
-      const data = searchFilter.parse(req.body);
-      const result = await tradesMan.getFilteredScaffHolds(id, data, page, limit);
-      res.status(200).json(result);
-    } catch (err) {
-      next(err);
-    }
+   
+
+    const data = searchFilter.parse(req.body);
+
+    const result = await tradesMan.getFilteredProjectRequestsByProjectId(
+      projectId,
+      data,
+      page,
+      limit
+    );
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
   }
+}
 
   async delteTradesManAccount(req: AuthenticatedRequest, res: Response, next: Function) {
     try {

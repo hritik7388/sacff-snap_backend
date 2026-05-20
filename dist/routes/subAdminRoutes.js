@@ -116,6 +116,12 @@ router.get('/getTimelineImagesByStatus', authMiddleware_2.clientAuthMiddleware, 
  */
 router.get("/getProjectList", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, subAdminControllers.getProjectList.bind(subAdminControllers));
 /**
+ * @route   GET /api/v1/subAdmin/getProjectScaffHold
+ * @desc    Get scaffHold details by Project ID
+ * @access  Private (Authenticated Users)
+ */
+router.get("/getProjectScaffHold", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, subAdminControllers.getProjectScaffHold.bind(subAdminControllers));
+/**
  * @route   GET /api/v1/subAdmin/getAllScaffHold
  * @desc    Get all scaffHolds with pagination
  * @access  Private (Authenticated Users)

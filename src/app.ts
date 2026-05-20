@@ -33,7 +33,7 @@ import http from "http";
 import { pushNotificationDelhi } from "./helpers/utils";
 const app = express();
 const port = process.env.PORT || 3001;
-const server = https.createServer( app);
+const server = https.createServer(app);
 // const server = https.createServer( app);
 const io = new Server(server, {
     cors: {
@@ -54,6 +54,7 @@ app.use(express.json());
 
 app.set("io", io);
 app.use("/api", routes);
+app.use(express.static(path.join(__dirname, ".well-known")));
 
 app.use(errorMiddleware);
 

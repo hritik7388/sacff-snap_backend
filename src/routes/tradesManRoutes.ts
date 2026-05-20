@@ -49,13 +49,7 @@ router.get("/tradesManCrafts",clientAuthMiddleware, authMiddleware,tradesManRout
  */
 router.put("/updateProfile",clientAuthMiddleware,authMiddleware,isTradesMan,tradesManRoutes.updateProfile.bind(tradesManRoutes));
 
-/**
- * @route   POST /api/v1/tradesMan/search
- * @desc    Search Job by CMPId and SCAFFID
- * @access  Private
- */
-router.post('/searchJob', clientAuthMiddleware,authMiddleware,isTradesMan, tradesManRoutes.searchJob.bind(tradesManRoutes));
-
+ 
 
 /**
  * @route   POST /api/v1/tradesMan/requestScaffhold

@@ -108,6 +108,11 @@ export const generateCompanyId = () => {
   return `CMP-${num}`;
 
 }
+export const generateProjectId = () => {
+  const num = Math.floor(100000 + Math.random() * 900000); // 1000–9999
+  return `PJT-${num}`;
+
+}
 
 export const generateJobId = () => {
   const num = Math.floor(100000 + Math.random() * 900000); // 1000–9999
@@ -118,6 +123,11 @@ export const generateJobId = () => {
 export const scaffHoldIdGenerator = () => {
   const num = Math.floor(100000 + Math.random() * 900000);
   return `SCF-${num}`;
+}
+
+export const projectIdGenerator = () => {
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return `PJT-${num}`;
 }
 
 export const reqscaffHoldIdGenerator = () => {
@@ -258,11 +268,13 @@ export const pdfGenerator = async (scaffholdDetails: any) => {
     }
 
     const BASE_URL = "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
-    const qrFinalLink = `${BASE_URL}?scaffId=${scaffholdDetails.id}`;
-
+    const qrFinalLink =
+      `${BASE_URL}?scaffId=${scaffholdDetails.id}` +
+      `&userType=${scaffholdDetails.tradesmanUserType}` +
+      `&PJT=${scaffholdDetails.PJT}`;
     const qrResult = await qrCodeGenerator(
       qrFinalLink,
-      scaffholdDetails.userType,
+      scaffholdDetails.tradesmanUserType,
       scaffholdDetails.status
     );
 

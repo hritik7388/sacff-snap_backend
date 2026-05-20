@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pdfGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.extractS3Key = exports.mailTransporter = void 0;
+exports.pdfGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.extractS3Key = exports.mailTransporter = void 0;
 // src/helpers/utils.ts
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const qrcode_1 = __importDefault(require("qrcode"));
@@ -107,6 +107,11 @@ const generateCompanyId = () => {
     return `CMP-${num}`;
 };
 exports.generateCompanyId = generateCompanyId;
+const generateProjectId = () => {
+    const num = Math.floor(100000 + Math.random() * 900000); // 1000–9999
+    return `PJT-${num}`;
+};
+exports.generateProjectId = generateProjectId;
 const generateJobId = () => {
     const num = Math.floor(100000 + Math.random() * 900000); // 1000–9999
     return `JOB-${num}`;
@@ -117,6 +122,11 @@ const scaffHoldIdGenerator = () => {
     return `SCF-${num}`;
 };
 exports.scaffHoldIdGenerator = scaffHoldIdGenerator;
+const projectIdGenerator = () => {
+    const num = Math.floor(100000 + Math.random() * 900000);
+    return `PJT-${num}`;
+};
+exports.projectIdGenerator = projectIdGenerator;
 const reqscaffHoldIdGenerator = () => {
     const num = Math.floor(100000 + Math.random() * 900000);
     return `REQ-${num}`;
@@ -234,8 +244,10 @@ const pdfGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, fun
             throw new customError_1.CustomError("PDF generation not allowed for untagged or RED scaffold.");
         }
         const BASE_URL = "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
-        const qrFinalLink = `${BASE_URL}?scaffId=${scaffholdDetails.id}`;
-        const qrResult = yield (0, exports.qrCodeGenerator)(qrFinalLink, scaffholdDetails.userType, scaffholdDetails.status);
+        const qrFinalLink = `${BASE_URL}?scaffId=${scaffholdDetails.id}` +
+            `&userType=${scaffholdDetails.tradesmanUserType}` +
+            `&PJT=${scaffholdDetails.PJT}`;
+        const qrResult = yield (0, exports.qrCodeGenerator)(qrFinalLink, scaffholdDetails.tradesmanUserType, scaffholdDetails.status);
         if (!qrResult.success) {
             throw new Error("QR generation failed");
         }

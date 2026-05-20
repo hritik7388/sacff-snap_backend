@@ -498,7 +498,8 @@ class superAdminServices {
                 }
                 const skip = (page - 1) * limit;
                 const notifications = yield prismaClient_1.default.notification.findMany({
-                    where: { receiverId: userId,
+                    where: {
+                        receiverId: userId,
                         role: role
                     },
                     orderBy: { createdAt: 'desc' },
@@ -506,7 +507,7 @@ class superAdminServices {
                     take: limit
                 });
                 const mappedNotifications = notifications.map(n => {
-                    var _a, _b, _c, _d;
+                    var _a, _b, _c;
                     return ({
                         id: n.id.toString(),
                         uuid: n.uuid,
@@ -516,9 +517,8 @@ class superAdminServices {
                         role: n.role,
                         companyId: ((_a = n.companyId) === null || _a === void 0 ? void 0 : _a.toString()) || "", // null -> ""
                         projectId: ((_b = n.projectId) === null || _b === void 0 ? void 0 : _b.toString()) || "", // null -> ""
-                        scaffoldId: ((_c = n.scaffoldId) === null || _c === void 0 ? void 0 : _c.toString()) || "", // BigInt -> string
                         scaffoldRequestId: n.scaffoldRequestId || "", // null -> ""
-                        receiverId: ((_d = n.receiverId) === null || _d === void 0 ? void 0 : _d.toString()) || "", // BigInt -> string
+                        receiverId: ((_c = n.receiverId) === null || _c === void 0 ? void 0 : _c.toString()) || "", // BigInt -> string
                         senderId: n.senderId || "", // string or "" if null
                         isRead: n.isRead,
                         notificationImage: n.notificationImage || "",
@@ -849,6 +849,9 @@ class superAdminServices {
             }
             catch (error) {
                 console.error("Error fetching blogs:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
                 throw error;
             }
         });
@@ -915,6 +918,9 @@ class superAdminServices {
             }
             catch (error) {
                 console.error("Error fetching contact submissions:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
                 throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_FAIL, 500, error.message);
             }
         });

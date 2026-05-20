@@ -1,3 +1,4 @@
+// src/config/firebaseAdminConfig.ts
 import dotenv from "dotenv";
 dotenv.config();
 

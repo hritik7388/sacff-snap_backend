@@ -75,5 +75,29 @@ class PasswordController {
             }
         });
     }
+    getNotificationSetting(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.user.id;
+                const result = yield password.getNotificationSetting(userId);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    upsertNotificationSetting(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.user.id;
+                const result = yield password.upsertNotificationSetting(userId, req.body);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
 }
 exports.PasswordController = PasswordController;

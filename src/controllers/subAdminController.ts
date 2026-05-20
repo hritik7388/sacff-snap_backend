@@ -6,6 +6,7 @@ import { subAdminLoginSchema, addTeamMemberSchema, addNewProjectSchema, updateTe
 import { AuthenticatedRequest } from "../types/index";
 import { searchFilter } from "../schemas/tradesManSchema";
 import { logout } from "../schemas/superAdminSchema";
+import { CustomError } from "../types/customError";
 const subAdmin = new subAdminServices();
 export class subAdminController {
     async subAdminLogin(req: Request, res: Response, next: Function) {
@@ -223,6 +224,25 @@ export class subAdminController {
         }
     }
 
+    async getProjectScaffHold(
+        req: AuthenticatedRequest,
+        res: Response,
+    ) {
+        try {
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10;
+            const id = Number(req.query.id);
+            console.log("projectId======>>>",id)
+            const result =
+                await subAdmin.getProjectScaffHold( page, limit,id
+
+                );
+            return res.status(200).json(result);
+
+        } catch (err) {
+            next(err);
+        }
+    }
     async getAllScaffHold(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
             const page = parseInt(req.query.page as string) || 1;
@@ -278,4 +298,8 @@ export class subAdminController {
             next(err);
         }
     }
+}
+
+function next(err: unknown) {
+    throw new Error("Function not implemented.");
 }

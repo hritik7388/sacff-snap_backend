@@ -10,12 +10,7 @@ const router = Router();
 
 const scaffHoldRoutes = new scaffHoldController();
 
-/**
- * @route   POST /api/v1/scaffHold/createScaffHold
- * @desc    Create a new scaffHold
- * @access  Private (Authenticated Users)
- */
-router.post("/createScaffHold",clientAuthMiddleware, authMiddleware,isProjectManager , scaffHoldRoutes.createScaffHold.bind(scaffHoldRoutes));
+ 
 
 /**
  * @route   GET /api/v1/scaffHold/getAllScaffHold
@@ -36,7 +31,7 @@ router.get("/getScaffHoldDetailsById",clientAuthMiddleware, authMiddleware, scaf
  * @desc    Get scaffHold details by Project ID
  * @access  Private (Authenticated Users)
  */
-router.get("/getProjectScaffHold",clientAuthMiddleware, authMiddleware, scaffHoldRoutes.getProjectScaffHold.bind(scaffHoldRoutes));
+router.post("/getNewProjectScaffHold",clientAuthMiddleware, authMiddleware, scaffHoldRoutes.getProjectScaffHold.bind(scaffHoldRoutes));
 
 /**
  * @route   GET /api/v1/scaffHold/getScaffHoldCompetentPerson
@@ -80,5 +75,10 @@ router.put("/changeTagsPriority",clientAuthMiddleware, authMiddleware,isProjectM
  */
 router.get('/getNotifictaion',clientAuthMiddleware, authMiddleware,isSubAdmin, scaffHoldRoutes.companyNotifictaion.bind(scaffHoldRoutes));
 
-
+router.get(
+    "/reqHistory",
+    authMiddleware,
+    clientAuthMiddleware,
+    scaffHoldRoutes.getScaffHoldHistory.bind(scaffHoldRoutes)
+);
 export default router;

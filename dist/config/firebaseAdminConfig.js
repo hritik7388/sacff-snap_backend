@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/config/firebaseAdminConfig.ts
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const firebaseAdminConfig = {

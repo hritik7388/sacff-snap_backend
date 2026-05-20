@@ -252,6 +252,21 @@ class subAdminController {
             }
         });
     }
+    getProjectScaffHold(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 10;
+                const id = Number(req.query.id);
+                console.log("projectId======>>>", id);
+                const result = yield subAdmin.getProjectScaffHold(page, limit, id);
+                return res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
     getAllScaffHold(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;
@@ -310,3 +325,6 @@ class subAdminController {
     }
 }
 exports.subAdminController = subAdminController;
+function next(err) {
+    throw new Error("Function not implemented.");
+}

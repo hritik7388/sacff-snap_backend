@@ -12,21 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.scaffHoldController = void 0;
 const scaffHoldServices_1 = require("../services/scaffHoldServices");
 const scaffHoldSchema_1 = require("../schemas/scaffHoldSchema");
+const tradesManSchema_1 = require("../schemas/tradesManSchema");
 const scaffHold = new scaffHoldServices_1.ScaffHoldsServices();
 class scaffHoldController {
-    createScaffHold(req, res, next) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const userId = req.user.id;
-                const data = scaffHoldSchema_1.scaffHoldSchema.parse(req.body);
-                const scaffHoldData = yield scaffHold.createScaffHold(userId, data);
-                res.status(201).json(scaffHoldData);
-            }
-            catch (err) {
-                next(err);
-            }
-        });
-    }
     getAllScaffHold(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -55,11 +43,15 @@ class scaffHoldController {
     getProjectScaffHold(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const page = parseInt(req.query.page) || 1;
-                const limit = parseInt(req.query.limit) || 10;
-                const projectId = scaffHoldSchema_1.projectScaffhold.parse(req.query);
-                const scaffHoldData = yield scaffHold.getProjectScaffHold(projectId, page, limit);
-                res.status(200).json(scaffHoldData);
+                const projectId = BigInt(req.body.projectId);
+                // ✅ Zod validation
+                const data = tradesManSchema_1.searchFilter.parse(req.body);
+                // 📄 pagination
+                const page = Number(req.query.page) || 1;
+                const limit = Number(req.query.limit) || 10;
+                // 🚀 service call
+                const result = yield scaffHold.getProjectScaffHold(data, page, limit, projectId);
+                return res.status(200).json(result);
             }
             catch (err) {
                 next(err);
@@ -70,7 +62,7 @@ class scaffHoldController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = scaffHoldSchema_1.scaffCompetentPerson.parse(req.query);
-                const scaffHoldData = yield scaffHold.scaffHoldCompetentPersons(data);
+                const scaffHoldData = yield scaffHold.projectCompetentPersons(data);
                 res.status(200).json(scaffHoldData);
             }
             catch (err) {
@@ -82,7 +74,7 @@ class scaffHoldController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = scaffHoldSchema_1.scaffHoldDetailsById.parse(req.query);
-                const scaffHoldData = yield scaffHold.scaffAndCompetentPersons(data);
+                const scaffHoldData = yield scaffHold.projectAndCompetentPersons(data);
                 res.status(200).json(scaffHoldData);
             }
             catch (err) {
@@ -95,7 +87,7 @@ class scaffHoldController {
             try {
                 const data = scaffHoldSchema_1.ScaffCompetentPerson.parse(req.body);
                 const userId = req.user.id;
-                const competentData = yield scaffHold.addCompetentPersonToScaffHold(userId, data);
+                const competentData = yield scaffHold.addCompetentPersonToProject(userId, data);
                 res.status(200).json(competentData);
             }
             catch (err) {
@@ -107,7 +99,7 @@ class scaffHoldController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = scaffHoldSchema_1.removeScaffCompetentPerson.parse(req.query);
-                const competentData = yield scaffHold.removeCompetentPersonFromScaffHold(data);
+                const competentData = yield scaffHold.removeCompetentPersonFromProject(data);
                 res.status(200).json(competentData);
             }
             catch (err) {
@@ -133,6 +125,18 @@ class scaffHoldController {
                 const userId = req.user.id;
                 const company = yield scaffHold.getCompanyNotifications(userId);
                 res.status(200).json(company);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    getScaffHoldHistory(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const requestId = parseInt(req.query.requestId);
+                const scaffHoldData = yield scaffHold.getScaffholdRequestHistory(requestId);
+                res.status(200).json(scaffHoldData);
             }
             catch (err) {
                 next(err);

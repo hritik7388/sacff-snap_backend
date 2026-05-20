@@ -161,5 +161,28 @@ export class projectManagerController {
     }
   }
 
+  async generateProjectJobLink(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function
+) {
+    try {
+
+          const PJT =
+                String(req.params.PJT);
+                console.log("PJT=============>>>",PJT)
+
+        const data =
+            await projectManager.generateProjectJobLink(
+                PJT
+            );
+
+        res.status(200).json(data);
+
+    } catch (err) {
+        next(err);
+    }
+}
+
 
 }

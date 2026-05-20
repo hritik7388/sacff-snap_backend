@@ -39,9 +39,14 @@ exports.updateProfileSchema = zod_1.default.object({
     photoImage: zod_1.default.string().optional(),
 });
 exports.tradesManLoginSchema = zod_1.default.object({
+    PJT: zod_1.default
+        .string()
+        .nonempty("PJT is required")
+        .regex(/^PJT-\d{4,10}$/, "Invalid PJT format. Example: PJT-123456"),
     user_type: zod_1.default.string(),
     email: zod_1.default.string().email("Invalid email format").min(1, "Email is required"),
     password: zod_1.default.string().min(8, "Password must be at least 8 characters long"),
+    employerName: zod_1.default.string(),
 });
 exports.tradesManCraftSchema = zod_1.default.object({
     name: zod_1.default.coerce.string().min(1, "Craft Name is required"),
@@ -58,7 +63,7 @@ exports.seacrchJobSchema = zod_1.default.object({
     SCAFFID: zod_1.default.string()
 });
 exports.requestScaffOldSchema = zod_1.default.object({
-    scaffHoldId: zod_1.default.number(),
+    projectId: zod_1.default.number(),
     length: zod_1.default.string().optional(),
     width: zod_1.default.string().optional(),
     height: zod_1.default.string().optional(),

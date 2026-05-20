@@ -188,6 +188,98 @@ export class PasswordServices {
         }
     }
 
+    async upsertNotificationSetting(userId: number, data: any) {
+        try {
+            const userBigIntId = BigInt(userId);
+
+            const setting = await prisma.notificationSetting.upsert({
+                where: {
+                    userId: userBigIntId,
+                },
+                update: {
+                    ...(data.unusualActivity !== undefined && {
+                        unusualActivity: data.unusualActivity,
+                    }),
+                    ...(data.newDeviceLogin !== undefined && {
+                        newDeviceLogin: data.newDeviceLogin,
+                    }),
+                    ...(data.projectCreated !== undefined && {
+                        projectCreated: data.projectCreated,
+                    }),
+                    ...(data.teamMemberChanged !== undefined && {
+                        teamMemberChanged: data.teamMemberChanged,
+                    }),
+                    ...(data.scaffoldUpdates !== undefined && {
+                        scaffoldUpdates: data.scaffoldUpdates,
+                    }),
+                    ...(data.emailEnabled !== undefined && {
+                        emailEnabled: data.emailEnabled,
+                    }),
+                },
+                create: {
+                    userId: userBigIntId,
+                    unusualActivity: data.unusualActivity ?? true,
+                    newDeviceLogin: data.newDeviceLogin ?? true,
+                    projectCreated: data.projectCreated ?? true,
+                    teamMemberChanged: data.teamMemberChanged ?? true,
+                    scaffoldUpdates: data.scaffoldUpdates ?? true,
+                    emailEnabled: data.emailEnabled ?? true,
+                },
+            });
+
+            return {
+                message: "Notification settings saved successfully",
+                data: setting,
+            };
+
+        } catch (error: any) {
+            console.error("❌ Notification setting error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new Error(error.message);
+        }
+    }
+
+    async getNotificationSetting(userId: number) {
+        try {
+            const userBigIntId = BigInt(userId);
+
+            let setting = await prisma.notificationSetting.findUnique({
+                where: {
+                    userId: userBigIntId,
+                },
+            });
+
+            // If not found, return default structure (important for UX)
+            if (!setting) {
+                setting = {
+                    id: BigInt(0),
+                    userId: userBigIntId,
+                    unusualActivity: true,
+                    newDeviceLogin: true,
+                    projectCreated: true,
+                    teamMemberChanged: true,
+                    scaffoldUpdates: true,
+                    emailEnabled: true,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                } as any;
+            }
+
+            return {
+                message: "Notification settings fetched successfully",
+                data: setting,
+            };
+
+        } catch (error: any) {
+            console.error("❌ Get notification setting error:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new Error(error.message);
+        }
+    }
 
 }
 

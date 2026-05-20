@@ -170,5 +170,18 @@ class projectManagerController {
             }
         });
     }
+    generateProjectJobLink(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const PJT = String(req.params.PJT);
+                console.log("PJT=============>>>", PJT);
+                const data = yield projectManager.generateProjectJobLink(PJT);
+                res.status(200).json(data);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
 }
 exports.projectManagerController = projectManagerController;

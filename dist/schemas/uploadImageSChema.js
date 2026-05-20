@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImageKeySchema = exports.uploadImageSchema = void 0;
+// src/schemas/uploadImageSChema.ts
 const zod_1 = __importDefault(require("zod"));
 exports.uploadImageSchema = zod_1.default.object({
     filename: zod_1.default.string(),

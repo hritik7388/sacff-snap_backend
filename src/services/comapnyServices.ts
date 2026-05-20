@@ -61,7 +61,7 @@ export class CompanyServices {
                         title: "New Company Registered",
                         message: `A new company "${newCompany.name}" has been registered and is awaiting approval.`,
                         type: "NEW_COMPANY_REGISTERED",
-                        role: "SUPER_ADMIN",  
+                        role: "SUPER_ADMIN",
                         companyId: newCompany.id,
                         isRead: false,
                         receiverId: Number(superAdmin.id),
@@ -118,8 +118,8 @@ export class CompanyServices {
                     isDeleted: false,
                     status: "ACTIVE",
                     isApproved: "APPROVED",
-                    isVerified:true,
-                    user_type:"COMPANY"
+                    isVerified: true,
+                    user_type: "COMPANY"
                 },
             });
 
@@ -175,8 +175,8 @@ export class CompanyServices {
                     isDeleted: false,
                     status: "ACTIVE",
                     isApproved: "APPROVED",
-                    isVerified:true,
-                    user_type:"COMPANY"
+                    isVerified: true,
+                    user_type: "COMPANY"
                 },
             });
 
@@ -220,10 +220,10 @@ export class CompanyServices {
                 prisma.company.findMany({
                     where: {
                         isDeleted: false,
-                    status: "ACTIVE",
-                    isApproved: "APPROVED",
-                    isVerified:true,
-                    user_type:"COMPANY"
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
+                        user_type: "COMPANY"
                     },
                     skip,
                     take: limit,
@@ -240,11 +240,11 @@ export class CompanyServices {
                 }),
                 prisma.company.count({
                     where: {
-                         isDeleted: false,
-                    status: "ACTIVE",
-                    isApproved: "APPROVED",
-                    isVerified:true,
-                    user_type:"COMPANY"
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
+                        user_type: "COMPANY"
                     },
                 })
             ]);
@@ -252,7 +252,7 @@ export class CompanyServices {
                 companyData.map(async ({ _count, ...company }) => ({
                     ...company,
                     totalProjects: _count.projects,
-                    image:company.image
+                    image: company.image
                 }))
             );
             const totalPages = Math.ceil(totalCount / limit);
@@ -276,101 +276,122 @@ export class CompanyServices {
 
     async getCompanyById(data: CompanyIdDTO) {
         try {
-            const companySCaffholds = await prisma.scaffhold.findMany({
+
+            // 🔥 OLD: scaffhold ❌ → NEW: request-based system ✅
+            const companyRequests = await prisma.projectScaffholdRequest.findMany({
                 where: {
-                    companyId: data.id,
-                    company:{
+                    project: {
+                        createdById: data.id,
                         isDeleted: false,
-                        status: "ACTIVE",
-                        isApproved: "APPROVED",
-                        isVerified:true,
                     },
-                    isDeleted: false, 
+                    status: {
+                        in: ["PENDING", "APPROVED", "REJECTED"],
+                    },
                 },
             });
-            console.log("companySCaffholds==================>>>>>", companySCaffholds)
 
+            console.log("companyRequests==================>>>>>", companyRequests);
+
+            // 🔥 PROJECTS (same as before)
             const companyProjects = await prisma.project.findMany({
                 where: {
                     createdById: data.id,
-                    isDeleted: false, 
+                    isDeleted: false,
                 },
             });
-            console.log("companyProjects==================>>>>>", companyProjects)
+
+            console.log("companyProjects==================>>>>>", companyProjects);
 
             const companyDataRaw = await prisma.company.findUnique({
                 where: { id: data.id },
                 include: {
                     competentPersons: {
-            where: {   // ✅ competentPerson deleted na ho
-                user: {
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    isVerified: true
-                }
-            },
-            include: {
-                user: true
-            }
-        },
-        projectManagers: {
-            where: {   // ✅ projectManager deleted na ho
-                user: {
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    isVerified: true
-                }
-            },
-            include: {
-                user: true
-            }
-        }
-    },
-});
-            console.log("companyDataRaw==================>>>>>", companyDataRaw)
+                        where: {
+                            user: {
+                                isDeleted: false,
+                                status: "ACTIVE",
+                                isVerified: true,
+                            },
+                        },
+                        include: {
+                            user: true,
+                        },
+                    },
+                    projectManagers: {
+                        where: {
+                            user: {
+                                isDeleted: false,
+                                status: "ACTIVE",
+                                isVerified: true,
+                            },
+                        },
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+            });
+
+            console.log("companyDataRaw==================>>>>>", companyDataRaw);
 
             if (!companyDataRaw) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not Found");
+                throw new CustomError(
+                    RESPONSE_MESSAGES.COMPANY.NOT_FOUND,
+                    500,
+                    "Not Found"
+                );
             }
+
             const companyData = {
                 ...companyDataRaw,
-                 image: companyDataRaw.image   ,
+                image: companyDataRaw.image,
 
                 competentPersons: companyDataRaw.competentPersons.map(cp => ({
                     id: cp.user.id,
                     name: cp.user.name,
-                    email: cp.user.email
+                    email: cp.user.email,
                 })),
 
                 projectManagers: companyDataRaw.projectManagers.map(pm => ({
                     id: pm.user.id,
                     name: pm.user.name,
-                    email: pm.user.email
-                }))
+                    email: pm.user.email,
+                })),
             };
 
             return {
                 message: RESPONSE_MESSAGES.COMPANY.FETCH_BY_ID_SUCCESS,
                 data: {
                     companyData,
+
                     totalCompetentPersons: companyData.competentPersons.length,
                     totalProjectManagers: companyData.projectManagers.length,
-                    totalScaffholds: companySCaffholds.length,
+
+                    // 🔥 UPDATED METRICS
+                    totalRequests: companyRequests.length,
+
                     totalProjects: companyProjects.length,
                     activeProjects: companyProjects.filter(p => p.status === "ONGOING").length,
-                    activeScaffholds: companySCaffholds.filter(s => s.status === "ACTIVE").length,
-                    dismentedScaffholds: companySCaffholds.filter(s => s.status === "DISMANTLED").length,
+
+                    // optional (if needed)
+                    pendingRequests: companyRequests.filter(r => r.status === "PENDING").length,
+                    approvedRequests: companyRequests.filter(r => r.status === "APPROVED").length,
+                    rejectedRequests: companyRequests.filter(r => r.status === "REJECTED").length,
                 },
             };
 
         } catch (error: any) {
             console.error("getCompanyById error:", error);
+
             if (error instanceof CustomError) {
                 throw error;
             }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.COMPANY.FETCH_FAILED,
+                500,
+                error.message
+            );
         }
     }
 
@@ -681,58 +702,44 @@ export class CompanyServices {
     }
 
 
-        async updateProfileImage(userId: number, data: UpdateProfileImageDTO) {
-            try {
-    
-                const userExists = await prisma.company.findFirst({
-                    where: { id: userId,isApproved: "APPROVED", status: "ACTIVE", isDeleted: false, isVerified:true, user_type:"COMPANY" },
-                });
-                if (!userExists) {
-                    throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT found ")
-                }
-    
-                const updatedImage = await prisma.company.update({
-                    where: { id: userExists.id }, 
-                    data: { image: data.profileImage },
-                });
-    
-                return {
-                    message: RESPONSE_MESSAGES.IMAGE.UPADTE_IMAGE,
-                    data: updatedImage,
-                };
-    
-    
-            } catch (error: any) {
-                console.error("Error fetching image data:", error);
-                if (error instanceof CustomError) {
-                    throw error;
-                }
-                throw error instanceof CustomError
-                    ? error
-                    : new CustomError(
-                        RESPONSE_MESSAGES.IMAGE.FAIL_UPADTE_IMAGE,
-                        500,
-                        error.message
-                    );
-    
+    async updateProfileImage(userId: number, data: UpdateProfileImageDTO) {
+        try {
+
+            const userExists = await prisma.company.findFirst({
+                where: { id: userId, isApproved: "APPROVED", status: "ACTIVE", isDeleted: false, isVerified: true, user_type: "COMPANY" },
+            });
+            if (!userExists) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT found ")
             }
-    
+
+            const updatedImage = await prisma.company.update({
+                where: { id: userExists.id },
+                data: { image: data.profileImage },
+            });
+
+            return {
+                message: RESPONSE_MESSAGES.IMAGE.UPADTE_IMAGE,
+                data: updatedImage,
+            };
+
+
+        } catch (error: any) {
+            console.error("Error fetching image data:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw error instanceof CustomError
+                ? error
+                : new CustomError(
+                    RESPONSE_MESSAGES.IMAGE.FAIL_UPADTE_IMAGE,
+                    500,
+                    error.message
+                );
+
         }
 
+    }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

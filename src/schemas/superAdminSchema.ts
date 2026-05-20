@@ -44,21 +44,21 @@ export const notifictaion = z.object({
 
 export const blogSchema = z.object({
 
-    blogTitle: z.string() ,
-    category: z.string() ,
-    publishDate: z.string() ,
+    blogTitle: z.string(),
+    category: z.string(),
+    publishDate: z.string(),
     image: z.string(),
-    blogBody: z.string() ,
+    blogBody: z.string(),
     status: z.string()
 
 })
 export const publishblogSchema = z.object({
     id: z.number(),
-    blogTitle: z.string() ,
-    category: z.string() ,
-    publishDate: z.string() ,
+    blogTitle: z.string(),
+    category: z.string(),
+    publishDate: z.string(),
     image: z.string(),
-    blogBody: z.string() ,
+    blogBody: z.string(),
     status: z.string()
 
 })
@@ -69,7 +69,7 @@ export const deleteblogSchema = z.object({
 
 export const contact = z.object({
     name: z.string().min(1, "Company Name is required"),
-    email: z.string().email("Invalid email format").min(1, "Email is required"), 
+    email: z.string().email("Invalid email format").min(1, "Email is required"),
     mobileNumber: z
         .string()
         .min(10, "Phone number mustbe at least 10 characters long")
@@ -93,13 +93,13 @@ export const blogByIdSchema = z.object({
 
 })
 
-export const updateProfileImageSchema = z.object({ 
+export const updateProfileImageSchema = z.object({
     profileImage: z.string(),
 })
 
 
-export const logout=z.object({
-    deviceToken:z.string()
+export const logout = z.object({
+    deviceToken: z.string()
 })
 export type UpdateProfileImageDTO = z.infer<typeof updateProfileImageSchema>;
 

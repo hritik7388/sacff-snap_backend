@@ -519,34 +519,35 @@ export class superAdminServices {
         try {
             let role: NotificationRole;
 
-// 1️⃣ check user table
-const user = await prisma.user.findUnique({
-    where: { id: BigInt(userId) },
-    select: { user_type: true }
-});
+            // 1️⃣ check user table
+            const user = await prisma.user.findUnique({
+                where: { id: BigInt(userId) },
+                select: { user_type: true }
+            });
 
-if (user) {
-    role = user.user_type as NotificationRole;
+            if (user) {
+                role = user.user_type as NotificationRole;
 
-} else {
+            } else {
 
-    // 2️⃣ check company table
-    const company = await prisma.company.findUnique({
-        where: { id: BigInt(userId) },
-        select: { user_type: true }
-    });
+                // 2️⃣ check company table
+                const company = await prisma.company.findUnique({
+                    where: { id: BigInt(userId) },
+                    select: { user_type: true }
+                });
 
-    if (!company) {
-        throw new CustomError("User or Company not found", 404);
-    }
+                if (!company) {
+                    throw new CustomError("User or Company not found", 404);
+                }
 
-    role = company.user_type as NotificationRole;
-}
+                role = company.user_type as NotificationRole;
+            }
             const skip = (page - 1) * limit;
             const notifications = await prisma.notification.findMany({
-                where: { receiverId: userId,
-                     role: role
-                 },
+                where: {
+                    receiverId: userId,
+                    role: role
+                },
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit
@@ -561,7 +562,7 @@ if (user) {
                 role: n.role,
                 companyId: n.companyId?.toString() || "",       // null -> ""
                 projectId: n.projectId?.toString() || "",       // null -> ""
-                scaffoldId: n.scaffoldId?.toString() || "",     // BigInt -> string
+
                 scaffoldRequestId: n.scaffoldRequestId || "",   // null -> ""
                 receiverId: n.receiverId?.toString() || "",     // BigInt -> string
                 senderId: n.senderId || "",                     // string or "" if null
@@ -923,6 +924,9 @@ if (user) {
 
         } catch (error) {
             console.error("Error fetching blogs:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
             throw error;
         }
     }
@@ -998,6 +1002,9 @@ if (user) {
 
         } catch (error: any) {
             console.error("Error fetching contact submissions:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
 
             throw new CustomError(
                 RESPONSE_MESSAGES.CONTACT.GET_FAIL,
@@ -1211,43 +1218,43 @@ if (user) {
 
 
     async logoutUser(id: number, data: LogoutDTO) {
-  try {
-    const user = await prisma.user.findFirst({
-      where: {
-        id: id,
-        status: "ACTIVE",
-        isDeleted: false,
-      },
-    });
+        try {
+            const user = await prisma.user.findFirst({
+                where: {
+                    id: id,
+                    status: "ACTIVE",
+                    isDeleted: false,
+                },
+            });
 
-    if (!user) {
-      throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+            if (!user) {
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+            }
+
+            // ✅ Delete ONLY current device
+            await prisma.device.deleteMany({
+                where: {
+                    userId: user.id,
+                    deviceToken: data.deviceToken,
+                },
+            });
+
+            return {
+                status: 200,
+                message: RESPONSE_MESSAGES.AUTH.LOGOUT_SUCCESS,
+            };
+
+        } catch (error: any) {
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw new CustomError(
+                RESPONSE_MESSAGES.AUTH.LOGOUT_FAIL,
+                500,
+                error.message
+            );
+        }
     }
-
-    // ✅ Delete ONLY current device
-    await prisma.device.deleteMany({
-      where: {
-        userId: user.id,
-        deviceToken:data. deviceToken,
-      },
-    });
-
-    return {
-      status: 200,
-      message: RESPONSE_MESSAGES.AUTH.LOGOUT_SUCCESS,
-    };
-
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-    throw new CustomError(
-      RESPONSE_MESSAGES.AUTH.LOGOUT_FAIL,
-      500,
-      error.message
-    );
-  }
-}
 
 }
 
@@ -1270,7 +1277,7 @@ if (user) {
                     uuid: uuidv4(),
                     email: superadminEmail,
                     password: hashedPassword,
-                    isVerified:true,
+                    isVerified: true,
                     user_type: "SUPER_ADMIN",
                     name: "Super Admin",
                     mobileNumber: "7388503329",

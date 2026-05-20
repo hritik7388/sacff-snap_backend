@@ -36,114 +36,119 @@ export const updateProfileSchema = z.object({
     countryCode: z.string().min(1, "Country code is required").optional(),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
-     photoImage: z.string(). optional(),
+    photoImage: z.string().optional(),
 });
 
 export const tradesManLoginSchema = z.object({
+    PJT: z
+        .string()
+        .nonempty("PJT is required")
+        .regex(/^PJT-\d{4,10}$/, "Invalid PJT format. Example: PJT-123456"),
     user_type: z.string(),
     email: z.string().email("Invalid email format").min(1, "Email is required"),
     password: z.string().min(8, "Password must be at least 8 characters long"),
+    employerName: z.string(),
 })
 
 
 export const tradesManCraftSchema = z.object({
     name: z.coerce.string().min(1, "Craft Name is required"),
-     search: z.string().min(0).max(100).optional(),
-    scaffHoldId:z.coerce.number(),
+    search: z.string().min(0).max(100).optional(),
+    scaffHoldId: z.coerce.number(),
 })
 
 export const joinCraftTradesManSchema = z.object({
     jobId: z.number(),
     craftId: z.number(),
-    tradesManId:z.number()
+    tradesManId: z.number()
 })
 
-export const seacrchJobSchema=z.object({
-    CMPID:z.string(),
-    SCAFFID:z.string()
+export const seacrchJobSchema = z.object({
+    CMPID: z.string(),
+    SCAFFID: z.string()
 })
 
-export const requestScaffOldSchema=z.object({
-    scaffHoldId:z.number(), 
-    length:z.string().optional(),
-    width:z.string().optional(),
-    height:z.string().optional(),
-    priority:z.enum(["LOW","MEDIUM","HIGH"]).optional(),
-    expectedEndDate:z.string().optional(),
-    notes:z.string().optional()
-
-})
-
-export const updateScaffOldSRequestchema=z.object({
-    requestId:z.number(), 
-    length:z.string().optional(),
-    width:z.string().optional(),
-    height:z.string().optional(),
-    priority:z.enum(["LOW","MEDIUM","HIGH"]).optional(),
-    expectedEndDate:z.string().optional(),
-    notes:z.string().optional()
+export const requestScaffOldSchema = z.object({
+    projectId: z.number(),
+    length: z.string().optional(),
+    width: z.string().optional(),
+    height: z.string().optional(),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
+    expectedEndDate: z.string().optional(),
+    notes: z.string().optional()
 
 })
 
-export const jobApplicationSchema=z.object({
-  
-    scaffHoldId:z.coerce.number(),
-})
-export const GetTradesManDetailsSchema=z.object({
-    id:z.number(),
+export const updateScaffOldSRequestchema = z.object({
+    requestId: z.number(),
+    length: z.string().optional(),
+    width: z.string().optional(),
+    height: z.string().optional(),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
+    expectedEndDate: z.string().optional(),
+    notes: z.string().optional()
+
 })
 
-export const deleteRequest=z.object({
-  
-    scaffHoldId:z.number(),
+export const jobApplicationSchema = z.object({
+
+    scaffHoldId: z.coerce.number(),
+})
+export const GetTradesManDetailsSchema = z.object({
+    id: z.number(),
 })
 
-export const searchScaffHold = z.object({ 
-  search: z.string().min(0).max(100).optional(),
+export const deleteRequest = z.object({
+
+    scaffHoldId: z.number(),
+})
+
+export const searchScaffHold = z.object({
+    search: z.string().min(0).max(100).optional(),
 });
 
-export const requestSacffHold=z.object({
-  
-    scaffHoldId:z.coerce.number(),
+export const requestSacffHold = z.object({
+
+    scaffHoldId: z.coerce.number(),
 })
 
-export const getrequestSacffHold=z.object({
-  
-    parentId:z.coerce.number(),
+export const getrequestSacffHold = z.object({
+
+    parentId: z.coerce.number(),
 })
 
 export const scaffHoldDetailsById = z.object({
     id: z.coerce.number()
 })
 
- 
+
 
 export const searchFilter = z.object({
-     search: z.string().min(0).max(100).optional(),
-  sort: z.enum(["ASC", "DESC"]).optional().or(emptyToUndefined),
+    search: z.string().min(0).max(100).optional(),
+    sort: z.enum(["ASC", "DESC"]).optional().or(emptyToUndefined),
 
-  status: z
-    .union([
-      z.enum(["ACTIVE","PRE_ERECTED", "ERECTED", "DISMANTLED"]),
-      z.array(z.enum(["PRE_ERECTED", "ERECTED", "DISMANTLED"]))
-    ])
-    .optional() .or(z.literal(""))
-,
+    status: z
+        .union([
+            z.enum(["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"]),
+            z.array(z.enum(["PRE_ERECTED", "ERECTED", "DISMANTLED"]))
+        ])
+        .optional().or(z.literal(""))
+    ,
 
-  tags: z
-    .union([
-      z.enum([ "GREEN", "RED", "YELLOW"]),
-      z.array(z.enum([ "GREEN", "RED", "YELLOW"]))
-    ])
-    .optional() .or(z.literal("")),
+    tags: z
+        .union([
+            z.enum(["GREEN", "RED", "YELLOW"]),
+            z.array(z.enum(["GREEN", "RED", "YELLOW"]))
+        ])
+        .optional().or(z.literal("")),
 
 
-  priority: z
-    .union([
-      z.enum(["LOW", "MEDIUM", "HIGH"]),
-      z.array(z.enum(["LOW", "MEDIUM", "HIGH"]))
-    ])
-    .optional() .or(z.literal("")),
+    priority: z
+        .union([
+            z.enum(["LOW", "MEDIUM", "HIGH"]),
+            z.array(z.enum(["LOW", "MEDIUM", "HIGH"]))
+        ])
+        .optional().or(z.literal("")),
 
 });
 

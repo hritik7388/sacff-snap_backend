@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/routes/tradesManRoutes.ts
 const express_1 = require("express");
 const tradesManController_1 = require("../controllers/tradesManController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
@@ -42,12 +43,6 @@ router.get("/tradesManCrafts", authMiddleware_2.clientAuthMiddleware, authMiddle
  * @access  Private
  */
 router.put("/updateProfile", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, tradesManRoutes.updateProfile.bind(tradesManRoutes));
-/**
- * @route   POST /api/v1/tradesMan/search
- * @desc    Search Job by CMPId and SCAFFID
- * @access  Private
- */
-router.post('/searchJob', authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, tradesManRoutes.searchJob.bind(tradesManRoutes));
 /**
  * @route   POST /api/v1/tradesMan/requestScaffhold
  * @desc    Request Scaffhold by tradesman

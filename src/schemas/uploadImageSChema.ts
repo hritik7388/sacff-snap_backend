@@ -1,12 +1,13 @@
+// src/schemas/uploadImageSChema.ts
 import z, { string } from "zod"
 
-export const uploadImageSchema=z.object({
-    filename:z.string(),
-    contentType:z.string()
+export const uploadImageSchema = z.object({
+    filename: z.string(),
+    contentType: z.string()
 })
 
-export const ImageKeySchema=z.object({
-    key:z.string(), 
+export const ImageKeySchema = z.object({
+    key: z.string(),
 })
 
 

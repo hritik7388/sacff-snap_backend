@@ -115,5 +115,47 @@ class competentPersonController {
             }
         });
     }
+    getRentalCycle(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const scaffHoldId = Number(req.params.scaffHoldId);
+                const result = yield competentPerson.getRentalCycle(scaffHoldId);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    getCompetnetProjectList(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const page = Number(req.query.page) || 1;
+                const limit = Number(req.query.limit) || 10;
+                const status = req.query.status;
+                const id = req.user.id;
+                const result = yield competentPerson.getCompetentProjectListServices(id, page, limit, status);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // =========================
+    // CLEAR CYCLE
+    // =========================
+    clearRentalCycle(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const scaffHoldId = Number(req.body.scaffHoldId);
+                const result = yield competentPerson.clearRentalCycle(scaffHoldId);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
 }
 exports.competentPersonController = competentPersonController;

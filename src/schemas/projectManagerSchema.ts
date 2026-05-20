@@ -21,7 +21,6 @@ export const requestedScaffolds = z.object({
 })
 
 export const approveRejectRequestSchema = z.object({
-    scaffHoldId: z.coerce.number(),
     requestId: z.coerce.number(),
     status: z.enum(["APPROVED", "REJECTED"]),
     reajectionReason: z.string().optional()

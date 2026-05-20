@@ -21,6 +21,7 @@ const uuid_1 = require("uuid");
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
 const templates_1 = require("../helpers/templates");
+const client_1 = require("@prisma/client");
 class subAdminServices {
     loginSubAdminServices(data) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -87,24 +88,39 @@ class subAdminServices {
     }
     addTeamMemberServices(id, data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+            var _a, _b, _c, _d;
             try {
+                // ==========================
+                // ✅ VALIDATE COMPANY
+                // ==========================
                 const companyData = yield prismaClient_1.default.company.findFirst({
                     where: {
-                        id: id, isDeleted: false, status: "ACTIVE",
-                        isApproved: "APPROVED", isVerified: true,
+                        id,
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
                         user_type: "COMPANY"
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND, 500, "The company you are trying to add a team member to does not exist");
+                    throw new customError_1.CustomError("Company not found", 404, "Company not found");
                 }
+                // ==========================
+                // ❌ CHECK DUPLICATE USER
+                // ==========================
                 const existingTeamMember = yield prismaClient_1.default.user.findFirst({
-                    where: { email: data.email, isDeleted: false, status: "ACTIVE" },
+                    where: {
+                        email: data.email,
+                        isDeleted: false,
+                    },
                 });
                 if (existingTeamMember) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.TEAM_MEMBER_EXISTS, 500, "A team member with this email already exists under your company");
+                    throw new customError_1.CustomError("User already exists", 400, "Duplicate user");
                 }
+                // ==========================
+                // 🔐 CREATE USER
+                // ==========================
                 const hashedPassword = yield bcryptjs_1.default.hash(data.password, 10);
                 const teamMemberData = yield prismaClient_1.default.user.create({
                     data: {
@@ -119,6 +135,9 @@ class subAdminServices {
                         isDeleted: false,
                     }
                 });
+                // ==========================
+                // 🔗 ROLE CREATION
+                // ==========================
                 let roleDetails = null;
                 if (data.user_type === "PROJECT_MANAGER") {
                     roleDetails = yield prismaClient_1.default.projectManager.create({
@@ -133,7 +152,7 @@ class subAdminServices {
                         },
                     });
                 }
-                else if (data.user_type === "COMPETENT_PERSON") {
+                if (data.user_type === "COMPETENT_PERSON") {
                     roleDetails = yield prismaClient_1.default.competentPerson.create({
                         data: {
                             userId: teamMemberData.id,
@@ -146,6 +165,9 @@ class subAdminServices {
                         },
                     });
                 }
+                // ==========================
+                // 📁 USER MEDIA
+                // ==========================
                 if (data.idProofImage) {
                     yield prismaClient_1.default.userMedia.create({
                         data: {
@@ -164,38 +186,102 @@ class subAdminServices {
                         },
                     });
                 }
-                const html = (0, templates_1.teamMemberAddTemplate)(teamMemberData.name, teamMemberData.user_type, teamMemberData.email, data.password, companyData.CMPId || "");
-                yield (0, utils_1.sendMail)(teamMemberData.email, "Your Scaff Snap Account Details", html);
-                const teamMember = {
-                    id: teamMemberData.id,
-                    uuid: teamMemberData.uuid,
-                    name: teamMemberData.name,
-                    user_type: teamMemberData.user_type,
-                    email: teamMemberData.email,
-                    mobileNumber: teamMemberData.mobileNumber,
-                    countryCode: teamMemberData.countryCode,
-                    status: teamMemberData.status,
-                    isDeleted: teamMemberData.isDeleted,
-                    address: (_e = roleDetails === null || roleDetails === void 0 ? void 0 : roleDetails.address) !== null && _e !== void 0 ? _e : null,
-                    idProofImage: (_f = roleDetails === null || roleDetails === void 0 ? void 0 : roleDetails.idProofImage) !== null && _f !== void 0 ? _f : null,
-                    photoImage: (_g = roleDetails === null || roleDetails === void 0 ? void 0 : roleDetails.photoImage) !== null && _g !== void 0 ? _g : null,
-                    latitude: (_h = roleDetails === null || roleDetails === void 0 ? void 0 : roleDetails.latitude) !== null && _h !== void 0 ? _h : null,
-                    longitude: (_j = roleDetails === null || roleDetails === void 0 ? void 0 : roleDetails.longitude) !== null && _j !== void 0 ? _j : null,
-                    cmpId: companyData.CMPId
-                };
+                // ==========================
+                // 📧 EMAIL (ONLY PM & CP)
+                // ==========================
+                if (data.user_type === "PROJECT_MANAGER" || data.user_type === "COMPETENT_PERSON") {
+                    yield (0, utils_1.sendMail)(teamMemberData.email, "Your ScaffSnap Account Details", (0, templates_1.teamMemberAddTemplate)(teamMemberData.name, teamMemberData.user_type, teamMemberData.email, data.password, companyData.CMPId || ""));
+                }
+                // ==========================
+                // 🔔 DB NOTIFICATION DATA
+                // ==========================
+                const title = "TEAM MEMBER ADDED";
+                const message = `New team member ${teamMemberData.name} added in ${companyData.name}`;
+                // ==========================
+                // 👑 SUPER ADMIN + COMPANY ADMINS (DB NOTIFICATION)
+                // ==========================
+                const superAdmins = yield prismaClient_1.default.user.findMany({
+                    where: {
+                        user_type: "SUPER_ADMIN",
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
+                    }
+                });
+                const companyAdmins = yield prismaClient_1.default.company.findMany({
+                    where: {
+                        id: companyData.id,
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
+                    }
+                });
+                yield prismaClient_1.default.notification.createMany({
+                    data: [
+                        ...superAdmins.map(a => ({
+                            uuid: (0, uuid_1.v4)(),
+                            title,
+                            message,
+                            type: client_1.NotificationType.PROJECT_MODIFIED,
+                            role: client_1.NotificationRole.SUPER_ADMIN,
+                            receiverId: a.id,
+                            isRead: false,
+                        })),
+                        ...companyAdmins.map(a => ({
+                            uuid: (0, uuid_1.v4)(),
+                            title,
+                            message,
+                            type: client_1.NotificationType.PROJECT_MODIFIED,
+                            role: client_1.NotificationRole.COMPANY,
+                            receiverId: a.id,
+                            isRead: false,
+                        }))
+                    ]
+                });
+                // ==========================
+                // 📱 PUSH NOTIFICATIONS (POPUP FIX)
+                // ==========================
+                const superAdminDevices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        user_type: "SUPER_ADMIN",
+                        deviceToken: { not: null }
+                    },
+                    select: {
+                        deviceToken: true
+                    }
+                });
+                const companyDevices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] },
+                        deviceToken: { not: null }
+                    },
+                    select: { deviceToken: true }
+                });
+                // 🔥 SUPER ADMIN PUSH
+                for (const device of superAdminDevices) {
+                    if (device.deviceToken) {
+                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, title, message);
+                    }
+                }
+                // 🔥 COMPANY PUSH
+                for (const device of companyDevices) {
+                    if (device.deviceToken) {
+                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, title, message);
+                    }
+                }
+                // ==========================
+                // ✅ RESPONSE
+                // ==========================
                 return {
-                    message: responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.ADD_TEAM_MEMBER_SUCCESS,
-                    data: teamMember
+                    message: "Team member added successfully",
+                    data: teamMemberData
                 };
             }
             catch (error) {
-                console.error("❌ Add Team Member error:", error);
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.ADD_TEAM_MEMBER_FAILED, 500, error.message);
+                throw new customError_1.CustomError("Failed to add team member", 500, error.message);
             }
         });
     }
@@ -681,38 +767,34 @@ class subAdminServices {
     createNewProject(subAdminId, data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                // =========================
+                // ✅ Validate Company (OWNER)
+                // =========================
                 const companyData = yield prismaClient_1.default.company.findFirst({
                     where: {
-                        id: subAdminId, isDeleted: false, status: "ACTIVE",
-                        isApproved: "APPROVED", isVerified: true,
+                        id: subAdminId,
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
                         user_type: "COMPANY",
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND, 500, "The company you are trying to create a project for does not exist");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND, 500, "Company not found");
                 }
+                // =========================
+                // ✅ Validate Project Managers
+                // =========================
                 const projectManagersData = yield prismaClient_1.default.projectManager.findMany({
                     where: { userId: { in: data.projectManagerId } },
-                    include: {
-                        user: true,
-                        company: true
-                    }
                 });
                 if (projectManagersData.length !== data.projectManagerId.length) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND, 404, "Some project managers were not found for this company");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECTMANAGER.NOT_FOUND, 404, "Some project managers were not found");
                 }
-                const userPMs = yield prismaClient_1.default.user.findMany({
-                    where: {
-                        id: { in: data.projectManagerId },
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        user_type: "PROJECT_MANAGER",
-                        isVerified: true,
-                    }
-                });
-                if (userPMs.length !== data.projectManagerId.length) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.PROJECT_MANAGER_NOT_FOUND, 400, "Some project manager accounts are not active or valid");
-                }
+                // =========================
+                // ❌ Duplicate Check
+                // =========================
                 const existingProject = yield prismaClient_1.default.project.findFirst({
                     where: {
                         clientEmail: data.clientEmail,
@@ -722,12 +804,16 @@ class subAdminServices {
                     }
                 });
                 if (existingProject) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.ALREADY_EXISTS, 409, "A project with this client email and name already exists");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.ALREADY_EXISTS, 409, "Project already exists");
                 }
+                // =========================
+                // ✅ Create Project
+                // =========================
                 const project = yield prismaClient_1.default.project.create({
                     data: {
                         uuid: (0, uuid_1.v4)(),
                         projectName: data.projectName,
+                        PJT: (0, utils_1.generateProjectId)(),
                         clientName: data.clientName,
                         clientEmail: data.clientEmail,
                         clientMobile: data.clientMobile,
@@ -742,6 +828,9 @@ class subAdminServices {
                         isDeleted: false
                     }
                 });
+                // =========================
+                // 🔗 Assign PMs
+                // =========================
                 yield prismaClient_1.default.project.update({
                     where: { id: project.id },
                     data: {
@@ -750,65 +839,100 @@ class subAdminServices {
                         }
                     }
                 });
-                const projectWithPMs = yield prismaClient_1.default.project.findUnique({
-                    where: { id: project.id },
-                    include: {
-                        projectManagers: {
-                            include: {
-                                userMedias: true
-                            }
-                        }
+                // =========================
+                // 👑 SUPER ADMIN + COMPANY OWNER ONLY
+                // =========================
+                const superAdmins = yield prismaClient_1.default.user.findMany({
+                    where: {
+                        user_type: "SUPER_ADMIN",
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isVerified: true,
+                    },
+                    select: { id: true, email: true }
+                });
+                const receiverIds = [
+                    subAdminId,
+                    ...superAdmins.map(sa => Number(sa.id))
+                ];
+                // =========================
+                // 🔔 GET SETTINGS
+                // =========================
+                const settings = yield prismaClient_1.default.notificationSetting.findMany({
+                    where: {
+                        userId: { in: receiverIds }
                     }
                 });
-                if (!projectWithPMs) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project created but not found");
-                }
-                const formattedPMs = projectWithPMs.projectManagers.map(pm => {
-                    var _a;
-                    return ({
-                        id: pm.id,
-                        name: pm.name,
-                        email: pm.email,
-                        url: ((_a = pm.userMedias[0]) === null || _a === void 0 ? void 0 : _a.url) || null
-                    });
+                // =========================
+                // ✅ APPLY TOGGLE
+                // =========================
+                const allowedUserIds = receiverIds.filter(id => {
+                    const setting = settings.find(s => Number(s.userId) === id);
+                    if (!setting)
+                        return true;
+                    return setting.projectCreated === true;
                 });
-                const pmIds = data.projectManagerId;
-                const deviceTokens = yield prismaClient_1.default.device.findMany({
-                    where: { userId: { in: pmIds }, deviceToken: { not: null } },
-                    select: { userId: true, deviceToken: true }
-                });
-                const notificationMessage = `You have been assigned as Project Manager for project "${project.projectName}".`;
+                const message = `Project "${project.projectName}" has been created successfully.`;
+                // =========================
+                // 📩 DB NOTIFICATIONS
+                // =========================
                 yield prismaClient_1.default.notification.createMany({
-                    data: pmIds.map(pmId => ({
+                    data: allowedUserIds.map(id => ({
                         uuid: (0, uuid_1.v4)(),
-                        title: "Project Assigned",
-                        message: notificationMessage,
+                        title: "PROJECT CREATED",
+                        message,
                         type: "PROJECT_ASSIGNED",
-                        role: "PROJECT_MANAGER",
+                        role: id === subAdminId ? "COMPANY" : "SUPER_ADMIN",
                         isRead: false,
                         companyId: subAdminId,
-                        scaffoldRequestId: "",
                         projectId: BigInt(project.id),
-                        receiverId: BigInt(pmId),
+                        receiverId: BigInt(id),
                         senderId: subAdminId.toString(),
                         notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/Frame+2087325149.png"
                     }))
                 });
-                for (const dev of deviceTokens) {
-                    if (!dev.deviceToken)
-                        continue;
-                    yield (0, utils_1.pushNotificationDelhi)(dev.deviceToken, "PROJECT_ASSIGNED", notificationMessage);
+                // =========================
+                // 📧 EMAIL (ONLY IF ENABLED)
+                // =========================
+                const emailUsers = yield prismaClient_1.default.user.findMany({
+                    where: {
+                        id: {
+                            in: settings
+                                .filter(s => s.emailEnabled)
+                                .map(s => Number(s.userId))
+                        }
+                    },
+                    select: { email: true }
+                });
+                for (const user of emailUsers) {
+                    yield (0, utils_1.sendMail)(user.email, "Project Created", message);
                 }
+                // =========================
+                // 📱 PUSH NOTIFICATION (POPUP)
+                // =========================
+                const devices = yield prismaClient_1.default.device.findMany({
+                    where: {
+                        userId: { in: allowedUserIds },
+                        deviceToken: { not: null }
+                    },
+                    select: { deviceToken: true }
+                });
+                for (const device of devices) {
+                    yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "PROJECT CREATED", message);
+                }
+                // =========================
+                // RESPONSE
+                // =========================
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.PROJECT.CREATE_SUCCESS,
-                    data: Object.assign(Object.assign({}, projectWithPMs), { projectManagers: formattedPMs })
+                    data: project
                 };
             }
             catch (error) {
                 console.error("❌ Create project error:", error);
                 if (error instanceof customError_1.CustomError)
                     throw error;
-                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.CREATE_FAILED, 500, "Create project failed due to server error");
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.CREATE_FAILED, 500, error.message);
             }
         });
     }
@@ -892,13 +1016,12 @@ class subAdminServices {
                         }
                     }
                 });
-                yield prismaClient_1.default.scaffhold.updateMany({
+                yield prismaClient_1.default.projectScaffholdRequest.updateMany({
                     where: {
                         projectId: data.id,
-                        isDeleted: false
                     },
                     data: {
-                        projectName: data.projectName
+                        projectId: data.id // or remove if not needed
                     }
                 });
                 if (newlyAddedPMIds.length > 0) {
@@ -1006,10 +1129,10 @@ class subAdminServices {
                         isVerified: true,
                         isDeleted: false,
                         tradesman: {
-                            scaffholds: {
+                            createdProjectScaffRequests: {
                                 some: {
-                                    scaffhold: {
-                                        companyId: companyId
+                                    project: {
+                                        createdById: companyId
                                     }
                                 }
                             }
@@ -1043,8 +1166,15 @@ class subAdminServices {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND, 500, "The company you are trying to fetch  does not exist");
                 }
                 const [totalActiveScaffHold, totalDismentedScaffhold, totalActiveProjects, totalProjectManagers, totalCompetentPersons] = yield Promise.all([
-                    prismaClient_1.default.scaffhold.count({ where: { status: "ACTIVE", companyId: companyId }, }),
-                    prismaClient_1.default.scaffhold.count({ where: { status: "DISMANTLED", companyId: companyId } }),
+                    prismaClient_1.default.projectScaffholdRequest.count({
+                        where: {
+                            status: "ACTIVE",
+                            project: {
+                                createdById: companyId
+                            }
+                        }
+                    }),
+                    prismaClient_1.default.projectScaffholdRequest.count({ where: { status: "DISMANTLED", createdById: companyId } }),
                     prismaClient_1.default.project.count({ where: { status: "ONGOING", createdById: companyId } }),
                     prismaClient_1.default.user.count({
                         where: {
@@ -1096,7 +1226,6 @@ class subAdminServices {
                     prismaClient_1.default.project.count({
                         where: {
                             isDeleted: false,
-                            scaffholds: { none: {} },
                             createdById: companyId
                         },
                     }),
@@ -1128,15 +1257,40 @@ class subAdminServices {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND, 500, "The company you are trying to create a project for does not exist");
                 }
                 const [totalScaffholds, totalErected, totalDismantled, totalRedTag] = yield Promise.all([
-                    prismaClient_1.default.scaffhold.count({ where: { isDeleted: false, companyId: companyId } }),
-                    prismaClient_1.default.scaffhold.count({
-                        where: { status: "ERECTED", isDeleted: false, companyId: companyId },
+                    prismaClient_1.default.projectScaffholdRequest.count({
+                        where: {
+                            project: {
+                                isDeleted: false,
+                                createdById: companyId,
+                            },
+                        },
                     }),
-                    prismaClient_1.default.scaffhold.count({
-                        where: { status: "DISMANTLED", isDeleted: false, companyId: companyId },
+                    prismaClient_1.default.projectScaffholdRequest.count({
+                        where: {
+                            status: "APPROVED", // or your "ERECTED" equivalent
+                            project: {
+                                isDeleted: false,
+                                createdById: companyId,
+                            },
+                        },
                     }),
-                    prismaClient_1.default.scaffhold.count({
-                        where: { tag: "RED", isDeleted: false, companyId: companyId },
+                    prismaClient_1.default.projectScaffholdRequest.count({
+                        where: {
+                            status: "REJECTED", // or map to DISMANTLED if you use that logic
+                            project: {
+                                isDeleted: false,
+                                createdById: companyId,
+                            },
+                        },
+                    }),
+                    prismaClient_1.default.projectScaffholdRequest.count({
+                        where: {
+                            tag: "RED",
+                            project: {
+                                isDeleted: false,
+                                createdById: companyId,
+                            },
+                        },
                     }),
                 ]);
                 return {
@@ -1252,21 +1406,21 @@ class subAdminServices {
     }
     searchTeamMemberByScaffhold(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b, _c;
             try {
                 const validTypes = ["PROJECT_MANAGER", "COMPETENT_PERSON", "TRADESMAN"];
                 const userType = data.user_type.toUpperCase();
                 if (!validTypes.includes(userType)) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.INVALID_TYPE, 400, "Invalid user type. Allowed: PROJECT_MANAGER, COMPETENT_PERSON, TRADESMAN");
                 }
-                const scaffhold = yield prismaClient_1.default.scaffhold.findUnique({
+                // ✅ FIX: correct model used
+                const scaffhold = yield prismaClient_1.default.projectScaffholdRequest.findUnique({
                     where: { id: data.scaffHoldId },
                     include: {
                         project: {
                             include: {
                                 projectManagers: {
                                     where: {
-                                        user_type: "PROJECT_MANAGER",
                                         isDeleted: false,
                                         isVerified: true,
                                         status: "ACTIVE",
@@ -1278,51 +1432,33 @@ class subAdminServices {
                                         },
                                     },
                                 },
-                            },
-                        },
-                        competentPersons: {
-                            where: {
-                                competentPerson: {
-                                    user: {
-                                        isDeleted: false,
-                                        isVerified: true,
-                                        status: "ACTIVE",
-                                    },
-                                },
-                            },
-                            include: {
-                                competentPerson: {
+                                tradesMen: {
                                     include: {
-                                        user: {
+                                        tradesMan: {
                                             include: {
-                                                userMedias: {
-                                                    where: { mediaType: "PHOTO_IMAGE" },
-                                                    take: 1,
+                                                user: {
+                                                    include: {
+                                                        userMedias: {
+                                                            where: { mediaType: "PHOTO_IMAGE" },
+                                                            take: 1,
+                                                        },
+                                                    },
                                                 },
                                             },
                                         },
                                     },
                                 },
-                            },
-                        },
-                        tradesMen: {
-                            where: {
-                                tradesMan: {
-                                    user: {
-                                        isDeleted: false,
-                                        isVerified: true,
-                                        status: "ACTIVE",
-                                    },
-                                },
-                            },
-                            include: {
-                                tradesMan: {
+                                competentPersons: {
                                     include: {
-                                        user: {
+                                        competentPerson: {
                                             include: {
-                                                userMedias: {
-                                                    where: { mediaType: "PHOTO_IMAGE" },
-                                                    take: 1,
+                                                user: {
+                                                    include: {
+                                                        userMedias: {
+                                                            where: { mediaType: "PHOTO_IMAGE" },
+                                                            take: 1,
+                                                        },
+                                                    },
                                                 },
                                             },
                                         },
@@ -1332,52 +1468,60 @@ class subAdminServices {
                         },
                         createdBy: {
                             include: {
-                                userMedias: {
-                                    where: { mediaType: "PHOTO_IMAGE" },
-                                    take: 1,
+                                user: {
+                                    include: {
+                                        userMedias: {
+                                            where: { mediaType: "PHOTO_IMAGE" },
+                                            take: 1,
+                                        },
+                                    },
                                 },
                             },
                         },
                     },
                 });
                 if (!scaffhold) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Scaffhold not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Scaffhold request not found");
                 }
                 let users = [];
+                // 👷 PROJECT MANAGER
                 if (userType === "PROJECT_MANAGER") {
-                    users = ((_a = scaffhold.project) === null || _a === void 0 ? void 0 : _a.projectManagers.map((pm) => {
-                        var _a;
-                        return ({
-                            name: pm.name,
-                            email: pm.email,
-                            mobileNumber: pm.mobileNumber,
-                            image: ((_a = pm.userMedias[0]) === null || _a === void 0 ? void 0 : _a.url) || null,
-                        });
-                    })) || [];
+                    users =
+                        ((_a = scaffhold.project) === null || _a === void 0 ? void 0 : _a.projectManagers.map((pm) => {
+                            var _a, _b;
+                            return ({
+                                name: pm.name,
+                                email: pm.email,
+                                mobileNumber: pm.mobileNumber,
+                                image: ((_b = (_a = pm.userMedias) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.url) || null,
+                            });
+                        })) || [];
                 }
+                // 🧑‍🔧 COMPETENT PERSON
                 if (userType === "COMPETENT_PERSON") {
-                    users = scaffhold.competentPersons.map((cp) => {
-                        var _a;
-                        const user = cp.competentPerson.user;
-                        return {
-                            name: user.name,
-                            email: user.email,
-                            mobileNumber: user.mobileNumber,
-                            image: ((_a = user.userMedias[0]) === null || _a === void 0 ? void 0 : _a.url) || null,
-                        };
-                    });
+                    users =
+                        ((_b = scaffhold.project) === null || _b === void 0 ? void 0 : _b.competentPersons.map((cp) => {
+                            var _a, _b;
+                            return ({
+                                name: cp.competentPerson.user.name,
+                                email: cp.competentPerson.user.email,
+                                mobileNumber: cp.competentPerson.user.mobileNumber,
+                                image: ((_b = (_a = cp.competentPerson.user.userMedias) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.url) || null,
+                            });
+                        })) || [];
                 }
+                // 🧱 TRADESMAN
                 if (userType === "TRADESMAN") {
-                    users = scaffhold.tradesMen.map((tm) => {
-                        var _a;
-                        const user = tm.tradesMan.user;
-                        return {
-                            name: user.name,
-                            email: user.email,
-                            mobileNumber: user.mobileNumber,
-                            image: ((_a = user.userMedias[0]) === null || _a === void 0 ? void 0 : _a.url) || null,
-                        };
-                    });
+                    users =
+                        ((_c = scaffhold.project) === null || _c === void 0 ? void 0 : _c.tradesMen.map((tm) => {
+                            var _a, _b;
+                            return ({
+                                name: tm.tradesMan.user.name,
+                                email: tm.tradesMan.user.email,
+                                mobileNumber: tm.tradesMan.user.mobileNumber,
+                                image: ((_b = (_a = tm.tradesMan.user.userMedias) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.url) || null,
+                            });
+                        })) || [];
                 }
                 if (!users.length) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, `No ${userType.toLowerCase().replace("_", " ")} found for this scaffhold`);
@@ -1388,13 +1532,11 @@ class subAdminServices {
                 };
             }
             catch (error) {
-                console.error("❌ Search Team Member by Scaffhold error:", error);
+                console.error("❌ Search Team Member error:", error);
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.SEARCH_FAILED, 500, error.message);
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.SEARCH_FAILED, 500, error.message);
             }
         });
     }
@@ -1405,8 +1547,9 @@ class subAdminServices {
                 const skip = (page - 1) * limit;
                 const searchTerm = ((_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim()) || "";
                 const whereCondition = {
-                    scaffholdId: data.scaffHoldId,
+                    projectId: data.scaffHoldId, // ✅ FIX: scaffholdId -> projectId
                 };
+                // 🔍 SEARCH FIX (correct relation path)
                 if (searchTerm !== "") {
                     whereCondition.createdBy = {
                         user: {
@@ -1416,10 +1559,12 @@ class subAdminServices {
                         },
                     };
                 }
-                const totalCount = yield prismaClient_1.default.scaffholdRequest.count({
-                    where: { scaffholdId: data.scaffHoldId },
+                // 📊 TOTAL COUNT
+                const totalCount = yield prismaClient_1.default.projectScaffholdRequest.count({
+                    where: whereCondition,
                 });
-                const requests = yield prismaClient_1.default.scaffholdRequest.findMany({
+                // 📦 DATA FETCH
+                const requests = yield prismaClient_1.default.projectScaffholdRequest.findMany({
                     where: whereCondition,
                     include: {
                         createdBy: {
@@ -1459,7 +1604,7 @@ class subAdminServices {
                         expectedEndDate: r.expectedEndDate,
                         note: r.notes,
                         craft: r.craft,
-                        sacffHoldId: r.scaffholdId,
+                        scaffHoldId: r.projectId, // ✅ FIX
                         createdAt: r.createdAt,
                         length: r.length,
                         width: r.width,
@@ -1483,9 +1628,7 @@ class subAdminServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.REQUEST.FETCH_FAILED, 500, error.message || "Failed to fetch requests");
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.REQUEST.FETCH_FAILED, 500, error.message || "Failed to fetch requests");
             }
         });
     }
@@ -1493,14 +1636,20 @@ class subAdminServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const skip = (page - 1) * limit;
-                const scaffExists = yield prismaClient_1.default.scaffholdTimeline.findFirst({
-                    where: { scaffholdId: data.scaffHoldId },
+                // ✅ FIX: correct validation using scaffoldRequestId (NOT projectId)
+                const timelineExists = yield prismaClient_1.default.projectScaffholdTimeline.findFirst({
+                    where: {
+                        scaffoldRequestId: data.scaffHoldId,
+                    },
                 });
-                if (!scaffExists) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffhold not found");
+                if (!timelineExists) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffhold timeline not found");
                 }
+                // ✅ FIX: correct filtering path
                 const whereCondition = {
-                    timeline: { scaffholdId: data.scaffHoldId },
+                    timeline: {
+                        scaffoldRequestId: data.scaffHoldId,
+                    },
                 };
                 if (data.status) {
                     whereCondition.status = data.status;
@@ -1529,7 +1678,9 @@ class subAdminServices {
                         skip,
                         take: limit,
                     }),
-                    prismaClient_1.default.timelineImage.count({ where: whereCondition }),
+                    prismaClient_1.default.timelineImage.count({
+                        where: whereCondition,
+                    }),
                 ]);
                 const formattedImages = images.map((img) => {
                     var _a, _b;
@@ -1539,12 +1690,15 @@ class subAdminServices {
                         createdById: ((_b = img.timeline.createdBy) === null || _b === void 0 ? void 0 : _b.id) || null,
                         createdAt: img.timeline.createdAt,
                         images: [
-                            { url: img.url, id: img.id }
-                        ]
+                            {
+                                url: img.url,
+                                id: img.id,
+                            },
+                        ],
                     });
                 });
                 return {
-                    message: `Timeline images fetched successfully for scaffhold ID ${data.scaffHoldId}${data.status ? ` with status: ${data.status}` : ""}`,
+                    message: `Timeline images fetched successfully${data.status ? ` with status: ${data.status}` : ""}`,
                     data: formattedImages,
                     pagination: {
                         total: totalCount,
@@ -1559,9 +1713,7 @@ class subAdminServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TIMELINE.FAILED_FETCH_IMAGES, 500, error.message || "Unexpected error");
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TIMELINE.FAILED_FETCH_IMAGES, 500, error.message || "Unexpected error");
             }
         });
     }
@@ -1574,11 +1726,11 @@ class subAdminServices {
                         id: companyId,
                         isDeleted: false,
                         status: "ACTIVE",
-                        isApproved: "APPROVED"
-                    }
+                        isApproved: "APPROVED",
+                    },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company not found");
                 }
                 const whereCondition = {
                     isDeleted: false,
@@ -1591,6 +1743,7 @@ class subAdminServices {
                             id: true,
                             uuid: true,
                             projectName: true,
+                            PJT: true,
                             clientName: true,
                             clientEmail: true,
                             clientMobile: true,
@@ -1601,14 +1754,25 @@ class subAdminServices {
                             latitude: true,
                             longitude: true,
                             createdById: true,
-                            projectManagers: true,
                             status: true,
                             isDeleted: true,
                             createdAt: true,
                             updatedAt: true,
+                            // ✅ FIX: proper relation select
+                            projectManagers: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    mobileNumber: true,
+                                },
+                            },
                             _count: {
                                 select: {
-                                    scaffholds: true,
+                                    TradesManRequests: true,
+                                    tradesMen: true,
+                                    competentPersons: true,
+                                    jobCrafts: true,
                                 },
                             },
                         },
@@ -1618,12 +1782,15 @@ class subAdminServices {
                             createdAt: "desc",
                         },
                     }),
-                    prismaClient_1.default.project.count({ where: whereCondition }),
+                    prismaClient_1.default.project.count({
+                        where: whereCondition,
+                    }),
                 ]);
                 const formattedProjects = projects.map((p) => ({
                     id: p.id,
                     uuid: p.uuid,
                     projectName: p.projectName,
+                    PJT: p.PJT,
                     clientName: p.clientName,
                     clientEmail: p.clientEmail,
                     clientMobile: p.clientMobile,
@@ -1639,7 +1806,10 @@ class subAdminServices {
                     isDeleted: p.isDeleted,
                     createdAt: p.createdAt,
                     updatedAt: p.updatedAt,
-                    totalScaffhold: p._count.scaffholds,
+                    totalTradesmanRequests: p._count.TradesManRequests,
+                    totalTradesmen: p._count.tradesMen,
+                    totalCompetentPersons: p._count.competentPersons,
+                    totalJobCrafts: p._count.jobCrafts,
                 }));
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.PROJECT.FETCH_ALL_SUCCESS,
@@ -1654,9 +1824,8 @@ class subAdminServices {
             }
             catch (error) {
                 console.error("❌ Get Project List error:", error);
-                if (error instanceof customError_1.CustomError) {
+                if (error instanceof customError_1.CustomError)
                     throw error;
-                }
                 throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.FETCH_FAILED, 500, error.message);
             }
         });
@@ -1665,48 +1834,104 @@ class subAdminServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const companyData = yield prismaClient_1.default.company.findFirst({
-                    where: { id: companyId, isDeleted: false, status: "ACTIVE" },
+                    where: {
+                        id: companyId,
+                        isDeleted: false,
+                        status: "ACTIVE",
+                    },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.COMPANY_NOT_FOUND, 500, "The company you are trying to create a project for does not exist");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company not found");
                 }
                 const skip = (page - 1) * limit;
+                const whereCondition = {
+                    project: {
+                        createdById: companyId, // 👈 company filter via project
+                    },
+                };
                 const [scaffholds, totalCount] = yield Promise.all([
-                    prismaClient_1.default.scaffhold.findMany({
+                    prismaClient_1.default.projectScaffholdRequest.findMany({
+                        where: whereCondition,
                         skip,
                         take: limit,
-                        where: {
-                            isDeleted: false,
-                            companyId: companyId,
-                        },
                         orderBy: {
                             createdAt: "desc",
                         },
-                    }),
-                    prismaClient_1.default.scaffhold.count({
-                        where: {
-                            isDeleted: false,
-                            companyId: companyId,
+                        include: {
+                            project: {
+                                select: {
+                                    id: true,
+                                    projectName: true,
+                                    PJT: true,
+                                },
+                            },
+                            createdBy: {
+                                select: {
+                                    id: true,
+                                    experience: true,
+                                    user: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            email: true,
+                                            mobileNumber: true,
+                                        },
+                                    },
+                                },
+                            },
                         },
                     }),
+                    prismaClient_1.default.projectScaffholdRequest.count({
+                        where: whereCondition,
+                    }),
                 ]);
-                const totalPages = Math.ceil(totalCount / limit);
+                const formattedScaffholds = scaffholds.map((item) => {
+                    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+                    return ({
+                        id: item.id,
+                        uuid: item.uuid,
+                        projectId: item.projectId,
+                        // 🔧 Scaffold fields
+                        craft: item.craft,
+                        length: item.length,
+                        width: item.width,
+                        height: item.height,
+                        priority: item.priority,
+                        expectedEndDate: item.expectedEndDate,
+                        REQID: item.REQID,
+                        notes: item.notes,
+                        status: item.status,
+                        SCAFFID: item.SCAFFID,
+                        tag: item.tag,
+                        startDate: item.startDate,
+                        endDate: item.endDate,
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+                        createdAt: item.createdAt,
+                        // 🔧 Flatten Project
+                        projectName: (_a = item.project) === null || _a === void 0 ? void 0 : _a.projectName,
+                        PJT: (_b = item.project) === null || _b === void 0 ? void 0 : _b.PJT,
+                        // 🔧 Flatten User (Tradesman)
+                        createdById: (_d = (_c = item.createdBy) === null || _c === void 0 ? void 0 : _c.user) === null || _d === void 0 ? void 0 : _d.id,
+                        name: (_f = (_e = item.createdBy) === null || _e === void 0 ? void 0 : _e.user) === null || _f === void 0 ? void 0 : _f.name,
+                        email: (_h = (_g = item.createdBy) === null || _g === void 0 ? void 0 : _g.user) === null || _h === void 0 ? void 0 : _h.email,
+                        mobileNumber: (_k = (_j = item.createdBy) === null || _j === void 0 ? void 0 : _j.user) === null || _k === void 0 ? void 0 : _k.mobileNumber,
+                        experience: (_l = item.createdBy) === null || _l === void 0 ? void 0 : _l.experience,
+                    });
+                });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_ALL_SUCCESS,
-                    data: scaffholds,
+                    data: formattedScaffholds, // ✅ use formatted data
                     totalCount,
-                    totalPages,
+                    totalPages: Math.ceil(totalCount / limit),
                     currentPage: page,
                 };
             }
             catch (error) {
                 console.error("❌ Get all scaffholds error:", error);
-                if (error instanceof customError_1.CustomError) {
+                if (error instanceof customError_1.CustomError)
                     throw error;
-                }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED, 500, error.message);
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED, 500, error.message);
             }
         });
     }
@@ -1844,6 +2069,104 @@ class subAdminServices {
                     throw error;
                 }
                 throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.AUTH.LOGOUT_FAIL, 500, error.message);
+            }
+        });
+    }
+    getProjectScaffHold(page, limit, projectId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const skip = (page - 1) * limit;
+                console.log("projectId:", projectId);
+                // ✅ 1. Get project (single source of truth)
+                const project = yield prismaClient_1.default.project.findUnique({
+                    where: { id: projectId },
+                    select: {
+                        id: true,
+                        uuid: true,
+                        projectName: true,
+                        PJT: true,
+                        clientName: true,
+                        clientEmail: true,
+                        clientMobile: true,
+                        clientCountryCode: true,
+                        clientAddress: true,
+                        startDate: true,
+                        endDate: true,
+                        latitude: true,
+                        longitude: true,
+                        status: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                });
+                if (!project) {
+                    throw new customError_1.CustomError("Project not found", 404, "PROJECT_NOT_FOUND");
+                }
+                // ✅ 2. Get scaffhold count
+                const totalCount = yield prismaClient_1.default.projectScaffholdRequest.count({
+                    where: { projectId },
+                });
+                const totalPages = Math.ceil(totalCount / limit);
+                // ✅ 3. Get scaffhold list
+                const scaffholdList = yield prismaClient_1.default.projectScaffholdRequest.findMany({
+                    where: { projectId },
+                    skip,
+                    take: limit,
+                    orderBy: { createdAt: "desc" },
+                    select: {
+                        id: true,
+                        uuid: true,
+                        REQID: true,
+                        SCAFFID: true,
+                        projectId: true,
+                        craft: true,
+                        length: true,
+                        width: true,
+                        height: true,
+                        priority: true,
+                        status: true,
+                        tag: true,
+                        notes: true,
+                        address: true,
+                        latitude: true,
+                        longitude: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        expectedEndDate: true,
+                        createdBy: {
+                            select: {
+                                id: true,
+                                craft: true,
+                                user: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+                // ✅ RESPONSE
+                return {
+                    success: true,
+                    message: "Project scaffhold fetched successfully",
+                    data: Object.assign(Object.assign({}, project), { scaffholdList: scaffholdList.map((item) => { var _a, _b; return ({ id: item.id.toString(), uuid: item.uuid, REQID: item.REQID, SCAFFID: item.SCAFFID, projectId: item.projectId.toString(), craft: item.craft, length: item.length, width: item.width, height: item.height, priority: item.priority, status: item.status, tag: item.tag, notes: item.notes, address: item.address, latitude: item.latitude, longitude: item.longitude, expectedEndDate: item.expectedEndDate, createdByCraft: (_a = item.createdBy) === null || _a === void 0 ? void 0 : _a.craft, createdBy: (_b = item.createdBy) === null || _b === void 0 ? void 0 : _b.user, createdAt: item.createdAt, updatedAt: item.updatedAt, }); }) }),
+                    pagination: {
+                        total: totalCount,
+                        totalPages,
+                        currentPage: page,
+                        limit,
+                    },
+                };
+            }
+            catch (error) {
+                console.error("❌ Service error:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(error.message || "Failed to fetch project scaffhold", error.statusCode || 500, error.details || "INTERNAL_ERROR");
             }
         });
     }

@@ -4,6 +4,7 @@ import { Request } from "express";
 import { PasswordServices } from "../services/passwordServices";
 import { chnagePasswordSchema, forgotPasswordSchema, resetPasswordSchema, verifyOTPSchema } from "../schemas/passwordSchema";
 import { AuthenticatedRequest } from "../types/index";
+import prisma from "../config/prismaClient";
 const password = new PasswordServices();
 
 export class PasswordController { 
@@ -59,5 +60,39 @@ export class PasswordController {
     } catch (err) {
       next(err);
     }
+}
+
+async getNotificationSetting(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function
+) {
+  try {
+    const userId = req.user!.id;
+
+    const result = await password.getNotificationSetting(userId);
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+async upsertNotificationSetting(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function
+) {
+  try {
+    const userId = req.user!.id;
+
+    const result = await password.upsertNotificationSetting(
+      userId,
+      req.body
+    );
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
 }
 }

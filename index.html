@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SCAFF SNAPP - Released Tag</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --tag-bg: #6adc66;
+        --tag-black: #000000;
+        --tag-white: #ffffff;
+        --input-bg: rgba(255, 255, 255, 0.2);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #d1d5db;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .tag-container {
+        width: 100%;
+        max-width: 420px;
+        background-color: transparent;
+        border: 1px solid var(--tag-black);
+        border-radius: 30px;
+        position: relative;
+        padding: 24px 20px 16px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+      }
+
+      .header-title {
+        text-align: center;
+        font-weight: 700;
+        font-size: 20px;
+        letter-spacing: 0.05em;
+        margin-bottom: 16px;
+        color: var(--tag-black);
+      }
+
+      .status-banner {
+        background-color: var(--tag-black);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+      }
+
+      .check-circle {
+        width: 40px;
+        height: 40px;
+        background-color: white;
+        border: 3px solid black;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .check-circle svg {
+        width: 20px;
+        height: 20px;
+        stroke: black;
+        stroke-width: 4;
+        fill: none;
+      }
+
+      .status-text {
+        color: white;
+        font-weight: 750;
+        font-size: 40px;
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+
+      .subheader {
+        text-align: center;
+        font-weight: 700;
+        font-size: 24px;
+        margin-bottom: 16px;
+        line-height: 1.1;
+        color: var(--tag-black);
+      }
+
+      .id-box {
+        border: 1.5px solid var(--tag-black);
+        border-radius: 2px;
+        padding: 8px;
+        text-align: center;
+        /* margin-bottom: 50px; */
+      }
+
+      .id-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+
+      .id-value {
+        font-weight: 700;
+        font-size: 24px;
+        letter-spacing: 0.05em;
+      }
+
+      .field {
+        border-bottom: 1.5px solid var(--tag-black);
+        padding-bottom: 2px;
+        margin-bottom: 20px;
+      }
+
+      .field-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        display: block;
+        opacity: 0.7;
+      }
+
+      .field-value {
+        font-weight: 700;
+        font-size: 18px;
+        line-height: 1.2;
+      }
+
+      .flex-row {
+        display: flex;
+        gap: 16px;
+      }
+
+      .flex-1 {
+        flex: 1;
+      }
+
+      .section-bar {
+        background-color: var(--tag-black);
+        color: white;
+        text-align: center;
+        font-weight: 700;
+        font-size: 16px;
+        padding: 6px;
+        text-transform: uppercase;
+        margin: 8px 0;
+        border-radius: 2px;
+      }
+
+      .checklist-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 8px 0;
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .check-box {
+        width: 32px;
+        height: 24px;
+        border: 1.5px solid var(--tag-black);
+        background-color: var(--input-bg);
+        border-radius: 2px;
+      }
+
+      .date-section {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        margin-top: 5px;
+      }
+
+      .note-box {
+        /* background-color: rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--tag-black);
+            padding: 8px; */
+        border-radius: 2px;
+        font-size: 13px;
+        line-height: 1.3;
+        margin: 8px 0;
+        display: flex;
+        gap: 8px;
+      }
+
+      .note-tag {
+        font-weight: 700;
+      }
+
+      .contact-section-header {
+        background-color: var(--tag-black);
+        color: var(--tag-bg);
+        font-weight: 700;
+        font-size: 14px;
+        padding: 6px 16px;
+        text-transform: uppercase;
+        display: inline-block;
+        margin-top: 12px;
+        margin-bottom: 12px;
+      }
+
+      .footer-content {
+        display: flex;
+        justify-content: space-between;
+        padding-bottom: 4px;
+      }
+
+      .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .icon-circle {
+        background-color: var(--tag-black);
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .icon-circle svg {
+        width: 24px;
+        height: 24px;
+        stroke: white;
+        fill: none;
+      }
+
+      .contact-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+
+      .contact-value {
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      .qr-section-container {
+        display: flex;
+        flex-direction: row;
+        /* align-items: center; */
+        width: 100%;
+      }
+
+      .qr-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 120px;
+        margin-top: 8px;
+        margin-left: 18px;
+      }
+
+      .qr-code {
+        background-color: white;
+        padding: 6px;
+        border: 1px solid var(--tag-black);
+        width: 130px;
+        height: 130px;
+        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+      }
+
+      .qr-code img {
+        width: 100%;
+        height: 100%;
+      }
+
+      .qr-text {
+        font-size: 8px;
+        font-weight: 700;
+        text-align: center;
+        margin-top: 8px;
+        line-height: 1.2;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tag-container">
+      <h1 class="header-title">SCAFF SNAPP</h1>
+
+      <div class="status-banner">
+        <div class="check-circle">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
+        </div>
+        <span class="status-text">RELEASED</span>
+      </div>
+
+      <h2 class="subheader">SCAFFOLD RELEASED FOR ACCESS</h2>
+
+      <div class="id-box">
+        <div class="id-label">Scaffold ID:</div>
+        <div class="id-value">${data.SCAFFID}</div>
+      </div>
+      <div class="date-section">
+        <span>Date</span>
+        <span style="font-weight: 700">${data.createdAt}</span>
+      </div>
+      <div style="margin-bottom: 50px; margin-top: 50px">
+        <div class="field">
+          <span class="field-label">Project Name</span>
+          <div class="field-value">${data.projectName}</div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Company Name</span>
+          <div class="field-value">${data.companyName}</div>
+        </div>
+
+        <div class="flex-row">
+          <div class="field flex-1">
+            <span class="field-label">Company ID</span>
+            <div class="field-value">${data.CMPID}</div>
+          </div>
+          <div class="field flex-1">
+            <span class="field-label">Project ID</span>
+            <div class="field-value">${data.PJT}</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Location</span>
+          <div class="field-value">${data.address}</div>
+        </div>
+      </div>
+      <div class="section-bar">Loading Schedule</div>
+      ${data.lightDuty ? `
+      <div class="checklist-item">
+        <span>Light Duty (25 LBS SQ FT)</span>
+
+        <img
+          src="https://www.svgrepo.com/show/443815/gui-form-checkbox-checked.svg"
+          style="width: 32px; height: 32px; object-fit: contain"
+          alt="checked"
+        />
+      </div>
+      ` : ``} ${data.mediumDuty ? `
+      <div class="checklist-item">
+        <span>Medium Duty (50 LBS SQ FT)</span>
+
+        <img
+          src="https://www.svgrepo.com/show/443815/gui-form-checkbox-checked.svg"
+          style="width: 32px; height: 32px; object-fit: contain"
+          alt="checked"
+        />
+      </div>
+      ` : ``} ${data.heavyDuty ? `
+      <div class="checklist-item">
+        <span>Heavy Duty (75 LBS SQ FT)</span>
+
+        <img
+          src="https://www.svgrepo.com/show/443815/gui-form-checkbox-checked.svg"
+          style="width: 32px; height: 32px; object-fit: contain"
+          alt="checked"
+        />
+      </div>
+      ` : ``}
+
+      <div class="note-box">
+        <span class="note-tag">Note:</span>
+        <span
+          >Loose planking noticed on the west side platform. Marked and reported
+          for immediate repair.</span
+        >
+      </div>
+
+      <div class="checklist-item" style="margin-bottom: 50px">
+        <span>See Engineering Drawing</span>
+        <div class="check-box"></div>
+      </div>
+
+      <div class="qr-section-container">
+        <div class="footer">
+          <div class="section-bar section-bar-footer">
+            Contact Person Details
+          </div>
+          <div class="footer-content">
+            <div class="contact-info">
+              <div class="contact-item">
+                <div class="icon-circle">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="contact-label">Name</div>
+                  <div class="contact-value">${data.clientName}</div>
+                </div>
+              </div>
+              <div class="contact-item">
+                <div class="icon-circle">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <div class="contact-label">Mobile Number</div>
+                  <div class="contact-value">${data.clientMobile}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="qr-section">
+          <div class="qr-code">
+            <img src="${data.qrCode}" alt="QR Code">
+          </div>
+          <div class="qr-text">
+            Scan the QR code for more details and updates.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -284,19 +284,20 @@ class CompanyServices {
     getCompanyById(data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const companySCaffholds = yield prismaClient_1.default.scaffhold.findMany({
+                // 🔥 OLD: scaffhold ❌ → NEW: request-based system ✅
+                const companyRequests = yield prismaClient_1.default.projectScaffholdRequest.findMany({
                     where: {
-                        companyId: data.id,
-                        company: {
+                        project: {
+                            createdById: data.id,
                             isDeleted: false,
-                            status: "ACTIVE",
-                            isApproved: "APPROVED",
-                            isVerified: true,
                         },
-                        isDeleted: false,
+                        status: {
+                            in: ["PENDING", "APPROVED", "REJECTED"],
+                        },
                     },
                 });
-                console.log("companySCaffholds==================>>>>>", companySCaffholds);
+                console.log("companyRequests==================>>>>>", companyRequests);
+                // 🔥 PROJECTS (same as before)
                 const companyProjects = yield prismaClient_1.default.project.findMany({
                     where: {
                         createdById: data.id,
@@ -312,25 +313,25 @@ class CompanyServices {
                                 user: {
                                     isDeleted: false,
                                     status: "ACTIVE",
-                                    isVerified: true
-                                }
+                                    isVerified: true,
+                                },
                             },
                             include: {
-                                user: true
-                            }
+                                user: true,
+                            },
                         },
                         projectManagers: {
                             where: {
                                 user: {
                                     isDeleted: false,
                                     status: "ACTIVE",
-                                    isVerified: true
-                                }
+                                    isVerified: true,
+                                },
                             },
                             include: {
-                                user: true
-                            }
-                        }
+                                user: true,
+                            },
+                        },
                     },
                 });
                 console.log("companyDataRaw==================>>>>>", companyDataRaw);
@@ -340,11 +341,11 @@ class CompanyServices {
                 const companyData = Object.assign(Object.assign({}, companyDataRaw), { image: companyDataRaw.image, competentPersons: companyDataRaw.competentPersons.map(cp => ({
                         id: cp.user.id,
                         name: cp.user.name,
-                        email: cp.user.email
+                        email: cp.user.email,
                     })), projectManagers: companyDataRaw.projectManagers.map(pm => ({
                         id: pm.user.id,
                         name: pm.user.name,
-                        email: pm.user.email
+                        email: pm.user.email,
                     })) });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.COMPANY.FETCH_BY_ID_SUCCESS,
@@ -352,11 +353,14 @@ class CompanyServices {
                         companyData,
                         totalCompetentPersons: companyData.competentPersons.length,
                         totalProjectManagers: companyData.projectManagers.length,
-                        totalScaffholds: companySCaffholds.length,
+                        // 🔥 UPDATED METRICS
+                        totalRequests: companyRequests.length,
                         totalProjects: companyProjects.length,
                         activeProjects: companyProjects.filter(p => p.status === "ONGOING").length,
-                        activeScaffholds: companySCaffholds.filter(s => s.status === "ACTIVE").length,
-                        dismentedScaffholds: companySCaffholds.filter(s => s.status === "DISMANTLED").length,
+                        // optional (if needed)
+                        pendingRequests: companyRequests.filter(r => r.status === "PENDING").length,
+                        approvedRequests: companyRequests.filter(r => r.status === "APPROVED").length,
+                        rejectedRequests: companyRequests.filter(r => r.status === "REJECTED").length,
                     },
                 };
             }
@@ -365,9 +369,7 @@ class CompanyServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
             }
         });
     }

@@ -37,6 +37,9 @@ export class awsCredentialServices {
             };
         } catch (error: any) {
             console.error("❌ Error fetching AWS credentials:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
             throw error instanceof CustomError
                 ? error
                 : new CustomError(RESPONSE_MESSAGES.AWS.FETCH_FAILED, 500, error.message);
@@ -52,6 +55,9 @@ export class awsCredentialServices {
                 data: { upload_url: result.url, image_key: result.key },
             };
         } catch (error: any) {
+            if (error instanceof CustomError) {
+                throw error;
+            }
             throw error instanceof CustomError
                 ? error
                 : new CustomError(RESPONSE_MESSAGES.AWS.PRESIGNED_URL_FAILED, 500, error.message);
@@ -75,92 +81,130 @@ export class awsCredentialServices {
         }
     }
 
+    // src/services/awsServices.ts
+
     async scaffHoldPdf(data: ScaffHoldDetailsDTO) {
         try {
-            const scaffhold = await prisma.scaffhold.findFirst({
+            // ✅ NEW SOURCE: ProjectScaffholdRequest
+            const request = await prisma.projectScaffholdRequest.findFirst({
                 where: {
                     id: data.id,
-                    isDeleted: false,
-                    status: {
-                        in: ["ACTIVE", "PRE_ERECTED", "ERECTED", "DISMANTLED"],
+                },
+
+                include: {
+                    project: {
+                        include: {
+                            createdBy: true,
+                        },
+                    },
+
+                    createdBy: {
+                        include: {
+                            user: true,
+                        },
                     },
                 },
-                include: {
-                    project: true,
-                    company: true,
-                },
             });
-
-            if (!scaffhold) {
+            if (!request) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    401,
-                    "ScaffHold not found"
+                    404,
+                    "Request not found"
                 );
-            } 
-            
+            }
+
+            // ✅ FORMAT DATA FOR PDF
             const formattedResponse = {
-                id: scaffhold.id,
-                uuid: scaffhold.uuid,
-                startDate: scaffhold.startDate,
-                endDate: scaffhold.endDate,
-                latitude: scaffhold.latitude,
-                longitude: scaffhold.longitude,
-                priority: scaffhold.priority,
-                tag: scaffhold.tag,
-                SCAFFID: scaffhold.SCAFFID,
-                address: scaffhold.address,
-                projectName: scaffhold.projectName,
-                status: scaffhold.status,
-                projectId: scaffhold.projectId,
-                companyId: scaffhold.companyId,
-                createdById: scaffhold.createdById,
-                createdAt: scaffhold.createdAt,
-                updatedAt: scaffhold.updatedAt,
-                CMPId: scaffhold.company?.CMPId || null,
-                companyName: scaffhold.company?.name || null,
-                clientName: scaffhold.project?.clientName || null,
-                clientMobile: scaffhold.project?.clientMobile || null,
+                id: request.id,
+                uuid: request.uuid,
+                PJT: request.project?.PJT || null,
+
+                CMPID: request.project?.createdBy?.CMPId || null,
+
+                companyName: request.project?.createdBy?.name || null,
+
+                address: request.address || request.project?.clientAddress || null,
+                // project scaffold request fields
+                startDate: request.startDate,
+                endDate: request.endDate,
+                latitude: request.latitude,
+                longitude: request.longitude,
+                description: request.description,
+
+                craft: request.craft,
+                length: request.length,
+                width: request.width,
+                height: request.height,
+
+                priority: request.priority,
+                tag: request.tag,
+                SCAFFID: request.SCAFFID,
+                REQID: request.REQID,
+                notes: request.notes,
+                status: request.status,
+                lightDuty: request.lightDuty,
+                mediumDuty: request.mediumDuty,
+                heavyDuty: request.heavyDuty,
+                tradesmanUserType: request.createdBy?.user?.user_type || null,
+
+                projectId: request.projectId,
+
+                createdAt: request.createdAt,
+                updatedAt: request.updatedAt,
+
+                // 🔥 tradesman info (who created request)
+                tradesmanName: request.createdBy?.user?.name || null,
+                tradesmanEmail: request.createdBy?.user?.email || null,
+                tradesmanMobile: request.createdBy?.user?.mobileNumber || null,
+
+                // 🔥 project info
+                projectName: request.project?.projectName || null,
+                clientName: request.project?.clientName || null,
+                clientMobile: request.project?.clientMobile || null,
+                clientEmail: request.project?.clientEmail || null,
             };
-        
+
+            // ✅ GENERATE PDF
             const pdfBuffer = await pdfGenerator(formattedResponse);
-            
 
             // 3. Prepare uploads folder
-            const fileName = `scaffhold-${scaffhold.id}.pdf`;
+            const fileName = `scaffhold-request-${request.id}.pdf`;
             const uploadsPath = path.join(process.cwd(), "uploads");
-            if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
+
+            if (!fs.existsSync(uploadsPath)) {
+                fs.mkdirSync(uploadsPath, { recursive: true });
+            }
 
             const pdfPath = path.join(uploadsPath, fileName);
 
-            // 4. Save PDF
+            // 4. Save PDF locally
             fs.writeFileSync(pdfPath, pdfBuffer);
 
-            // 5. Return URL
+            // 5. Generate URL
             const SERVER_URL = process.env.SERVER_URL || "http://localhost:3001";
             const pdfUrl = `${SERVER_URL}/uploads/${fileName}`;
 
             return {
                 message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_BY_ID_SUCCESS,
-                pdfUrl: pdfUrl
+                pdfUrl: pdfUrl,
             };
 
         } catch (error: any) {
-            console.error("❌ Get scaffhold by id error:", error);
+            console.error("❌ Get scaffhold request PDF error:", error);
+
             if (error instanceof CustomError) {
                 throw error;
             }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                    500,
-                    error.message
-                );
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
+                500,
+                error.message
+            );
         }
     }
 
- 
+
 }
 
 

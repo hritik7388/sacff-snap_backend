@@ -102,24 +102,12 @@ class tradesManController {
             }
         });
     }
-    searchJob(req, res, next) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const data = tradesManSchema_1.seacrchJobSchema.parse(req.body);
-                const result = yield tradesMan.searchJob(data);
-                res.status(200).json(result);
-            }
-            catch (err) {
-                next(err);
-            }
-        });
-    }
     requestScaffhold(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const id = req.user.id;
                 const data = tradesManSchema_1.requestScaffOldSchema.parse(req.body);
-                const result = yield tradesMan.requestScaffHoldServices(id, data);
+                const result = yield tradesMan.requestProjectScaffHoldServices(id, data);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -132,7 +120,7 @@ class tradesManController {
             try {
                 const id = req.user.id;
                 const data = tradesManSchema_1.updateScaffOldSRequestchema.parse(req.body);
-                const result = yield tradesMan.updateScaffHoldRequest(id, data);
+                const result = yield tradesMan.updateProjectScaffHoldRequest(id, data);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -174,7 +162,7 @@ class tradesManController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const id = req.user.id;
-                const result = yield tradesMan.getJoinedScaffholds(id, page, limit);
+                const result = yield tradesMan.getJoinedProjects(id, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -188,7 +176,7 @@ class tradesManController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const data = tradesManSchema_1.searchScaffHold.parse(req.query);
-                const result = yield tradesMan.filterScaffHolds(data, page, limit);
+                const result = yield tradesMan.filterProjects(data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -200,7 +188,7 @@ class tradesManController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = tradesManSchema_1.deleteRequest.parse(req.body);
-                const result = yield tradesMan.deleteScaffHoldRequest(data);
+                const result = yield tradesMan.deleteProjectScaffHoldRequest(data);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -266,7 +254,7 @@ class tradesManController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const data = tradesManSchema_1.searchFilter.parse(req.body);
-                const result = yield tradesMan.getSearchFilterData(data, page, limit);
+                const result = yield tradesMan.getProjectRequestFilterData(data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -279,9 +267,10 @@ class tradesManController {
             try {
                 const page = Number(req.body.page) || 1;
                 const limit = Number(req.body.limit) || 10;
-                const id = req.user.id;
+                // ✅ GET PROJECT ID FROM PARAMS (NOT USER)
+                const projectId = Number(req.query.projectId);
                 const data = tradesManSchema_1.searchFilter.parse(req.body);
-                const result = yield tradesMan.getFilteredScaffHolds(id, data, page, limit);
+                const result = yield tradesMan.getFilteredProjectRequestsByProjectId(projectId, data, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {

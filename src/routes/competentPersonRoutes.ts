@@ -66,4 +66,33 @@ router.get("/getCompetentPersonScaffHold", clientAuthMiddleware, authMiddleware,
 
 
 
+/**
+ * @route   GET /api/v1/rental-cycle/:scaffHoldId
+ * @desc    Get rental cycle details
+ * @access  Private
+ */
+router.get(
+    "/getRentalCycle/:scaffHoldId",
+    clientAuthMiddleware,
+    authMiddleware,
+    competentPersonRoutes.getRentalCycle.bind(competentPersonRoutes)
+);
+/**
+ * @route   POST /api/v1/rental-cycle/clear
+ * @desc    Manually clear rental cycle (TAG action)
+ * @access  Private
+ */
+router.post(
+    "/clearRentalCycle",
+    clientAuthMiddleware,
+    authMiddleware,
+    competentPersonRoutes.clearRentalCycle.bind(competentPersonRoutes)
+);
+
+/**
+ * @route   GET /api/v1/competentPerson/getCompetentProjectList
+ * @desc    Get list of projects under competent's
+ * @access  Private (projectManager)
+ */
+router.get("/getCompetentProjectList", clientAuthMiddleware, authMiddleware, competentPersonRoutes.getCompetnetProjectList.bind(competentPersonRoutes));
 export default router;

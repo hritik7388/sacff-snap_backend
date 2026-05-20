@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// src/routes/passwordRoutes.ts
 const express_1 = require("express");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const authMiddleware_2 = require("../middlewares/authMiddleware");
@@ -34,4 +35,16 @@ router.post("/verifyOTP", authMiddleware_2.clientAuthMiddleware, passwordRoutes.
  * @access  Public
  */
 router.post("/resetPassword", authMiddleware_2.clientAuthMiddleware, passwordRoutes.resetPassword.bind(passwordRoutes));
+/**
+ * @route   GET /api/v1/password/settings
+ * @desc    Get notification settings of logged-in user
+ * @access  Private
+ */
+router.get("/settings", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, passwordRoutes.getNotificationSetting.bind(passwordRoutes));
+/**
+ * @route   POST /api/v1/password/settings
+ * @desc    Create or update notification settings
+ * @access  Private
+ */
+router.post("/settings", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, passwordRoutes.upsertNotificationSetting.bind(passwordRoutes));
 exports.default = router;

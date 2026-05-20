@@ -190,5 +190,89 @@ class PasswordServices {
             }
         });
     }
+    upsertNotificationSetting(userId, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d, _e, _f;
+            try {
+                const userBigIntId = BigInt(userId);
+                const setting = yield prismaClient_1.default.notificationSetting.upsert({
+                    where: {
+                        userId: userBigIntId,
+                    },
+                    update: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (data.unusualActivity !== undefined && {
+                        unusualActivity: data.unusualActivity,
+                    })), (data.newDeviceLogin !== undefined && {
+                        newDeviceLogin: data.newDeviceLogin,
+                    })), (data.projectCreated !== undefined && {
+                        projectCreated: data.projectCreated,
+                    })), (data.teamMemberChanged !== undefined && {
+                        teamMemberChanged: data.teamMemberChanged,
+                    })), (data.scaffoldUpdates !== undefined && {
+                        scaffoldUpdates: data.scaffoldUpdates,
+                    })), (data.emailEnabled !== undefined && {
+                        emailEnabled: data.emailEnabled,
+                    })),
+                    create: {
+                        userId: userBigIntId,
+                        unusualActivity: (_a = data.unusualActivity) !== null && _a !== void 0 ? _a : true,
+                        newDeviceLogin: (_b = data.newDeviceLogin) !== null && _b !== void 0 ? _b : true,
+                        projectCreated: (_c = data.projectCreated) !== null && _c !== void 0 ? _c : true,
+                        teamMemberChanged: (_d = data.teamMemberChanged) !== null && _d !== void 0 ? _d : true,
+                        scaffoldUpdates: (_e = data.scaffoldUpdates) !== null && _e !== void 0 ? _e : true,
+                        emailEnabled: (_f = data.emailEnabled) !== null && _f !== void 0 ? _f : true,
+                    },
+                });
+                return {
+                    message: "Notification settings saved successfully",
+                    data: setting,
+                };
+            }
+            catch (error) {
+                console.error("❌ Notification setting error:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new Error(error.message);
+            }
+        });
+    }
+    getNotificationSetting(userId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userBigIntId = BigInt(userId);
+                let setting = yield prismaClient_1.default.notificationSetting.findUnique({
+                    where: {
+                        userId: userBigIntId,
+                    },
+                });
+                // If not found, return default structure (important for UX)
+                if (!setting) {
+                    setting = {
+                        id: BigInt(0),
+                        userId: userBigIntId,
+                        unusualActivity: true,
+                        newDeviceLogin: true,
+                        projectCreated: true,
+                        teamMemberChanged: true,
+                        scaffoldUpdates: true,
+                        emailEnabled: true,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    };
+                }
+                return {
+                    message: "Notification settings fetched successfully",
+                    data: setting,
+                };
+            }
+            catch (error) {
+                console.error("❌ Get notification setting error:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new Error(error.message);
+            }
+        });
+    }
 }
 exports.PasswordServices = PasswordServices;

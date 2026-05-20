@@ -44,5 +44,26 @@ router.post("/verifyOTP",clientAuthMiddleware, passwordRoutes.verifyOTP.bind(pas
  */
 router.post("/resetPassword",clientAuthMiddleware, passwordRoutes.resetPassword.bind(passwordRoutes));
 
+/**
+ * @route   GET /api/v1/password/settings
+ * @desc    Get notification settings of logged-in user
+ * @access  Private
+ */
+router.get(
+  "/settings",
+  clientAuthMiddleware,authMiddleware,
+  passwordRoutes.getNotificationSetting.bind(passwordRoutes)
+);
+
+/**
+ * @route   POST /api/v1/password/settings
+ * @desc    Create or update notification settings
+ * @access  Private
+ */
+router.post(
+  "/settings",
+  clientAuthMiddleware,authMiddleware,
+  passwordRoutes.upsertNotificationSetting.bind(passwordRoutes)
+);
 
 export default router;
