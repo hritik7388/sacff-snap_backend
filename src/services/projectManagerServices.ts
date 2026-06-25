@@ -116,6 +116,9 @@ export class ProjectManagerServices {
             if (data.user_type !== existingProjectManager.user_type) {
                 throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "User type mismatch");
             }
+            if (!data.companyId) {
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 400, "Company ID is required");
+            }
 
             const company = await prisma.company.findFirst({
                 where: {
@@ -209,7 +212,8 @@ export class ProjectManagerServices {
         id: number,
         page: number = 1,
         limit: number = 10,
-        status?: string
+        status?: string,
+        search?: string
     ) {
         console.log("=================>>>>", status)
         try {
@@ -226,6 +230,12 @@ export class ProjectManagerServices {
             // ✅ STATUS FILTER (FINAL FIX)
             if (status && status.trim() !== "") {
                 whereCondition.status = status.trim().toUpperCase();
+            }
+            if (search && search.trim() !== "") {
+                whereCondition.projectName = {
+                    contains: search.trim(),
+                    // optional (remove if MySQL doesn't support it)
+                };
             }
             whereCondition.projectManagers = {
                 some: {
@@ -752,21 +762,47 @@ export class ProjectManagerServices {
         userId: number,
         data: SearchScaffHoldDTO,
         page: number = 1,
-        limit: number = 10
+        limit: number = 10,
+       projectId?: number
     ) {
         try {
             const skip = (page - 1) * limit;
 
-            const whereCondition: any = {
-                parentId: { not: null },
-                status: "PENDING",
+           const pm = await prisma.projectManager.findUnique({
+    where: {
+        userId: BigInt(userId),
+    },
+    select: {
+        userId: true,
+    },
+});
 
-                // ✅ FIXED LOGIC
-                project: {
-                    createdById: userId,
-                },
-            };
+if (!pm) {
+    throw new CustomError(
+        "Project Manager not found",
+        404,
+        "Project Manager not found"
+    );
+}
 
+const whereCondition: any = {
+    parentId: {
+        not: null,
+    },
+    status: "PENDING",
+
+    project: {
+        projectManagers: {
+            some: {
+                id: pm.userId, // same as tradesman pending API
+            },
+        },
+    },
+};
+
+if (projectId) {
+    whereCondition.projectId = BigInt(projectId);
+}
             const searchTerm = data?.search?.trim();
 
             if (searchTerm) {
@@ -823,6 +859,7 @@ export class ProjectManagerServices {
                 uuid: request.uuid,
                 REQID: request.REQID,
                 status: request.status,
+                SCAFFID: request.SCAFFID,
 
                 craft: request.craft,
                 priority: request.priority,
@@ -878,20 +915,44 @@ export class ProjectManagerServices {
         userId: number,
         data: SearchScaffHoldDTO,
         page: number = 1,
-        limit: number = 10
-    ) {
+        limit: number = 10,
+        projectId?: number
+    ) { 
         try {
             const skip = (page - 1) * limit;
 
-            const whereCondition: any = {
-                status: "PENDING",
-                parentId: null,
+const pm = await prisma.projectManager.findUnique({
+    where: {
+        userId: BigInt(userId), // token wali PM id
+    },
+    select: {
+        userId: true,
+    },
+}); 
 
-                // ✅ CHANGED LOGIC: only projects created by this user
-                project: {
-                    createdById: userId,
-                },
-            };
+if (!pm) {
+    throw new CustomError(
+        "Project Manager not found",
+        404,
+        "Project Manager not found"
+    );
+}
+const whereCondition: any = {
+    status: "PENDING",
+    parentId: null,
+
+    project: {
+        projectManagers: {
+            some: {
+                id: pm.userId, // ✅ User.id
+            },
+        },
+    },
+}; 
+
+if (projectId) {
+    whereCondition.projectId = BigInt(projectId);
+} 
 
             const searchTerm = data?.search?.trim();
 
@@ -938,6 +999,7 @@ export class ProjectManagerServices {
                     where: whereCondition,
                 }),
             ]);
+            console.log("Fetched requests:", requests, "Total count:", totalCount);
 
             const formattedData = requests.map((req) => ({
                 id: req.id,
@@ -945,6 +1007,7 @@ export class ProjectManagerServices {
 
                 REQID: req.REQID,
                 status: req.status,
+                SCAFFID: req.SCAFFID,
 
                 craftId: req.createdBy?.craftId || null,
                 craft: req.createdBy?.craft || null,

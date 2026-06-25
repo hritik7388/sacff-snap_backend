@@ -25,8 +25,9 @@ export class projectManagerController {
       const limit = Number(req.query.limit) || 10;
       const status = req.query.status as string | undefined;
       const id = req.user!.id;
+      const search = req.query.search as string | undefined;
 
-      const result = await projectManager.getProjectListServices(id,page, limit, status);
+      const result = await projectManager.getProjectListServices(id,page, limit, status,search);
 
       res.status(200).json(result);
 
@@ -79,7 +80,14 @@ export class projectManagerController {
       const limit = Number(req.query.limit) || 10;
       const data = searchFilter.parse(req.query);
         const id = req.user!.id;
-      const result = await projectManager.getTrademanPendingRequestListServices(id,data, page, limit);
+      const projectId = req.query.projectId ? Number(req.query.projectId) : undefined;
+      const result = await projectManager.getTrademanPendingRequestListServices(
+        id,
+        data,
+        page,
+        limit,
+        projectId ?? 0
+      );
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -88,14 +96,19 @@ export class projectManagerController {
 
   async getAllPendingModifiedRequestDetails(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
+      const id = req.user!.id;
+      const data = searchFilter.parse(req.query);
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
-      const data = searchFilter.parse(req.query);
+        const  projectId = Number(req.query.projectId) || undefined;
 
-        const id = req.user!.id;
-
-
-      const result = await projectManager.getAllPendingModifiedRequestsByParentId(id,data, page, limit);
+      const result = await projectManager.getAllPendingModifiedRequestsByParentId(
+        id,
+        data,
+        page,
+        limit,
+        projectId  
+      );
       res.status(200).json(result);
     } catch (err) {
       next(err);

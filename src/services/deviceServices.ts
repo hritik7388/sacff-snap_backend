@@ -23,7 +23,7 @@ export class DeviceServices {
                 });
 
                 if (!company) {
-                    throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                    throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404,"Company not found");
                 }
 
                 user = company;
@@ -38,7 +38,7 @@ export class DeviceServices {
                 });
 
                 if (!foundUser) {
-                    throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                    throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404,"User not found");
                 }
 
                 user = foundUser;

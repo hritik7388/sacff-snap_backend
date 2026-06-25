@@ -55,7 +55,7 @@ router.delete("/removeCompetentPerson", authMiddleware_2.clientAuthMiddleware, a
  * @des   changeTagsPriority by projectmanger
  * @access Private (Authenticated Users)
  */
-router.put("/changeTagsPriority", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_3.isProjectManager, scaffHoldRoutes.changeTagsPriority.bind(scaffHoldRoutes));
+router.put("/changeTagsPriority", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, scaffHoldRoutes.changeTagsPriority.bind(scaffHoldRoutes));
 /**
  * @route   GET /api/v1/scaffhold/getNotifictaion
  * @desc    get the notifictaion

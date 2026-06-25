@@ -124,7 +124,7 @@ export class CompanyServices {
             });
 
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company Not found");
             }
             // const emailExists = await prisma.company.findUnique({
             //     where: {
@@ -181,7 +181,7 @@ export class CompanyServices {
             });
 
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company Not found");
             }
 
             const updatedComapny = await prisma.company.update({
@@ -213,66 +213,99 @@ export class CompanyServices {
         }
     }
 
-    async getCompanyallDetails(page: number, limit: number) {
-        try {
-            const skip = (page - 1) * limit;
-            const [companyData, totalCount] = await Promise.all([
-                prisma.company.findMany({
-                    where: {
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        isApproved: "APPROVED",
-                        isVerified: true,
-                        user_type: "COMPANY"
-                    },
-                    skip,
-                    take: limit,
-                    orderBy: {
-                        createdAt: "desc",
-                    },
-                    include: {
-                        _count: {
-                            select: {
-                                projects: true
+async getCompanyallDetails(page: number, limit: number) {
+    try {
+        const skip = (page - 1) * limit;
+
+        const [companyData, totalCount] = await Promise.all([
+            prisma.company.findMany({
+                where: {
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isApproved: "APPROVED",
+                    isVerified: true,
+                    user_type: "COMPANY"
+                },
+                skip,
+                take: limit,
+                orderBy: {
+                    createdAt: "desc",
+                },
+                include: {
+                    projects: {
+                        include: {
+                            _count: {
+                                select: {
+                                    TradesManRequests: {
+                                        where: {
+                                            status: {
+                                                notIn: ["PENDING", "SUSPENDED", "REJECTED"]
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                }),
-                prisma.company.count({
-                    where: {
-                        isDeleted: false,
-                        status: "ACTIVE",
-                        isApproved: "APPROVED",
-                        isVerified: true,
-                        user_type: "COMPANY"
                     },
-                })
-            ]);
-            const companyWithProjectsCount = await Promise.all(
-                companyData.map(async ({ _count, ...company }) => ({
+                    _count: {
+                        select: {
+                            projects: true
+                        }
+                    }
+                }
+            }),
+
+            prisma.company.count({
+                where: {
+                    isDeleted: false,
+                    status: "ACTIVE",
+                    isApproved: "APPROVED",
+                    isVerified: true,
+                    user_type: "COMPANY"
+                },
+            })
+        ]);
+
+        const companyWithProjectsCount = await Promise.all(
+            companyData.map(async ({ _count, projects, ...company }) => {
+
+                const totalScaffoldRequests = projects.reduce((sum, project) => {
+                    return sum + (project._count?.TradesManRequests || 0);
+                }, 0);
+
+                return {
                     ...company,
                     totalProjects: _count.projects,
+                    totalScaffoldRequests,
                     image: company.image
-                }))
-            );
-            const totalPages = Math.ceil(totalCount / limit);
-            return {
-                message: RESPONSE_MESSAGES.COMPANY.FETCH_ALL_SUCCESS,
-                data: companyWithProjectsCount,
-                totalCount,
-                totalPages,
-                currentPage: page
-            };
-        } catch (error: any) {
-            console.log("error===================>>>", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
+                };
+            })
+        );
+
+        const totalPages = Math.ceil(totalCount / limit);
+
+        return {
+            message: RESPONSE_MESSAGES.COMPANY.FETCH_ALL_SUCCESS,
+            data: companyWithProjectsCount,
+            totalCount,
+            totalPages,
+            currentPage: page
+        };
+
+    } catch (error: any) {
+        console.log("error===================>>>", error);
+
+        if (error instanceof CustomError) {
+            throw error;
         }
+
+        throw new CustomError(
+            RESPONSE_MESSAGES.COMPANY.FETCH_FAILED,
+            500,
+            error.message
+        );
     }
+}
 
     async getCompanyById(data: CompanyIdDTO) {
         try {
@@ -338,7 +371,7 @@ export class CompanyServices {
                 throw new CustomError(
                     RESPONSE_MESSAGES.COMPANY.NOT_FOUND,
                     500,
-                    "Not Found"
+                    "Company Not Found"
                 );
             }
 
@@ -562,12 +595,14 @@ export class CompanyServices {
                 }
             });
             const html = otpTemplate(user.name, emailOTP.otp.toString());
+            console.log("html==================>>>>>", html)
 
-            await sendMail(
+           const sendmails = await sendMail(
                 user.email,
                 "Scaff Snap - OTP Verification",
                 html
             );
+            console.log("sendmails==================>>>>>", sendmails)
 
 
 
@@ -709,7 +744,7 @@ export class CompanyServices {
                 where: { id: userId, isApproved: "APPROVED", status: "ACTIVE", isDeleted: false, isVerified: true, user_type: "COMPANY" },
             });
             if (!userExists) {
-                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT found ")
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company Not found ")
             }
 
             const updatedImage = await prisma.company.update({

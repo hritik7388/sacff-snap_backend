@@ -12,12 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pdfGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.extractS3Key = exports.mailTransporter = void 0;
+exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.extractS3Key = exports.mailTransporter = void 0;
 // src/helpers/utils.ts
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const qrcode_1 = __importDefault(require("qrcode"));
 ;
-const html_pdf_node_1 = __importDefault(require("html-pdf-node"));
+const puppeteer_1 = __importDefault(require("puppeteer"));
 const templates_1 = require("../helpers/templates");
 exports.mailTransporter = nodemailer_1.default.createTransport({
     host: process.env.EMAIL_HOST, // smtp.gmail.com
@@ -236,13 +236,16 @@ const qrCodeGenerator = (text, userType, status) => __awaiter(void 0, void 0, vo
     }
 });
 exports.qrCodeGenerator = qrCodeGenerator;
-const pdfGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, function* () {
+const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const tag = (_a = scaffholdDetails.tag) === null || _a === void 0 ? void 0 : _a.toUpperCase();
         if (!tag || tag === "RED") {
-            throw new customError_1.CustomError("PDF generation not allowed for untagged or RED scaffold.");
+            throw new customError_1.CustomError("Image generation not allowed for untagged or RED scaffold.");
         }
+        // ======================================================
+        // QR URL
+        // ======================================================
         const BASE_URL = "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
         const qrFinalLink = `${BASE_URL}?scaffId=${scaffholdDetails.id}` +
             `&userType=${scaffholdDetails.tradesmanUserType}` +
@@ -251,6 +254,9 @@ const pdfGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, fun
         if (!qrResult.success) {
             throw new Error("QR generation failed");
         }
+        // ======================================================
+        // HTML TEMPLATE
+        // ======================================================
         let html;
         if (tag === "GREEN") {
             html = (0, templates_1.greenpdfTemplate)(Object.assign(Object.assign({}, scaffholdDetails), { qrCode: qrResult.qrCode }));
@@ -258,18 +264,39 @@ const pdfGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, fun
         else {
             html = (0, templates_1.yellowpdfTemplate)(Object.assign(Object.assign({}, scaffholdDetails), { qrCode: qrResult.qrCode }));
         }
-        const options = {
-            format: "A4",
-            printBackground: true,
-            margin: { top: 0, right: 0, bottom: 0, left: 0 },
-        };
-        const file = { content: html };
-        const pdfBuffer = yield html_pdf_node_1.default.generatePdf(file, options);
-        return pdfBuffer;
+        // ======================================================
+        // PUPPETEER
+        // ======================================================
+        const browser = yield puppeteer_1.default.launch({
+            headless: true,
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+            ],
+        });
+        const page = yield browser.newPage();
+        // 80mm ≈ 302px
+        yield page.setViewport({
+            width: 540,
+            height: 100,
+            deviceScaleFactor: 3,
+        });
+        yield page.setContent(html, {
+            waitUntil: "networkidle0",
+        });
+        // ======================================================
+        // SCREENSHOT
+        // ======================================================
+        const screenshotBuffer = yield page.screenshot({
+            type: "png",
+            fullPage: true,
+        });
+        yield browser.close();
+        return Buffer.from(screenshotBuffer);
     }
     catch (err) {
-        console.error("PDF GEN ERR:", err);
+        console.error("❌ IMAGE GEN ERR:", err);
         throw err;
     }
 });
-exports.pdfGenerator = pdfGenerator;
+exports.imageGenerator = imageGenerator;

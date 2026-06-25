@@ -58,8 +58,9 @@ class subAdminController {
             try {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
+                const search = req.query.search || "";
                 const id = req.user.id;
-                const result = yield subAdmin.getProjectManagersListServices(id, page, limit);
+                const result = yield subAdmin.getProjectManagersListServices(search, id, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -88,7 +89,8 @@ class subAdminController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const id = req.user.id;
-                const result = yield subAdmin.getCompanyCompetentPersonList(id, page, limit);
+                const search = req.query.search || "";
+                const result = yield subAdmin.getCompanyCompetentPersonList(search, id, page, limit);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -244,7 +246,9 @@ class subAdminController {
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
                 const id = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
-                const result = yield subAdmin.getProjectListServices(id, page, limit);
+                const search = req.query.search;
+                const status = req.query.status;
+                const result = yield subAdmin.getProjectListServices(id, page, limit, search, status);
                 res.status(200).json(result);
             }
             catch (err) {

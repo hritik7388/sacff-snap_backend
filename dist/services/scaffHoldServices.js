@@ -8,6 +8,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -19,6 +30,7 @@ const customError_1 = require("../types/customError");
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
 const uuid_1 = require("uuid");
+const client_1 = require("@prisma/client");
 class ScaffHoldsServices {
     getAllScaffHolds(page, limit) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -163,8 +175,16 @@ class ScaffHoldsServices {
             try {
                 const skip = (page - 1) * limit;
                 const { search, priority, status, tags, sort } = data;
+                const BLOCKED_STATUSES = [
+                    client_1.RequestStatus.PENDING,
+                    client_1.RequestStatus.REJECTED,
+                    client_1.RequestStatus.SUSPENDED,
+                ];
                 const whereCondition = {
                     projectId,
+                    status: {
+                        notIn: BLOCKED_STATUSES,
+                    },
                 };
                 // 🔍 SEARCH
                 if (search === null || search === void 0 ? void 0 : search.trim()) {
@@ -238,6 +258,13 @@ class ScaffHoldsServices {
                         status: true,
                         createdAt: true,
                         updatedAt: true,
+                        createdBy: {
+                            select: {
+                                id: true,
+                                name: true,
+                                CMPId: true,
+                            }
+                        }
                     },
                 });
                 if (!projectData) {
@@ -288,9 +315,11 @@ class ScaffHoldsServices {
                         },
                     },
                 });
+                const _a = projectData, { createdBy } = _a, projectWithoutCreatedBy = __rest(_a, ["createdBy"]);
+                const company = projectData.createdBy;
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.PROJECT.FETCH_BY_ID_SUCCESS,
-                    data: Object.assign(Object.assign({}, projectData), { scaffholdList: scaffholdList.map((item) => {
+                    data: Object.assign(Object.assign({}, projectWithoutCreatedBy), { companyId: company === null || company === void 0 ? void 0 : company.id, companyName: company === null || company === void 0 ? void 0 : company.name, companyCMPId: company === null || company === void 0 ? void 0 : company.CMPId, scaffholdList: scaffholdList.map((item) => {
                             var _a;
                             return ({
                                 id: item.id,
@@ -396,6 +425,7 @@ class ScaffHoldsServices {
     addCompetentPersonToProject(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                console.log("Adding competent person to project with data:", data);
                 // =========================
                 // ✅ VALIDATE PROJECT MANAGER
                 // =========================
@@ -429,6 +459,7 @@ class ScaffHoldsServices {
                         isDeleted: false,
                     },
                 });
+                console.log("Project Data:", projectData);
                 if (!projectData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project not found");
                 }
@@ -446,6 +477,7 @@ class ScaffHoldsServices {
                         },
                     },
                 });
+                console.log("Competent Persons Data:", competentPersonsData);
                 if (competentPersonsData.length !== data.competentPersonIds.length) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "Some competent persons not found");
                 }
@@ -532,8 +564,26 @@ class ScaffHoldsServices {
                             projectId: BigInt(projectData.id),
                             receiverId: BigInt(cp.userId),
                             senderId: userId.toString(),
+                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/assigned.png"
                         })),
                     });
+                    console.log("✅ CP notifications created for users:", newCPUsers.map(cp => cp.userId));
+                    // PUSH NOTIFICATION FOR CP
+                    const cpUserIds = newCPUsers.map(cp => Number(cp.userId));
+                    const cpDevices = yield prismaClient_1.default.device.findMany({
+                        where: {
+                            userId: { in: cpUserIds },
+                            deviceToken: { not: null }
+                        },
+                        select: {
+                            deviceToken: true
+                        }
+                    });
+                    console.log("CP Devices =>", cpDevices);
+                    for (const device of cpDevices) {
+                        console.log("🚀 Sending push to:", device.deviceToken);
+                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "PROJECT ASSIGNED", `You have been assigned to Project ${projectData.projectName}.`);
+                    }
                 }
                 // =========================
                 // 🏢 SUPER ADMIN + COMPANY OWNER ONLY
@@ -976,12 +1026,28 @@ class ScaffHoldsServices {
                     where: {
                         id: data.scaffHoldId,
                     },
-                    data: Object.assign(Object.assign(Object.assign({ priority: data.priority, tag: data.tag }, (data.lightDuty !== undefined && {
+                    data: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({ priority: data.priority, tag: data.tag }, (data.lightDuty !== undefined && {
                         lightDuty: data.lightDuty,
                     })), (data.mediumDuty !== undefined && {
                         mediumDuty: data.mediumDuty,
                     })), (data.heavyDuty !== undefined && {
                         heavyDuty: data.heavyDuty,
+                    })), (data.fallProtection !== undefined && {
+                        fallProtection: data.fallProtection,
+                    })), (data.ladder !== undefined && {
+                        ladder: data.ladder,
+                    })), (data.handRail !== undefined && {
+                        handRail: data.handRail,
+                    })), (data.midRail !== undefined && {
+                        midRail: data.midRail,
+                    })), (data.toeBoard !== undefined && {
+                        toeBoard: data.toeBoard,
+                    })), (data.platform !== undefined && {
+                        platform: data.platform,
+                    })), (data.note !== undefined && {
+                        note: data.note,
+                    })), (data.other !== undefined && {
+                        other: data.other,
                     })),
                 });
                 // 3. GET PROJECT OWNER
@@ -1008,31 +1074,6 @@ class ScaffHoldsServices {
                     },
                 });
                 // 6. GET DEVICES
-                const companyUsers = yield prismaClient_1.default.projectManager.findMany({
-                    where: {
-                        companyId: project === null || project === void 0 ? void 0 : project.createdById,
-                    },
-                    select: {
-                        userId: true,
-                    },
-                });
-                const devices = yield prismaClient_1.default.device.findMany({
-                    where: {
-                        userId: {
-                            in: companyUsers.map(u => u.userId),
-                        },
-                        deviceToken: {
-                            not: null,
-                        },
-                    },
-                    select: {
-                        deviceToken: true,
-                    },
-                });
-                // 7. PUSH NOTIFICATIONS
-                for (const d of devices) {
-                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "Scaffold Updated", notificationMessage);
-                }
                 // 8. RESPONSE
                 return {
                     success: true,

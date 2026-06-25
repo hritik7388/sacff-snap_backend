@@ -95,7 +95,7 @@ export class competentPersonController {
             next(err);
         }
     }
-   async getRentalCycle(req: AuthenticatedRequest, res: Response, next: Function) {
+    async getRentalCycle(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
             const scaffHoldId = Number(req.params.scaffHoldId);
 
@@ -107,21 +107,22 @@ export class competentPersonController {
         }
     }
 
-     async getCompetnetProjectList(req: AuthenticatedRequest, res: Response, next: Function) {
+    async getCompetnetProjectList(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
-          const page = Number(req.query.page) || 1;
-          const limit = Number(req.query.limit) || 10;
-          const status = req.query.status as string | undefined;
-          const id = req.user!.id;
-    
-          const result = await competentPerson.getCompetentProjectListServices(id,page, limit, status);
-    
-          res.status(200).json(result);
-    
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 10;
+            const status = req.query.status as string | undefined;
+            const id = req.user!.id;
+            const search = req.query.search as string | undefined;
+
+            const result = await competentPerson.getCompetentProjectListServices(id, page, limit, status, search);
+
+            res.status(200).json(result);
+
         } catch (err) {
-          next(err);
+            next(err);
         }
-      }
+    }
 
     // =========================
     // CLEAR CYCLE

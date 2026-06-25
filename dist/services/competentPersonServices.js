@@ -102,7 +102,7 @@ class CompetentPersonServices {
         });
     }
     getCompetentProjectListServices(id_1) {
-        return __awaiter(this, arguments, void 0, function* (id, page = 1, limit = 10, status) {
+        return __awaiter(this, arguments, void 0, function* (id, page = 1, limit = 10, status, search) {
             console.log("=================>>>>", status);
             try {
                 const skip = (page - 1) * limit;
@@ -120,6 +120,11 @@ class CompetentPersonServices {
                 // ✅ STATUS FILTER (FINAL FIX)
                 if (status && status.trim() !== "") {
                     whereCondition.status = status.trim().toUpperCase();
+                }
+                if (search && search.trim() !== "") {
+                    whereCondition.projectName = {
+                        contains: search.trim(),
+                    };
                 }
                 const [projects, totalCount] = yield Promise.all([
                     prismaClient_1.default.project.findMany({
@@ -144,10 +149,23 @@ class CompetentPersonServices {
                             isDeleted: true,
                             createdAt: true,
                             updatedAt: true,
+                            TradesManRequests: {
+                                where: {
+                                    status: {
+                                        notIn: [
+                                            "PENDING",
+                                            "REJECTED",
+                                            "SUSPENDED"
+                                        ]
+                                    }
+                                },
+                                select: {
+                                    id: true
+                                }
+                            },
                             _count: {
                                 select: {
                                     projectTimelines: true,
-                                    TradesManRequests: true,
                                 },
                             },
                         },
@@ -178,7 +196,7 @@ class CompetentPersonServices {
                     isDeleted: p.isDeleted,
                     createdAt: p.createdAt,
                     updatedAt: p.updatedAt,
-                    totalRequests: p._count.TradesManRequests,
+                    totalRequests: p.TradesManRequests.length,
                     totalTimelines: p._count.projectTimelines,
                 }));
                 console.log("formattedProjects==============>>>>", formattedProjects);
@@ -235,11 +253,8 @@ class CompetentPersonServices {
                     where: {
                         id: BigInt(data.scaffHoldId),
                     },
-                    select: {
-                        id: true,
-                        projectId: true,
-                    },
                 });
+                console.log("request===========>>>>", request);
                 if (!request) {
                     throw new customError_1.CustomError("Scaffold request not found", 404, "REQUEST_NOT_FOUND");
                 }
@@ -248,6 +263,7 @@ class CompetentPersonServices {
                 // =========================
                 const inspection = yield prismaClient_1.default.competentPersonProjectInspection.create({
                     data: {
+                        scaffoldRequestId: request.id,
                         projectId: request.projectId, // ✅ CORRECT FIX
                         Date: data.Date,
                         shift: data.shift,
@@ -255,6 +271,7 @@ class CompetentPersonServices {
                         createdById: BigInt(userId),
                     },
                 });
+                console.log("inspection========================>>>", inspection);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.COMPETENTPERSON
                         .SUCCESS_INSPECTION_CREATION,
@@ -282,21 +299,18 @@ class CompetentPersonServices {
                     where: {
                         id: BigInt(data.scaffHoldId),
                     },
-                    select: {
-                        projectId: true,
-                    },
                 });
                 if (!request) {
-                    throw new customError_1.CustomError("Request not found", 404, "NOT_FOUND");
+                    throw new customError_1.CustomError("Request not found", 404, "REQUEST_NOT_FOUND");
                 }
-                const projectId = request.projectId;
+                const scaffHoldRequest = request.id;
                 // =========================
                 // 🔥 STEP 2: INSPECTIONS
                 // =========================
                 const [inspections, totalCount] = yield Promise.all([
                     prismaClient_1.default.competentPersonProjectInspection.findMany({
                         where: {
-                            projectId: projectId, // ✅ FIXED
+                            scaffoldRequestId: scaffHoldRequest, // ✅ FIXED
                         },
                         skip,
                         take: limit,
@@ -320,7 +334,7 @@ class CompetentPersonServices {
                     }),
                     prismaClient_1.default.competentPersonProjectInspection.count({
                         where: {
-                            projectId: projectId,
+                            scaffoldRequestId: scaffHoldRequest,
                         },
                     }),
                 ]);
@@ -375,7 +389,7 @@ class CompetentPersonServices {
                     },
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Competent person not found");
                 }
                 if (user.isDeleted === true) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.DELETED, 400, "Competent person is deleted");
@@ -395,7 +409,7 @@ class CompetentPersonServices {
                     },
                 });
                 if (!request) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffold request not found");
                 }
                 // 🔥 duplicate timeline check
                 if (data.timeLineStatus) {
@@ -748,7 +762,7 @@ class CompetentPersonServices {
                     },
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Competent person not found");
                 }
                 // =======================================
                 // GET REQUEST
@@ -783,7 +797,7 @@ class CompetentPersonServices {
                     },
                 });
                 if (!request) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffold request not found");
                 }
                 const project = request.project;
                 // =======================================
@@ -1121,11 +1135,6 @@ class CompetentPersonServices {
                 cycle.erectedAt.getTime();
             const totalDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
             // 🔥 current cycle usage
-            const rentalDays = totalDays - (cycle.cycleCount * 28);
-            // ❌ BLOCK if not completed 28 days
-            if (rentalDays < 28) {
-                throw new customError_1.CustomError("28 days cycle not completed yet", 400);
-            }
             // 🔥 UPDATE CYCLE
             const updated = yield prismaClient_1.default.rentalCycle.update({
                 where: {
@@ -1161,7 +1170,7 @@ class CompetentPersonServices {
                     },
                 });
                 if (!request) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffold request not found");
                 }
                 // 🔥 FETCH TIMELINES BY REQUEST ID
                 const timelines = yield prismaClient_1.default.projectScaffholdTimeline.findMany({
@@ -1226,7 +1235,7 @@ class CompetentPersonServices {
                     },
                 });
                 if (!request) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND, 404, "Scaffold request not found");
                 }
                 // 🔥 FETCH TIMELINES USING REQUEST ID
                 const timelines = yield prismaClient_1.default.projectScaffholdTimeline.findMany({

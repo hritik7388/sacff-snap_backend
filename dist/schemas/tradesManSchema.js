@@ -69,7 +69,13 @@ exports.requestScaffOldSchema = zod_1.default.object({
     height: zod_1.default.string().optional(),
     priority: zod_1.default.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
     expectedEndDate: zod_1.default.string().optional(),
-    notes: zod_1.default.string().optional()
+    notes: zod_1.default.string().optional(),
+    startDate: zod_1.default.string().optional(),
+    endDate: zod_1.default.string().optional(),
+    description: zod_1.default.string().optional(),
+    address: zod_1.default.string().optional(),
+    latitude: zod_1.default.number().optional(),
+    longitude: zod_1.default.number().optional(),
 });
 exports.updateScaffOldSRequestchema = zod_1.default.object({
     requestId: zod_1.default.number(),
@@ -78,7 +84,14 @@ exports.updateScaffOldSRequestchema = zod_1.default.object({
     height: zod_1.default.string().optional(),
     priority: zod_1.default.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
     expectedEndDate: zod_1.default.string().optional(),
-    notes: zod_1.default.string().optional()
+    notes: zod_1.default.string().optional(),
+    startDate: zod_1.default.string().optional(),
+    endDate: zod_1.default.string().optional(),
+    description: zod_1.default.string().optional(),
+    address: zod_1.default.string().optional(),
+    latitude: zod_1.default.number().optional(),
+    longitude: zod_1.default.number().optional(),
+    rejectReason: zod_1.default.string().optional(),
 });
 exports.jobApplicationSchema = zod_1.default.object({
     scaffHoldId: zod_1.default.coerce.number(),

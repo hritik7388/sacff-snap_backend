@@ -156,7 +156,7 @@ class superAdminServices {
                     where: { id: data.id, isDeleted: false, isApproved: "PENDING" },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
                 }
                 const updatedCompany = yield prismaClient_1.default.company.update({
                     where: { id: data.id },
@@ -190,7 +190,7 @@ class superAdminServices {
                     where: { id: data.id, isDeleted: false, isApproved: "PENDING", isVerified: true },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
                 }
                 const updatedCompany = yield prismaClient_1.default.company.delete({
                     where: { id: companyData.id },
@@ -296,7 +296,7 @@ class superAdminServices {
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
                 }
                 const updateCompany = yield prismaClient_1.default.company.update({
                     where: { id: companyData.id },
@@ -332,7 +332,7 @@ class superAdminServices {
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
                 }
                 const updateCompany = yield prismaClient_1.default.company.update({
                     where: { id: companyData.id },
@@ -371,17 +371,49 @@ class superAdminServices {
                         skip,
                         take: limit,
                         orderBy: { createdAt: "desc" },
+                        include: {
+                            projects: {
+                                include: {
+                                    _count: {
+                                        select: {
+                                            TradesManRequests: {
+                                                where: {
+                                                    status: {
+                                                        notIn: [
+                                                            "PENDING",
+                                                            "SUSPENDED",
+                                                            "REJECTED",
+                                                        ],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            _count: {
+                                select: {
+                                    projects: true,
+                                },
+                            },
+                        },
                     }),
                     prismaClient_1.default.company.count({
                         where: {
                             status: "ACTIVE",
                             isDeleted: false,
+                            isApproved: "APPROVED",
                         },
                     }),
                 ]);
+                const formattedCompanies = companies.map((_a) => {
+                    var { projects, _count } = _a, company = __rest(_a, ["projects", "_count"]);
+                    const totalScaffoldRequests = projects.reduce((sum, project) => { var _a; return sum + (((_a = project._count) === null || _a === void 0 ? void 0 : _a.TradesManRequests) || 0); }, 0);
+                    return Object.assign(Object.assign({}, company), { totalProjects: _count.projects, totalScaffoldRequests, image: company.image });
+                });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.COMPANY.ACTIVE_COMPANIES,
-                    data: companies,
+                    data: formattedCompanies,
                     pagination: {
                         total: totalCount,
                         page,
@@ -449,7 +481,7 @@ class superAdminServices {
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
                 }
                 const updateCompany = yield prismaClient_1.default.company.update({
                     where: { id: companyData.id },
@@ -560,7 +592,7 @@ class superAdminServices {
                     where: { id: data.id },
                 });
                 if (!notification) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.NOTIFICATION.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.NOTIFICATION.NOT_FOUND, 404, "Notification not found");
                 }
                 const updatedNotification = yield prismaClient_1.default.notification.update({
                     where: { id: data.id },
@@ -976,7 +1008,7 @@ class superAdminServices {
                     }
                 });
                 if (!contact) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.NOT_FOUND, 404, "Contact submission not found");
                 }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_SUCCESS,
@@ -999,7 +1031,7 @@ class superAdminServices {
                     where: { id: data.id }
                 });
                 if (!blog) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404, "Blog not found");
                 }
                 const formattedBlog = {
                     id: blog.id,
@@ -1040,7 +1072,7 @@ class superAdminServices {
                     },
                 });
                 if (!userExists) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT FOUND");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User NOT FOUND");
                 }
                 // Check if media already exists
                 const existingMedia = yield prismaClient_1.default.userMedia.findFirst({
@@ -1102,7 +1134,7 @@ class superAdminServices {
                     },
                 });
                 if (!user) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
                 }
                 // ✅ Delete ONLY current device
                 yield prismaClient_1.default.device.deleteMany({

@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import { generateToken, pushNotificationDelhi, reqscaffHoldIdGenerator, scaffHoldIdGenerator } from "../helpers/utils";
 import { RegisterTradesManDTO, LoginTradesManDTO, TradesManCraftDTO, UpadateProfileDTO, joinCraftTradesManDTO, GetTradesManDetailsDTO, seacrchJobDTO, requestScaffOldDTO, updateScaffOldSRequestchemaDTO, jobApplicationDTO, SearchScaffHoldDTO, scaffHoldIdDTO, requestSacffHoldDTO, ScaffHoldDetailsDTO, getparentSacffHoldDTO, SearchFilterDTO, } from "../schemas/tradesManSchema";
-import { MediaType } from "@prisma/client";
+import { MediaType, Priority } from "@prisma/client";
 import { create } from "domain";
 
 
@@ -185,7 +185,7 @@ export class tradesManServices {
 
             if (!project) {
                 throw new CustomError(
-                    "You dont have project to start the project",
+                    "You dont have project to  login or ProjectId is invalid",
                     404
                 );
             }
@@ -230,15 +230,22 @@ export class tradesManServices {
                 where: { id: user.id },
                 data: { lastLogin: new Date() },
             });
+            const userRes = {
+                id: user.id.toString(),
+                uuid: user.uuid,
+                projectId: project.id,
+                projectCode: project.PJT,
+                employerName: data.employerName, // 🔥 return for frontend
+                user_type: user.user_type,
+                craft: tradesman.craft,
+            }
 
             // ✅ STEP 10: RESPONSE
             return {
                 message: "Login successful",
                 token,
-                projectId: project.id,
-                projectCode: project.PJT,
-                employerName: data.employerName, // 🔥 return for frontend
-                user_type: user.user_type,
+                data: userRes, // 🔥 return user details for frontend use
+
             };
         } catch (error: any) {
             if (error instanceof CustomError) {
@@ -713,10 +720,35 @@ export class tradesManServices {
                     REQID: REQID,
                     SCAFFID: SCAFFID,
                     expectedEndDate: data.expectedEndDate,
+                    startDate: data.startDate,
+                    endDate: data.endDate,
+                    description: data.description,
+                    address: data.address,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
                     notes: data.notes,
                     createdById: existingTradesman.id,
                     status: "PENDING",
+                    fallProtection: false,
+                    handRail: false,
+                    midRail: false,
+                    toeBoard: false,
+                    platform: false,
+                    ladder: false,
                 }
+            });
+            await prisma.tradesManOnProject.upsert({
+                where: {
+                    projectId_tradesManId: {
+                        projectId: projectData.id,
+                        tradesManId: existingTradesman.id,
+                    },
+                },
+                update: {},
+                create: {
+                    projectId: projectData.id,
+                    tradesManId: existingTradesman.id,
+                },
             });
             await prisma.project.update({
                 where: {
@@ -854,7 +886,6 @@ export class tradesManServices {
             const request = await prisma.projectScaffholdRequest.findUnique({
                 where: {
                     id: data.requestId,
-                    status: "PENDING",
                 },
             });
 
@@ -894,11 +925,29 @@ export class tradesManServices {
                     height: data.height,
                     priority: data.priority,
                     expectedEndDate: data.expectedEndDate,
+                    startDate: data.startDate,
+                    endDate: data.endDate,
+                    description: data.description,
+                    address: data.address,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
                     notes: data.notes,
                     parentId: request.id, // versioning
                 },
             });
-
+            await prisma.tradesManOnProject.upsert({
+                where: {
+                    projectId_tradesManId: {
+                        projectId: request.projectId,
+                        tradesManId: tradesManData.id,
+                    },
+                },
+                update: {},
+                create: {
+                    projectId: request.projectId,
+                    tradesManId: tradesManData.id,
+                },
+            });
             // ✅ 4. Update Project (optional like scaffhold)
             await prisma.project.update({
                 where: { id: request.projectId },
@@ -915,7 +964,7 @@ export class tradesManServices {
                     length: updatedRequest.length,
                     width: updatedRequest.width,
                     height: updatedRequest.height,
-                    priority: updatedRequest.priority,
+                    priority: data.priority as Priority | null,
                     expectedEndDate: updatedRequest.expectedEndDate,
                     notes: updatedRequest.notes,
                 },
@@ -960,6 +1009,11 @@ export class tradesManServices {
 
             if (pmUserIds.length > 0) {
                 for (const pmId of pmUserIds) {
+                    const scaffoldIdToSend =
+                        updatedRequest.parentId
+                            ? updatedRequest.parentId
+                            : updatedRequest.id;
+
                     await prisma.notification.create({
                         data: {
                             uuid: uuidv4(),
@@ -967,6 +1021,7 @@ export class tradesManServices {
                             message: notificationMessage,
                             type: "MODIFICATION_REQUEST",
                             role: "PROJECT_MANAGER",
+                            scaffoldRequestId: String(scaffoldIdToSend),
                             receiverId: pmId,
                             senderId: userId.toString(),
                             isRead: false,
@@ -1635,6 +1690,7 @@ export class tradesManServices {
                 uuid: request.uuid,
                 REQID: request.REQID,
                 status: request.status,
+                SCAFFID: request.SCAFFID || null,
 
                 craft: request.craft,
                 priority: request.priority,
@@ -1749,6 +1805,7 @@ export class tradesManServices {
                 uuid: mainRequest.uuid,
                 REQID: mainRequest.REQID,
                 status: mainRequest.status,
+                SCAFFID: mainRequest.SCAFFID || null,
 
                 craft: mainRequest.craft,
                 priority: mainRequest.priority,

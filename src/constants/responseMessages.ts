@@ -4,8 +4,8 @@ export const RESPONSE_MESSAGES = {
         CLIENT_KEY_REQUIRED: "Client key is required",
         CLIENT_KEY_INVALID: "Invalid client key",
         UNAUTHORIZED: "Unauthorized",
-        LOGOUT_SUCCESS:"Logout Successfully ",
-        LOGOUT_FAIL:"Failed to logout "
+        LOGOUT_SUCCESS: "Logout Successfully ",
+        LOGOUT_FAIL: "Failed to logout "
     },
     DEVICE: {
         DEVICE_SUCCESS: "Device token updated successfully ",
@@ -96,7 +96,7 @@ export const RESPONSE_MESSAGES = {
         INVALID_TYPE: "Invalid user type",
         USER_SUCCESS: "User login  successfully",
         LOGIN_FAILE: "Failed to login user",
-        DELETED:"USER  DELETED BY SUB ADMIN",
+        DELETED: "USER  DELETED BY SUB ADMIN",
 
 
     },
@@ -129,7 +129,7 @@ export const RESPONSE_MESSAGES = {
         PROJECTS_FETCH_FAILED: "Failed to fetch projects",
         COMPANY_NOT_FOUND: "Company not found",
     },
-    
+
     TRADESMAN: {
         REGISTER_SUCCESS: "Tradesman registered successfully",
         REGISTER_FAILED: "Failed to register tradesman",
@@ -230,7 +230,7 @@ export const RESPONSE_MESSAGES = {
         LIST_FETCH_FAILED: "Failed to fetch craft list",
     },
 
-    BLOG:{
+    BLOG: {
         BLOG_CREATION_SUCCESS: "Blog created successfully",
         BLOG_CREATION_FAILED: "Failed to create blog",
         BLOG_FETCH_SUCCESS: "Blog fetched successfully",
@@ -242,18 +242,18 @@ export const RESPONSE_MESSAGES = {
         BLOG_DELETE_FAILED: "Failed to delete blog",
         BLOG_LIST_FETCH_SUCCESS: "Blog list fetched successfully",
         BLOG_LIST_FETCH_FAILED: "Failed to fetch blog list",
-        BLOG_PUBLISH_SUCCESS:"Blog Publish successfuly",
-        ALREADY_DELETED:"Already blog delted"
+        BLOG_PUBLISH_SUCCESS: "Blog Publish successfuly",
+        ALREADY_DELETED: "Already blog delted"
     },
-     CONTACT: {
+    CONTACT: {
         SUBMIT_SUCCESS: "Contact submission successful",
         SUBMIT_FAILED: "Failed to submit contact info",
         EMAIL_ALREADY_EXISTS: "This email has already been submitted",
-        GET_SUCCESS:"Contact subimission details fetch successfully",
-        GET_FAIL:"Fail to fetch",
+        GET_SUCCESS: "Contact subimission details fetch successfully",
+        GET_FAIL: "Fail to fetch",
         CONTACT_DELETE_SUCCESS: "Contact deleted successfully",
         CONTACT_DELETE_FAILED: "Failed to delete Contact",
-        NOT_FOUND:"Not found"
+        NOT_FOUND: "Contact Not found"
 
     },
 
@@ -312,7 +312,7 @@ export const RESPONSE_MESSAGES = {
         REQUEST_DETAILS_FETCH_FAILED: "Failed to fetch Scaffold request details",
         REQUEST_MODIFICATIONS_FETCH_SUCCESS: "Scaffold request modifications fetched successfully",
         REQUEST_MODIFICATIONS_FETCH_FAILED: "Failed to fetch Scaffold request modifications",
-        AT_LEAST_TWO_CP:"At least two Competent Person must be assigned to this Scaffold"
+        AT_LEAST_TWO_CP: "At least two Competent Person must be assigned to this Scaffold"
 
 
     },
@@ -363,7 +363,7 @@ export const RESPONSE_MESSAGES = {
         FETCH_SUCCESS: "Scaffold requests fetched successfully",
         FETCH_FAILED: "Failed to fetch Scaffold requests",
         NOT_FOUND: "Scaffold request not found",
-        REQUEST_NOT_FOUND:"No pending request found with this ID and Scaffold ID",
+        REQUEST_NOT_FOUND: "No pending request found with this ID and Scaffold ID",
         APPROVE_SUCCESS: "Scaffold request approved successfully",
         APPROVE_FAILED: "Failed to approve Scaffold request",
         REJECT_SUCCESS: "Scaffold request rejected successfully",
@@ -394,7 +394,7 @@ export const RESPONSE_MESSAGES = {
         FAILED_CREATE_TIMELINE: "Failed to create Scaffold timeline",
         DUPLICATE_TIMELINE_STATUS: "A timeline entry with the same status already exists for this Scaffold",
         SUCCESS_GET_FILTERED_TIMELINE: "Filtered Scaffold timelines fetched successfully.",
-FAILED_GET_FILTERED_TIMELINE: "Failed to fetch filtered Scaffold timelines."
+        FAILED_GET_FILTERED_TIMELINE: "Failed to fetch filtered Scaffold timelines."
 
     },
     TIMELINE: {
@@ -403,51 +403,51 @@ FAILED_GET_FILTERED_TIMELINE: "Failed to fetch filtered Scaffold timelines."
         NO_IMAGES_FOUND: "No timeline images found",
         NO_TIMELINE_FOUND: "No timeline found for the given Scaffold ID",
     }
-,
-REQUEST:{
-    INVALID_SCAFFHOLD_ID: "Invalid ScaffoldId provided",
-    INVALID_INPUT: "Invalid input data",
-    NOT_FOUND: "Request not found",
-    FETCH_SUCCESS:"Request details fetched successfully",
-    FETCH_FAILED:"Failed to fetch request details"
-},
+    ,
+    REQUEST: {
+        INVALID_SCAFFHOLD_ID: "Invalid ScaffoldId provided",
+        INVALID_INPUT: "Invalid input data",
+        NOT_FOUND: "Request not found",
+        FETCH_SUCCESS: "Request details fetched successfully",
+        FETCH_FAILED: "Failed to fetch request details"
+    },
 
 
-IMAGE:{
-    UPADTE_IMAGE:"Image Update successfully",
-     FAIL_UPADTE_IMAGE:"Image failed to Update "
+    IMAGE: {
+        UPADTE_IMAGE: "Image Update successfully",
+        FAIL_UPADTE_IMAGE: "Image failed to Update "
 
-},
+    },
 
-  NOTIFICATION: {
-    SUCCESS_GET: "Notifications fetched successfully.",
-    FAILED_GET: "Failed to fetch notifications.",
-    
-    SUCCESS_COUNT: "Unread notification count fetched successfully.",
-    FAILED_COUNT: "Failed to fetch unread notification count.",
-    
-    SUCCESS_CREATE: "Notification created successfully.",
-    FAILED_CREATE: "Failed to create notification.",
+    NOTIFICATION: {
+        SUCCESS_GET: "Notifications fetched successfully.",
+        FAILED_GET: "Failed to fetch notifications.",
 
-    SUCCESS_UPDATE: "Notification updated successfully.",
-    FAILED_UPDATE: "Failed to update notification.",
+        SUCCESS_COUNT: "Unread notification count fetched successfully.",
+        FAILED_COUNT: "Failed to fetch unread notification count.",
 
-    SUCCESS_MARK_AS_READ: "Notification marked as read successfully.",
-    FAILED_MARK_AS_READ: "Failed to mark notification as read.",
+        SUCCESS_CREATE: "Notification created successfully.",
+        FAILED_CREATE: "Failed to create notification.",
 
-    SUCCESS_DELETE: "Notification deleted successfully.",
-    FAILED_DELETE: "Failed to delete notification.",
+        SUCCESS_UPDATE: "Notification updated successfully.",
+        FAILED_UPDATE: "Failed to update notification.",
 
-    NOT_FOUND: "Notification not found.",
-    NO_NOTIFICATIONS: "No notifications available.",
+        SUCCESS_MARK_AS_READ: "Notification marked as read successfully.",
+        FAILED_MARK_AS_READ: "Failed to mark notification as read.",
 
-    UNAUTHORIZED_ACCESS: "You are not authorized to view these notifications.",
+        SUCCESS_DELETE: "Notification deleted successfully.",
+        FAILED_DELETE: "Failed to delete notification.",
 
-    ALREADY_EXIST:"Notifictaion alrea"
-  },
-  QR:{
-    MISSING_FIELDS: "Missing required fields",
-    QR_GENERATE_SUCCESS: "QR code generated successfully",
-    QR_GENERATE_FAILED: "Failed to generate QR code",
-  }
+        NOT_FOUND: "Notification not found.",
+        NO_NOTIFICATIONS: "No notifications available.",
+
+        UNAUTHORIZED_ACCESS: "You are not authorized to view these notifications.",
+
+        ALREADY_EXIST: "Notifictaion alrea"
+    },
+    QR: {
+        MISSING_FIELDS: "Missing required fields",
+        QR_GENERATE_SUCCESS: "QR code generated successfully",
+        QR_GENERATE_FAILED: "Failed to generate QR code",
+    }
 }

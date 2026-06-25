@@ -58,9 +58,17 @@ exports.removeScaffCompetentPerson = zod_1.default.object({
 });
 exports.changePriorityAndTagsSchema = zod_1.default.object({
     scaffHoldId: zod_1.default.number(),
-    priority: zod_1.default.enum(["LOW", "MEDIUM", "HIGH"]).optional(), // match Prisma enum
+    priority: zod_1.default.preprocess((val) => (val === "" ? undefined : val), zod_1.default.enum(["LOW", "MEDIUM", "HIGH"]).optional()), // match Prisma enum
     tag: zod_1.default.enum(["UNTAGED", "GREEN", "RED", "YELLOW"]).optional(), // match Prisma enum
     lightDuty: zod_1.default.boolean().optional(),
     mediumDuty: zod_1.default.boolean().optional(),
     heavyDuty: zod_1.default.boolean().optional(),
+    fallProtection: zod_1.default.boolean().optional(),
+    handRail: zod_1.default.boolean().optional(),
+    midRail: zod_1.default.boolean().optional(),
+    toeBoard: zod_1.default.boolean().optional(),
+    platform: zod_1.default.boolean().optional(),
+    ladder: zod_1.default.boolean().optional(),
+    note: zod_1.default.string().optional(),
+    other: zod_1.default.string().optional(),
 });

@@ -18,54 +18,54 @@ export const authMiddleware = async (req: AuthenticatedRequest, res: Response, n
     try {
       const decoded = (jwt.verify(token, process.env.JWT_SECRET!)) as TokenPayload;
 
-     let account: any = null;
+      let account: any = null;
 
-    // 🔥 Check based on user_type
-    if (decoded.user_type === "COMPANY") {
-      account = await prisma.company.findUnique({
-        where: { id: Number(decoded.id) },
-      });
-    } else {
-      account = await prisma.user.findUnique({
-        where: { id: Number(decoded.id) },
-      });
-    }
+      // 🔥 Check based on user_type
+      if (decoded.user_type === "COMPANY") {
+        account = await prisma.company.findUnique({
+          where: { id: Number(decoded.id) },
+        });
+      } else {
+        account = await prisma.user.findUnique({
+          where: { id: Number(decoded.id) },
+        });
+      }
 
-    // ❌ Not Found
-    if (!account) {
-      return res.status(401).json({
-        success: false,
-        statusCode: 401,
-        message: "Account not found",
-      });
-    }
+      // ❌ Not Found
+      if (!account) {
+        return res.status(401).json({
+          success: false,
+          statusCode: 401,
+          message: "Account not found",
+        });
+      }
 
-    // ❌ Deleted
-    if (account.isDeleted) {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "Your account has been deleted by Admin.",
-      });
-    }
+      // ❌ Deleted
+      if (account.isDeleted) {
+        return res.status(403).json({
+          success: false,
+          statusCode: 403,
+          message: "Your account has been deleted by Admin.",
+        });
+      }
 
-    // ❌ Inactive
-    if (account.status === "INACTIVE" || account.status === "SUSPENDED") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "Your account is not active.",
-      });
-    }
+      // ❌ Inactive
+      if (account.status === "INACTIVE" || account.status === "SUSPENDED") {
+        return res.status(403).json({
+          success: false,
+          statusCode: 403,
+          message: "Your account is not active.",
+        });
+      }
 
-    // ❌ Not Verified
-    if (!account.isVerified) {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "Your account is not verified.",
-      });
-    }
+      // ❌ Not Verified
+      if (!account.isVerified) {
+        return res.status(403).json({
+          success: false,
+          statusCode: 403,
+          message: "Your account is not verified.",
+        });
+      }
 
 
       req.user = {

@@ -46,10 +46,10 @@ export class subAdminController {
         try {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
-
+  const search = (req.query.search as string) || "";
             const id = req.user!.id;
 
-            const result = await subAdmin.getProjectManagersListServices(id, page, limit);
+            const result = await subAdmin.getProjectManagersListServices(search,id, page, limit);
 
             res.status(200).json(result);
         } catch (err) {
@@ -79,8 +79,9 @@ export class subAdminController {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
             const id = req.user!.id;
+             const search = (req.query.search as string) || "";
 
-            const result = await subAdmin.getCompanyCompetentPersonList(id, page, limit);
+            const result = await subAdmin.getCompanyCompetentPersonList(search,id, page, limit);
 
             res.status(200).json(result);
         } catch (err) {
@@ -214,8 +215,10 @@ export class subAdminController {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
             const id = Number(req.user?.id!);
+           const search = req.query.search as string;
+           const status = req.query.status as string | undefined;
 
-            const result = await subAdmin.getProjectListServices(id, page, limit);
+            const result = await subAdmin.getProjectListServices(id, page, limit,search,status);
 
             res.status(200).json(result);
 

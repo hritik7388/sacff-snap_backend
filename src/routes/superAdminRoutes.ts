@@ -142,6 +142,12 @@ router.delete('/deleteContact', clientAuthMiddleware, authMiddleware, isSUperAdm
 router.get('/getBlog', clientAuthMiddleware, superAdminRoutes.getPublishblog.bind(superAdminRoutes));
 
 /**
+ * @route   GET /api/v1/superAdmin/getPublishblogs
+ * @desc    get a  Blog
+ * @access  Private (Super Admin)
+ */
+router.get('/getBlogs', clientAuthMiddleware, superAdminRoutes.getPublishblogs.bind(superAdminRoutes));
+/**
  * @route   GET /api/v1/superAdmin/contact
  * @desc       contact
  * @access  Private (Super Admin)

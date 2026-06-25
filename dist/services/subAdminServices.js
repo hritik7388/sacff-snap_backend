@@ -222,7 +222,7 @@ class subAdminServices {
                             uuid: (0, uuid_1.v4)(),
                             title,
                             message,
-                            type: client_1.NotificationType.PROJECT_MODIFIED,
+                            type: client_1.NotificationType.NEW_TEAM_MEMBER_CREATED,
                             role: client_1.NotificationRole.SUPER_ADMIN,
                             receiverId: a.id,
                             isRead: false,
@@ -231,7 +231,7 @@ class subAdminServices {
                             uuid: (0, uuid_1.v4)(),
                             title,
                             message,
-                            type: client_1.NotificationType.PROJECT_MODIFIED,
+                            type: client_1.NotificationType.NEW_TEAM_MEMBER_CREATED,
                             role: client_1.NotificationRole.COMPANY,
                             receiverId: a.id,
                             isRead: false,
@@ -241,34 +241,6 @@ class subAdminServices {
                 // ==========================
                 // 📱 PUSH NOTIFICATIONS (POPUP FIX)
                 // ==========================
-                const superAdminDevices = yield prismaClient_1.default.device.findMany({
-                    where: {
-                        user_type: "SUPER_ADMIN",
-                        deviceToken: { not: null }
-                    },
-                    select: {
-                        deviceToken: true
-                    }
-                });
-                const companyDevices = yield prismaClient_1.default.device.findMany({
-                    where: {
-                        user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] },
-                        deviceToken: { not: null }
-                    },
-                    select: { deviceToken: true }
-                });
-                // 🔥 SUPER ADMIN PUSH
-                for (const device of superAdminDevices) {
-                    if (device.deviceToken) {
-                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, title, message);
-                    }
-                }
-                // 🔥 COMPANY PUSH
-                for (const device of companyDevices) {
-                    if (device.deviceToken) {
-                        yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, title, message);
-                    }
-                }
                 // ==========================
                 // ✅ RESPONSE
                 // ==========================
@@ -394,29 +366,47 @@ class subAdminServices {
             }
         });
     }
-    getProjectManagersListServices(companyId_1) {
-        return __awaiter(this, arguments, void 0, function* (companyId, page = 1, limit = 10) {
+    getProjectManagersListServices() {
+        return __awaiter(this, arguments, void 0, function* (search = "", companyId, page = 1, limit = 10) {
             try {
                 const skip = (page - 1) * limit;
+                const whereCondition = {
+                    companyId,
+                    user: Object.assign({ user_type: "PROJECT_MANAGER", isDeleted: false }, ((search === null || search === void 0 ? void 0 : search.trim())
+                        ? {
+                            OR: [
+                                {
+                                    name: {
+                                        contains: search,
+                                    },
+                                },
+                                {
+                                    email: {
+                                        contains: search,
+                                    },
+                                },
+                                {
+                                    mobileNumber: {
+                                        contains: search,
+                                    },
+                                },
+                            ],
+                        }
+                        : {})),
+                    company: {
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
+                        user_type: "COMPANY",
+                    },
+                };
                 const [projectManagers, totalCount] = yield Promise.all([
                     prismaClient_1.default.projectManager.findMany({
                         skip,
                         take: limit,
                         orderBy: { id: "desc" },
-                        where: {
-                            companyId: companyId,
-                            user: {
-                                user_type: "PROJECT_MANAGER",
-                                isDeleted: false,
-                            },
-                            company: {
-                                isDeleted: false,
-                                status: "ACTIVE",
-                                isApproved: "APPROVED",
-                                isVerified: true,
-                                user_type: "COMPANY"
-                            }
-                        },
+                        where: whereCondition,
                         include: {
                             user: {
                                 select: {
@@ -439,7 +429,7 @@ class subAdminServices {
                         },
                     }),
                     prismaClient_1.default.projectManager.count({
-                        where: { companyId: companyId, user: { user_type: "PROJECT_MANAGER" } },
+                        where: whereCondition,
                     }),
                 ]);
                 const mappedPMs = projectManagers.map((pm) => {
@@ -618,31 +608,47 @@ class subAdminServices {
             }
         });
     }
-    getCompanyCompetentPersonList(companyId_1) {
-        return __awaiter(this, arguments, void 0, function* (companyId, page = 1, limit = 10) {
+    getCompanyCompetentPersonList() {
+        return __awaiter(this, arguments, void 0, function* (search = "", companyId, page = 1, limit = 10) {
             try {
                 const skip = (page - 1) * limit;
+                const whereCondition = {
+                    companyId,
+                    user: Object.assign({ isDeleted: false, status: "ACTIVE", isVerified: true, user_type: "COMPETENT_PERSON" }, ((search === null || search === void 0 ? void 0 : search.trim())
+                        ? {
+                            OR: [
+                                {
+                                    name: {
+                                        contains: search,
+                                    },
+                                },
+                                {
+                                    email: {
+                                        contains: search,
+                                    },
+                                },
+                                {
+                                    mobileNumber: {
+                                        contains: search,
+                                    },
+                                },
+                            ],
+                        }
+                        : {})),
+                    company: {
+                        isDeleted: false,
+                        isApproved: "APPROVED",
+                        status: "ACTIVE",
+                        isVerified: true,
+                        user_type: "COMPANY",
+                    },
+                };
                 const [competentPerson, totalCount] = yield Promise.all([
                     prismaClient_1.default.competentPerson.findMany({
                         skip,
                         take: limit,
                         orderBy: { id: "desc" },
-                        where: {
-                            companyId: companyId,
-                            user: {
-                                isDeleted: false,
-                                status: "ACTIVE",
-                                isVerified: true,
-                                user_type: "COMPETENT_PERSON",
-                            },
-                            company: {
-                                isDeleted: false,
-                                isApproved: "APPROVED",
-                                status: "ACTIVE",
-                                isVerified: true,
-                                user_type: "COMPANY"
-                            }
-                        },
+                        where: whereCondition,
                         include: {
                             user: {
                                 select: {
@@ -665,7 +671,7 @@ class subAdminServices {
                         },
                     }),
                     prismaClient_1.default.competentPerson.count({
-                        where: { companyId: companyId, user: { user_type: "COMPETENT_PERSON" } },
+                        where: whereCondition,
                     }),
                 ]);
                 const mappedPMs = competentPerson.map((pm) => {
@@ -766,6 +772,7 @@ class subAdminServices {
     }
     createNewProject(subAdminId, data) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             try {
                 // =========================
                 // ✅ Validate Company (OWNER)
@@ -816,7 +823,7 @@ class subAdminServices {
                         PJT: (0, utils_1.generateProjectId)(),
                         clientName: data.clientName,
                         clientEmail: data.clientEmail,
-                        clientMobile: data.clientMobile,
+                        clientMobile: (_a = data.clientMobile) !== null && _a !== void 0 ? _a : "",
                         clientCountryCode: data.clientCountryCode,
                         clientAddress: data.clientAddress,
                         startDate: data.startDate,
@@ -1132,9 +1139,10 @@ class subAdminServices {
                             createdProjectScaffRequests: {
                                 some: {
                                     project: {
-                                        createdById: companyId
+                                        createdById: companyId,
+                                        isDeleted: false,
                                     }
-                                }
+                                },
                             }
                         }
                     }
@@ -1168,13 +1176,17 @@ class subAdminServices {
                 const [totalActiveScaffHold, totalDismentedScaffhold, totalActiveProjects, totalProjectManagers, totalCompetentPersons] = yield Promise.all([
                     prismaClient_1.default.projectScaffholdRequest.count({
                         where: {
-                            status: "ACTIVE",
+                            status: {
+                                notIn: ["PENDING", "REJECTED", "SUSPENDED", "DISMANTLED"]
+                            },
                             project: {
                                 createdById: companyId
                             }
                         }
                     }),
-                    prismaClient_1.default.projectScaffholdRequest.count({ where: { status: "DISMANTLED", createdById: companyId } }),
+                    prismaClient_1.default.projectScaffholdRequest.count({ where: { status: "DISMANTLED", project: {
+                                createdById: companyId,
+                            }, } }),
                     prismaClient_1.default.project.count({ where: { status: "ONGOING", createdById: companyId } }),
                     prismaClient_1.default.user.count({
                         where: {
@@ -1267,7 +1279,7 @@ class subAdminServices {
                     }),
                     prismaClient_1.default.projectScaffholdRequest.count({
                         where: {
-                            status: "APPROVED", // or your "ERECTED" equivalent
+                            status: "ERECTED", // or your "ERECTED" equivalent
                             project: {
                                 isDeleted: false,
                                 createdById: companyId,
@@ -1276,7 +1288,7 @@ class subAdminServices {
                     }),
                     prismaClient_1.default.projectScaffholdRequest.count({
                         where: {
-                            status: "REJECTED", // or map to DISMANTLED if you use that logic
+                            status: "DISMANTLED", // or map to DISMANTLED if you use that logic
                             project: {
                                 isDeleted: false,
                                 createdById: companyId,
@@ -1718,9 +1730,10 @@ class subAdminServices {
         });
     }
     getProjectListServices(companyId_1) {
-        return __awaiter(this, arguments, void 0, function* (companyId, page = 1, limit = 10) {
+        return __awaiter(this, arguments, void 0, function* (companyId, page = 1, limit = 10, search, status) {
             try {
                 const skip = (page - 1) * limit;
+                const searchTerm = (search === null || search === void 0 ? void 0 : search.trim()) || "";
                 const companyData = yield prismaClient_1.default.company.findUnique({
                     where: {
                         id: companyId,
@@ -1736,6 +1749,24 @@ class subAdminServices {
                     isDeleted: false,
                     createdById: companyId,
                 };
+                if (status && status.trim() !== "") {
+                    whereCondition.status = status.trim().toUpperCase();
+                }
+                // ✅ SEARCH FILTER
+                if (searchTerm) {
+                    whereCondition.OR = [
+                        {
+                            projectName: {
+                                contains: searchTerm,
+                            },
+                        },
+                        {
+                            PJT: {
+                                contains: searchTerm,
+                            },
+                        },
+                    ];
+                }
                 const [projects, totalCount] = yield Promise.all([
                     prismaClient_1.default.project.findMany({
                         where: whereCondition,

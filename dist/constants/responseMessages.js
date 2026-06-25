@@ -231,7 +231,7 @@ exports.RESPONSE_MESSAGES = {
         GET_FAIL: "Fail to fetch",
         CONTACT_DELETE_SUCCESS: "Contact deleted successfully",
         CONTACT_DELETE_FAILED: "Failed to delete Contact",
-        NOT_FOUND: "Not found"
+        NOT_FOUND: "Contact Not found"
     },
     AWS: {
         FETCH_SUCCESS: "AWS credentials fetched successfully",

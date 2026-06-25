@@ -154,7 +154,7 @@ export class superAdminServices {
                 where: { id: data.id, isDeleted: false, isApproved: "PENDING" },
             });
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
             }
 
             const updatedCompany = await prisma.company.update({
@@ -198,7 +198,7 @@ export class superAdminServices {
                 where: { id: data.id, isDeleted: false, isApproved: "PENDING", isVerified: true },
             });
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
             }
 
 
@@ -332,7 +332,7 @@ export class superAdminServices {
                 },
             });
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
             }
 
 
@@ -373,7 +373,7 @@ export class superAdminServices {
                 },
             });
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
             }
 
             const updateCompany = await prisma.company.update({
@@ -412,18 +412,63 @@ export class superAdminServices {
                     skip,
                     take: limit,
                     orderBy: { createdAt: "desc" },
+                    include: {
+                        projects: {
+                            include: {
+                                _count: {
+                                    select: {
+                                        TradesManRequests: {
+                                            where: {
+                                                status: {
+                                                    notIn: [
+                                                        "PENDING",
+                                                        "SUSPENDED",
+                                                        "REJECTED",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        _count: {
+                            select: {
+                                projects: true,
+                            },
+                        },
+                    },
                 }),
+
                 prisma.company.count({
                     where: {
                         status: "ACTIVE",
                         isDeleted: false,
+                        isApproved: "APPROVED",
                     },
                 }),
             ]);
 
+            const formattedCompanies = companies.map(
+                ({ projects, _count, ...company }) => {
+                    const totalScaffoldRequests = projects.reduce(
+                        (sum, project) =>
+                            sum + (project._count?.TradesManRequests || 0),
+                        0
+                    );
+
+                    return {
+                        ...company,
+                        totalProjects: _count.projects,
+                        totalScaffoldRequests,
+                        image: company.image,
+                    };
+                }
+            );
+
             return {
                 message: RESPONSE_MESSAGES.COMPANY.ACTIVE_COMPANIES,
-                data: companies,
+                data: formattedCompanies,
                 pagination: {
                     total: totalCount,
                     page,
@@ -435,7 +480,12 @@ export class superAdminServices {
             if (error instanceof CustomError) {
                 throw error;
             }
-            throw new CustomError(RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.COMPANY.FETCH_FAILED,
+                500,
+                error.message
+            );
         }
     }
 
@@ -490,7 +540,7 @@ export class superAdminServices {
                 },
             });
             if (!companyData) {
-                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not found");
+                throw new CustomError(RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
             }
 
             const updateCompany = await prisma.company.update({
@@ -604,7 +654,7 @@ export class superAdminServices {
             });
 
             if (!notification) {
-                throw new CustomError(RESPONSE_MESSAGES.NOTIFICATION.NOT_FOUND, 404);
+                throw new CustomError(RESPONSE_MESSAGES.NOTIFICATION.NOT_FOUND, 404, "Notification not found");
             }
             const updatedNotification = await prisma.notification.update({
                 where: { id: data.id },
@@ -850,6 +900,85 @@ export class superAdminServices {
 
     }
 
+     async getpublishBlogs(status?: string, search?: string, page: number = 1, limit: number = 10) {
+        try {
+
+            const skip = (page - 1) * limit;
+            const endOfToday = new Date();
+            endOfToday.setHours(23, 59, 59, 999);
+
+
+            const whereClause: any = {
+                status: { not: "DELETED" },
+                ...(status && { status }),
+                
+
+                ...(search && {
+                    OR: [
+                        { blogTitle: { contains: search } },
+                        { blogBody: { contains: search } },
+                        { category: { contains: search } }
+                    ]
+                })
+            };
+
+            const [blogs, total] = await Promise.all([
+                prisma.blog.findMany({
+                    where: whereClause,
+                    select: {
+                        id: true,
+                        blogTitle: true,
+                        category: true,
+                        publishDate: true,
+                        image: true,
+                        blogBody: true,
+                        status: true,
+                        createdById: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    skip,
+                    take: limit,
+                    orderBy: { publishDate: "desc" }
+                }),
+                prisma.blog.count({ where: whereClause })
+            ]);
+            const formattedBlogs = await Promise.all(
+                blogs.map(async (blog) => ({
+                    id: blog.id,
+                    blogTitle: blog.blogTitle,
+                    category: blog.category,
+                    publishDate: blog.publishDate,
+                    image: blog.image ? await generateReadUrl(blog.image) : null,
+                    blogBody: blog.blogBody,
+                    status: blog.status,
+                    createdById: blog.createdById,
+                    createdAt: blog.createdAt,
+                    updatedAt: blog.updatedAt,
+                }))
+            );
+
+
+            return {
+                message: RESPONSE_MESSAGES.BLOG.BLOG_FETCH_SUCCESS,
+                data: formattedBlogs,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit)
+                }
+            };
+
+        } catch (error) {
+            console.error("Error fetching blogs:", error);
+            if (error instanceof CustomError) {
+                throw error;
+            }
+            throw error;
+        }
+    }
+
     async getpublishBlog(status?: string, search?: string, page: number = 1, limit: number = 10) {
         try {
 
@@ -1069,7 +1198,7 @@ export class superAdminServices {
             if (!contact) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.CONTACT.NOT_FOUND,
-                    404
+                    404, "Contact submission not found"
                 );
             }
 
@@ -1101,7 +1230,7 @@ export class superAdminServices {
             if (!blog) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND,
-                    404
+                    404, "Blog not found"
                 );
             }
 
@@ -1155,7 +1284,7 @@ export class superAdminServices {
                 throw new CustomError(
                     RESPONSE_MESSAGES.USER.NOT_FOUND,
                     404,
-                    "NOT FOUND"
+                    "User NOT FOUND"
                 );
             }
 
@@ -1228,7 +1357,7 @@ export class superAdminServices {
             });
 
             if (!user) {
-                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
             }
 
             // ✅ Delete ONLY current device

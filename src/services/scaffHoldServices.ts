@@ -6,6 +6,7 @@ import { pushNotificationDelhi, sendMail, scaffHoldIdGenerator } from "../helper
 
 import { v4 as uuidv4 } from "uuid";
 import { changePriorityAndTagsDTO, ProjectScaffHoldDTO, RemoveScaffCompetentPersonDTO, scaffCompetentPersonDTO, ScaffCompetentPersonDTO, ScaffHoldDetailsDTO, ScaffHoldDTO } from "../schemas/scaffHoldSchema";
+import { RequestStatus } from "@prisma/client";
 
 
 export class ScaffHoldsServices {
@@ -188,9 +189,16 @@ export class ScaffHoldsServices {
             const skip = (page - 1) * limit;
 
             const { search, priority, status, tags, sort } = data;
-
+            const BLOCKED_STATUSES = [
+                RequestStatus.PENDING,
+                RequestStatus.REJECTED,
+                RequestStatus.SUSPENDED,
+            ];
             const whereCondition: any = {
                 projectId,
+                status: {
+                    notIn: BLOCKED_STATUSES,
+                },
             };
 
             // 🔍 SEARCH
@@ -275,6 +283,14 @@ export class ScaffHoldsServices {
 
                     createdAt: true,
                     updatedAt: true,
+                    createdBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                            CMPId: true,
+                        }
+                    }
+
 
                 },
             });
@@ -331,11 +347,17 @@ export class ScaffHoldsServices {
                     },
                 },
             });
+            const { createdBy, ...projectWithoutCreatedBy } = projectData as any;
+            const company = projectData.createdBy;
 
             return {
                 message: RESPONSE_MESSAGES.PROJECT.FETCH_BY_ID_SUCCESS,
                 data: {
-                    ...projectData,
+                    ...projectWithoutCreatedBy,
+
+                    companyId: company?.id,
+                    companyName: company?.name,
+                    companyCMPId: company?.CMPId,
                     scaffholdList: scaffholdList.map((item) => ({
                         id: item.id,
 
@@ -466,6 +488,7 @@ export class ScaffHoldsServices {
 
     async addCompetentPersonToProject(userId: number, data: ScaffCompetentPersonDTO) {
         try {
+            console.log("Adding competent person to project with data:", data);
 
             // =========================
             // ✅ VALIDATE PROJECT MANAGER
@@ -502,6 +525,7 @@ export class ScaffHoldsServices {
                     isDeleted: false,
                 },
             });
+            console.log("Project Data:", projectData);
 
             if (!projectData) {
                 throw new CustomError(RESPONSE_MESSAGES.PROJECT.NOT_FOUND, 404, "Project not found");
@@ -521,10 +545,12 @@ export class ScaffHoldsServices {
                     },
                 },
             });
+            console.log("Competent Persons Data:", competentPersonsData);
 
             if (competentPersonsData.length !== data.competentPersonIds.length) {
                 throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "Some competent persons not found");
             }
+
 
             // =========================
             // 🔄 EXISTING RELATION
@@ -616,9 +642,38 @@ export class ScaffHoldsServices {
                         projectId: BigInt(projectData.id),
                         receiverId: BigInt(cp.userId),
                         senderId: userId.toString(),
+                        notificationImage:
+                            "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/assigned.png"
                     })),
                 });
+
+                console.log("✅ CP notifications created for users:", newCPUsers.map(cp => cp.userId));
+
+                // PUSH NOTIFICATION FOR CP
+                const cpUserIds = newCPUsers.map(cp => Number(cp.userId));
+
+                const cpDevices = await prisma.device.findMany({
+                    where: {
+                        userId: { in: cpUserIds },
+                        deviceToken: { not: null }
+                    },
+                    select: {
+                        deviceToken: true
+                    }
+                });
+
+                console.log("CP Devices =>", cpDevices);
+
+                for (const device of cpDevices) {
+                    console.log("🚀 Sending push to:", device.deviceToken);
+                    await pushNotificationDelhi(
+                        device.deviceToken!,
+                        "PROJECT ASSIGNED",
+                        `You have been assigned to Project ${projectData.projectName}.`
+                    );
+                }
             }
+
 
             // =========================
             // 🏢 SUPER ADMIN + COMPANY OWNER ONLY
@@ -914,102 +969,36 @@ export class ScaffHoldsServices {
         }
     }
 
-    async projectAndCompetentPersons(data: { id: number }) {
-        try {
-            // =========================
-            // 🔥 FETCH REQUEST (MAIN)
-            // =========================
-            const request = await prisma.projectScaffholdRequest.findFirst({
-                where: {
-                    id: BigInt(data.id),
-                },
-                include: {
-                    project: {
-                        select: {
-                            id: true,
-                            uuid: true,
-                            projectName: true,
-                            PJT: true,
-                            clientName: true,
-                            clientEmail: true,
-                            clientMobile: true,
-                            clientAddress: true,
-                            status: true,
-                        },
-                    },
+  async projectAndCompetentPersons(
+    data: {
+        id: number;
+        scaffoldRequestId?: number;
+    },
+    user?: any
+) {
+    try {
 
-                    createdBy: {
-                        select: {
-                            id: true,
-                            craft: true,
-                            experience: true,
-                            user: {
-                                select: {
-                                    name: true,
-                                    mobileNumber: true,
-                                    userMedias: {
-                                        take: 1,
-                                        orderBy: { createdAt: "desc" },
-                                        select: {
-                                            url: true,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
+        // =====================================
+        // QR SCAN AUTHORIZATION
+        // =====================================
 
-                    updatesRequest: {
-                        orderBy: { createdAt: "desc" },
-                    },
+        if (
+            data.scaffoldRequestId &&
+            user &&
+            user.user_type !== "TRADESMAN"
+        ) {
 
-                    rentalCycles: {
-                        orderBy: { createdAt: "desc" },
-                    },
-
-                    parent: true,
-                    children: true,
-                },
-            });
-
-            if (!request) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.PROJECT.NOT_FOUND,
-                    404,
-                    "Request not found"
-                );
-            }
-
-            const projectId = request.projectId;
-
-            // =========================
-            // 👷 COMPETENT PERSONS
-            // =========================
-            const competentPersons =
-                await prisma.competentPersonOnProject.findMany({
+            const scaffoldRequest =
+                await prisma.projectScaffholdRequest.findUnique({
                     where: {
-                        projectid: projectId,
-                        competentPerson: {
-                            user: {
-                                isDeleted: false,
-                                status: "ACTIVE",
-                                isVerified: true,
-                                user_type: "COMPETENT_PERSON",
-                            },
-                        },
+                        id: BigInt(data.scaffoldRequestId),
                     },
-                    select: {
-                        competentPersonId: true,
-                        competentPerson: {
-                            select: {
-                                user: {
+                    include: {
+                        project: {
+                            include: {
+                                createdBy: {
                                     select: {
-                                        name: true,
-                                        userMedias: {
-                                            take: 1,
-                                            orderBy: { createdAt: "desc" },
-                                            select: { url: true },
-                                        },
+                                        CMPId: true,
                                     },
                                 },
                             },
@@ -1017,130 +1006,249 @@ export class ScaffHoldsServices {
                     },
                 });
 
-            const formattedCP = competentPersons.map((cp: any) => ({
-                id: cp.competentPersonId,
-                name: cp.competentPerson.user?.name,
-                image: cp.competentPerson.user?.userMedias?.[0]?.url || null,
-            }));
-
-            // =========================
-            // 🔥 FINAL CLEAN RESPONSE
-            // =========================
-
-            return {
-                message: "Request details fetched successfully",
-
-                data: {
-                    // ======================
-                    // REQUEST
-                    // ======================
-                    id: request.id,
-                    uuid: request.uuid,
-
-                    status: request.status,
-                    priority: request.priority,
-                    tag: request.tag,
-
-                    SCAFFID: request.SCAFFID,
-                    REQID: request.REQID,
-
-                    craft: request.craft,
-
-                    description: request.description,
-                    notes: request.notes,
-                    rejectionReason: request.reajectionReason,
-
-                    length: request.length,
-                    width: request.width,
-                    height: request.height,
-
-                    address: request.address,
-                    latitude: request.latitude,
-                    longitude: request.longitude,
-
-                    startDate: request.startDate,
-                    endDate: request.endDate,
-                    expectedEndDate: request.expectedEndDate,
-
-                    isConvertedToScaffold:
-                        request.isConvertedToScaffold,
-
-                    parentId: request.parentId,
-
-                    createdAt: request.createdAt,
-                    updatedAt: request.updatedAt,
-
-                    // ======================
-                    // PROJECT
-                    // ======================
-                    projectId: request.project?.id || null,
-                    projectUuid: request.project?.uuid || null,
-                    PJT: request.project?.PJT || null,
-                    projectName: request.project?.projectName || null,
-
-                    projectStatus: request.project?.status || null,
-
-                    clientName: request.project?.clientName || null,
-                    clientEmail: request.project?.clientEmail || null,
-                    clientMobile: request.project?.clientMobile || null,
-                    clientAddress: request.project?.clientAddress || null,
-
-                    // ======================
-                    // CREATED BY
-                    // ======================
-                    createdById: request.createdBy?.id || null,
-                    createdByName:
-                        request.createdBy?.user?.name || null,
-
-                    createdByMobile:
-                        request.createdBy?.user?.mobileNumber || null,
-
-                    createdByCraft:
-                        request.createdBy?.craft || null,
-
-                    createdByExperience:
-                        request.createdBy?.experience || null,
-
-                    createdByImage:
-                        request.createdBy?.user?.userMedias?.[0]?.url ||
-                        null,
-
-                    rentalCycleId:
-                        request.rentalCycles?.[0]?.id || null,
-
-                    rentalCycleUuid:
-                        request.rentalCycles?.[0]?.uuid || null,
-
-                    rentalCycleErectedAt:
-                        request.rentalCycles?.[0]?.erectedAt || null,
-
-                    rentalCycleTaggedAt:
-                        request.rentalCycles?.[0]?.taggedAt || null,
-
-                    rentalCycleTotalDays:
-                        request.rentalCycles?.[0]?.totalDays || 0,
-
-                    rentalCycleCount:
-                        request.rentalCycles?.[0]?.cycleCount || 0,
-
-                    rentalCycleDays:
-                        request.rentalCycles?.[0]?.rentalDays || 0,
-                },
-            };
-        } catch (error: any) {
-            console.error("❌ Request detail error:", error);
-
-            if (error instanceof CustomError) {
-                throw error;
+            if (!scaffoldRequest) {
+                throw new CustomError(
+                    "Scaffold request not found",
+                    404,
+                    "Scaffold request not found"
+                );
             }
 
+            const projectCmpId =
+                scaffoldRequest.project?.createdBy?.CMPId;
+
+            const userCmpId =
+                user.companyId;
+
+            if (
+                !projectCmpId ||
+                !userCmpId ||
+                projectCmpId !== userCmpId
+            ) {
+                throw new CustomError(
+                    "You are not authorized to access this scaffold",
+                    403,
+                    "Unauthorized"
+                );
+            }
+        }
+
+        // =========================
+        // 🔥 FETCH REQUEST (MAIN)
+        // =========================
+
+        const request = await prisma.projectScaffholdRequest.findFirst({
+            where: {
+                id: BigInt(data.id),
+            },
+            include: {
+                project: {
+                    select: {
+                        id: true,
+                        uuid: true,
+                        projectName: true,
+                        PJT: true,
+                        clientName: true,
+                        clientEmail: true,
+                        clientMobile: true,
+                        clientAddress: true,
+                        status: true,
+                    },
+                },
+
+                createdBy: {
+                    select: {
+                        id: true,
+                        craft: true,
+                        experience: true,
+                        user: {
+                            select: {
+                                name: true,
+                                mobileNumber: true,
+                                userMedias: {
+                                    take: 1,
+                                    orderBy: { createdAt: "desc" },
+                                    select: {
+                                        url: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+
+                updatesRequest: {
+                    orderBy: { createdAt: "desc" },
+                },
+
+                rentalCycles: {
+                    orderBy: { createdAt: "desc" },
+                },
+
+                parent: true,
+                children: true,
+            },
+        });
+
+        if (!request) {
             throw new CustomError(
-                RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
-                500,
-                error.message
+                RESPONSE_MESSAGES.PROJECT.NOT_FOUND,
+                404,
+                "Request not found"
             );
         }
+
+        const projectId = request.projectId;
+
+        // =========================
+        // 👷 COMPETENT PERSONS
+        // =========================
+
+        const competentPersons =
+            await prisma.competentPersonOnProject.findMany({
+                where: {
+                    projectid: projectId,
+                    competentPerson: {
+                        user: {
+                            isDeleted: false,
+                            status: "ACTIVE",
+                            isVerified: true,
+                            user_type: "COMPETENT_PERSON",
+                        },
+                    },
+                },
+                select: {
+                    competentPersonId: true,
+                    competentPerson: {
+                        select: {
+                            user: {
+                                select: {
+                                    name: true,
+                                    userMedias: {
+                                        take: 1,
+                                        orderBy: { createdAt: "desc" },
+                                        select: { url: true },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+        const formattedCP = competentPersons.map((cp: any) => ({
+            id: cp.competentPersonId,
+            name: cp.competentPerson.user?.name,
+            image: cp.competentPerson.user?.userMedias?.[0]?.url || null,
+        }));
+
+        return {
+            message: "Request details fetched successfully",
+
+            data: {
+                id: request.id,
+                uuid: request.uuid,
+
+                status: request.status,
+                priority: request.priority,
+                tag: request.tag,
+
+                SCAFFID: request.SCAFFID,
+                REQID: request.REQID,
+
+                craft: request.craft,
+
+                description: request.description,
+                notes: request.notes,
+                rejectionReason: request.reajectionReason,
+
+                length: request.length,
+                width: request.width,
+                height: request.height,
+
+                address: request.address,
+                latitude: request.latitude,
+                longitude: request.longitude,
+
+                startDate: request.startDate,
+                endDate: request.endDate,
+                expectedEndDate: request.expectedEndDate,
+
+                isConvertedToScaffold:
+                    request.isConvertedToScaffold,
+
+                parentId: request.parentId,
+
+                createdAt: request.createdAt,
+                updatedAt: request.updatedAt,
+
+                projectId: request.project?.id || null,
+                projectUuid: request.project?.uuid || null,
+                PJT: request.project?.PJT || null,
+                projectName: request.project?.projectName || null,
+
+                projectStatus: request.project?.status || null,
+
+                clientName: request.project?.clientName || null,
+                clientEmail: request.project?.clientEmail || null,
+                clientMobile: request.project?.clientMobile || null,
+                clientAddress: request.project?.clientAddress || null,
+
+                createdById: request.createdBy?.id || null,
+                createdByName:
+                    request.createdBy?.user?.name || null,
+
+                createdByMobile:
+                    request.createdBy?.user?.mobileNumber || null,
+
+                createdByCraft:
+                    request.createdBy?.craft || null,
+
+                createdByExperience:
+                    request.createdBy?.experience || null,
+
+                createdByImage:
+                    request.createdBy?.user?.userMedias?.[0]?.url ||
+                    null,
+
+                rentalCycleId:
+                    request.rentalCycles?.[0]?.id || null,
+
+                rentalCycleUuid:
+                    request.rentalCycles?.[0]?.uuid || null,
+
+                rentalCycleErectedAt:
+                    request.rentalCycles?.[0]?.erectedAt || null,
+
+                rentalCycleTaggedAt:
+                    request.rentalCycles?.[0]?.taggedAt || null,
+
+                rentalCycleTotalDays:
+                    request.rentalCycles?.[0]?.totalDays || 0,
+
+                rentalCycleCount:
+                    request.rentalCycles?.[0]?.cycleCount || 0,
+
+                rentalCycleDays:
+                    request.rentalCycles?.[0]?.rentalDays || 0,
+
+                competentPersons: formattedCP,
+            },
+        };
+    } catch (error: any) {
+        console.error("❌ Request detail error:", error);
+
+        if (error instanceof CustomError) {
+            throw error;
+        }
+
+        throw new CustomError(
+            RESPONSE_MESSAGES.PROJECT.FETCH_FAILED,
+            500,
+            error.message
+        );
     }
+}
 
     async changePriorityAndTags(data: changePriorityAndTagsDTO) {
         try {
@@ -1208,6 +1316,38 @@ export class ScaffHoldsServices {
                         ...(data.heavyDuty !== undefined && {
                             heavyDuty: data.heavyDuty,
                         }),
+                           ...(data.fallProtection !== undefined && {
+                fallProtection: data.fallProtection,
+            }),
+
+            ...(data.ladder !== undefined && {
+                ladder: data.ladder,
+            }),
+
+            ...(data.handRail !== undefined && {
+                handRail: data.handRail,
+            }),
+
+            ...(data.midRail !== undefined && {
+                midRail: data.midRail,
+            }),
+
+            ...(data.toeBoard !== undefined && {
+                toeBoard: data.toeBoard,
+            }),
+
+            ...(data.platform !== undefined && {
+                platform: data.platform,
+            }),
+
+            ...(data.note !== undefined && {
+                note: data.note,
+            }),
+
+            ...(data.other !== undefined && {
+                other: data.other,
+            }),
+
                     },
                 });
 
@@ -1242,39 +1382,7 @@ export class ScaffHoldsServices {
             });
 
             // 6. GET DEVICES
-            const companyUsers =
-                await prisma.projectManager.findMany({
-                    where: {
-                        companyId: project?.createdById,
-                    },
-                    select: {
-                        userId: true,
-                    },
-                });
-
-            const devices =
-                await prisma.device.findMany({
-                    where: {
-                        userId: {
-                            in: companyUsers.map(u => u.userId),
-                        },
-                        deviceToken: {
-                            not: null,
-                        },
-                    },
-                    select: {
-                        deviceToken: true,
-                    },
-                });
-
-            // 7. PUSH NOTIFICATIONS
-            for (const d of devices) {
-                await pushNotificationDelhi(
-                    d.deviceToken!,
-                    "Scaffold Updated",
-                    notificationMessage
-                );
-            }
+      
 
             // 8. RESPONSE
             return {

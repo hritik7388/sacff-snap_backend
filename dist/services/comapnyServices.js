@@ -138,7 +138,7 @@ class CompanyServices {
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company Not found");
                 }
                 // const emailExists = await prisma.company.findUnique({
                 //     where: {
@@ -193,7 +193,7 @@ class CompanyServices {
                     },
                 });
                 if (!companyData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Not found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company Not found");
                 }
                 const updatedComapny = yield prismaClient_1.default.company.update({
                     where: {
@@ -240,6 +240,21 @@ class CompanyServices {
                             createdAt: "desc",
                         },
                         include: {
+                            projects: {
+                                include: {
+                                    _count: {
+                                        select: {
+                                            TradesManRequests: {
+                                                where: {
+                                                    status: {
+                                                        notIn: ["PENDING", "SUSPENDED", "REJECTED"]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                             _count: {
                                 select: {
                                     projects: true
@@ -258,8 +273,12 @@ class CompanyServices {
                     })
                 ]);
                 const companyWithProjectsCount = yield Promise.all(companyData.map((_a) => __awaiter(this, void 0, void 0, function* () {
-                    var { _count } = _a, company = __rest(_a, ["_count"]);
-                    return (Object.assign(Object.assign({}, company), { totalProjects: _count.projects, image: company.image }));
+                    var { _count, projects } = _a, company = __rest(_a, ["_count", "projects"]);
+                    const totalScaffoldRequests = projects.reduce((sum, project) => {
+                        var _a;
+                        return sum + (((_a = project._count) === null || _a === void 0 ? void 0 : _a.TradesManRequests) || 0);
+                    }, 0);
+                    return Object.assign(Object.assign({}, company), { totalProjects: _count.projects, totalScaffoldRequests, image: company.image });
                 })));
                 const totalPages = Math.ceil(totalCount / limit);
                 return {
@@ -275,9 +294,7 @@ class CompanyServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
+                throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.FETCH_FAILED, 500, error.message);
             }
         });
     }
@@ -336,7 +353,7 @@ class CompanyServices {
                 });
                 console.log("companyDataRaw==================>>>>>", companyDataRaw);
                 if (!companyDataRaw) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Not Found");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not Found");
                 }
                 const companyData = Object.assign(Object.assign({}, companyDataRaw), { image: companyDataRaw.image, competentPersons: companyDataRaw.competentPersons.map(cp => ({
                         id: cp.user.id,
@@ -523,7 +540,9 @@ class CompanyServices {
                     }
                 });
                 const html = (0, templates_1.otpTemplate)(user.name, emailOTP.otp.toString());
-                yield (0, utils_1.sendMail)(user.email, "Scaff Snap - OTP Verification", html);
+                console.log("html==================>>>>>", html);
+                const sendmails = yield (0, utils_1.sendMail)(user.email, "Scaff Snap - OTP Verification", html);
+                console.log("sendmails==================>>>>>", sendmails);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.USER.FORGOT_PASSWORD_SUCCESS,
                     data: otp
@@ -650,7 +669,7 @@ class CompanyServices {
                     where: { id: userId, isApproved: "APPROVED", status: "ACTIVE", isDeleted: false, isVerified: true, user_type: "COMPANY" },
                 });
                 if (!userExists) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "NOT found ");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company Not found ");
                 }
                 const updatedImage = yield prismaClient_1.default.company.update({
                     where: { id: userExists.id },

@@ -3,7 +3,7 @@
 import { CustomError } from "../types/customError";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import dotenv from "dotenv";
-import { generatePresignedUrl, generateReadUrl, pdfGenerator } from "../helpers/utils";
+import { generatePresignedUrl, generateReadUrl, imageGenerator } from "../helpers/utils";
 import { ImageKeyDTO, uploadImageDTO } from "../schemas/uploadImageSChema";
 dotenv.config();
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png"];
@@ -18,192 +18,297 @@ import path from "path";
 
 export class awsCredentialServices {
 
-    async awsCredentials() {
-        try {
-            const credentials = {
-                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                bucketName: process.env.AWS_BUCKET_NAME,
-                region: process.env.AWS_REGION,
-            };
+  async awsCredentials() {
+    try {
+      const credentials = {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        bucketName: process.env.AWS_BUCKET_NAME,
+        region: process.env.AWS_REGION,
+      };
 
-            if (!credentials.accessKeyId || !credentials.secretAccessKey || !credentials.bucketName || !credentials.region) {
-                throw new CustomError(RESPONSE_MESSAGES.AWS.NOT_SET, 500, "AWS credentials are not set");
-            }
+      if (!credentials.accessKeyId || !credentials.secretAccessKey || !credentials.bucketName || !credentials.region) {
+        throw new CustomError(RESPONSE_MESSAGES.AWS.NOT_SET, 500, "AWS credentials are not set");
+      }
 
-            return {
-                message: RESPONSE_MESSAGES.AWS.FETCH_SUCCESS,
-                data: credentials,
-            };
-        } catch (error: any) {
-            console.error("❌ Error fetching AWS credentials:", error);
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.AWS.FETCH_FAILED, 500, error.message);
-        }
+      return {
+        message: RESPONSE_MESSAGES.AWS.FETCH_SUCCESS,
+        data: credentials,
+      };
+    } catch (error: any) {
+      console.error("❌ Error fetching AWS credentials:", error);
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw error instanceof CustomError
+        ? error
+        : new CustomError(RESPONSE_MESSAGES.AWS.FETCH_FAILED, 500, error.message);
     }
-    async getProfileImageUrl(data: uploadImageDTO) {
-        try {
-            const { filename, contentType } = data;
-            const result = await generatePresignedUrl(filename, contentType);
+  }
+  async getProfileImageUrl(data: uploadImageDTO) {
+    try {
+      const { filename, contentType } = data;
+      const result = await generatePresignedUrl(filename, contentType);
 
-            return {
-                message: RESPONSE_MESSAGES.AWS.PRESIGNED_URL_SUCCESS,
-                data: { upload_url: result.url, image_key: result.key },
-            };
-        } catch (error: any) {
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.AWS.PRESIGNED_URL_FAILED, 500, error.message);
-        }
+      return {
+        message: RESPONSE_MESSAGES.AWS.PRESIGNED_URL_SUCCESS,
+        data: { upload_url: result.url, image_key: result.key },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw error instanceof CustomError
+        ? error
+        : new CustomError(RESPONSE_MESSAGES.AWS.PRESIGNED_URL_FAILED, 500, error.message);
     }
+  }
 
-    async generateReadUrl(data: ImageKeyDTO) {
-        try {
-            const url = await generateReadUrl(data.key);
-            return {
-                message: RESPONSE_MESSAGES.AWS.READ_URL_SUCCESS,
-                data: { url },
-            };
-        } catch (error: any) {
-            if (error instanceof CustomError) {
-                throw error;
-            }
-            throw error instanceof CustomError
-                ? error
-                : new CustomError(RESPONSE_MESSAGES.AWS.READ_URL_FAILED, 500, error.message);
-        }
+  async generateReadUrl(data: ImageKeyDTO) {
+    try {
+      const url = await generateReadUrl(data.key);
+      return {
+        message: RESPONSE_MESSAGES.AWS.READ_URL_SUCCESS,
+        data: { url },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+      throw error instanceof CustomError
+        ? error
+        : new CustomError(RESPONSE_MESSAGES.AWS.READ_URL_FAILED, 500, error.message);
     }
+  }
 
-    // src/services/awsServices.ts
+  // src/services/awsServices.ts
 
-    async scaffHoldPdf(data: ScaffHoldDetailsDTO) {
-        try {
-            // ✅ NEW SOURCE: ProjectScaffholdRequest
-            const request = await prisma.projectScaffholdRequest.findFirst({
-                where: {
-                    id: data.id,
-                },
+  async scaffHoldPdf(data: ScaffHoldDetailsDTO) {
 
-                include: {
-                    project: {
-                        include: {
-                            createdBy: true,
-                        },
-                    },
+    try {
 
-                    createdBy: {
-                        include: {
-                            user: true,
-                        },
-                    },
-                },
-            });
-            if (!request) {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    404,
-                    "Request not found"
-                );
-            }
+      // ======================================================
+      // GET REQUEST
+      // ======================================================
 
-            // ✅ FORMAT DATA FOR PDF
-            const formattedResponse = {
-                id: request.id,
-                uuid: request.uuid,
-                PJT: request.project?.PJT || null,
+      const request =
+        await prisma.projectScaffholdRequest.findFirst({
+          where: {
+            id: data.id,
+          },
 
-                CMPID: request.project?.createdBy?.CMPId || null,
+          include: {
 
-                companyName: request.project?.createdBy?.name || null,
+            project: {
+              include: {
+                createdBy: true,
+              },
+            },
 
-                address: request.address || request.project?.clientAddress || null,
-                // project scaffold request fields
-                startDate: request.startDate,
-                endDate: request.endDate,
-                latitude: request.latitude,
-                longitude: request.longitude,
-                description: request.description,
+            createdBy: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
 
-                craft: request.craft,
-                length: request.length,
-                width: request.width,
-                height: request.height,
+      if (!request) {
 
-                priority: request.priority,
-                tag: request.tag,
-                SCAFFID: request.SCAFFID,
-                REQID: request.REQID,
-                notes: request.notes,
-                status: request.status,
-                lightDuty: request.lightDuty,
-                mediumDuty: request.mediumDuty,
-                heavyDuty: request.heavyDuty,
-                tradesmanUserType: request.createdBy?.user?.user_type || null,
+        throw new CustomError(
+          RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
+          404,
+          "Request not found"
+        );
+      }
 
-                projectId: request.projectId,
+      // ======================================================
+      // FORMAT RESPONSE
+      // ======================================================
 
-                createdAt: request.createdAt,
-                updatedAt: request.updatedAt,
+      const formattedResponse = {
 
-                // 🔥 tradesman info (who created request)
-                tradesmanName: request.createdBy?.user?.name || null,
-                tradesmanEmail: request.createdBy?.user?.email || null,
-                tradesmanMobile: request.createdBy?.user?.mobileNumber || null,
+        id: request.id,
+        uuid: request.uuid,
 
-                // 🔥 project info
-                projectName: request.project?.projectName || null,
-                clientName: request.project?.clientName || null,
-                clientMobile: request.project?.clientMobile || null,
-                clientEmail: request.project?.clientEmail || null,
-            };
+        PJT:
+          request.project?.PJT || null,
 
-            // ✅ GENERATE PDF
-            const pdfBuffer = await pdfGenerator(formattedResponse);
+        CMPID:
+          request.project?.createdBy?.CMPId || null,
 
-            // 3. Prepare uploads folder
-            const fileName = `scaffhold-request-${request.id}.pdf`;
-            const uploadsPath = path.join(process.cwd(), "uploads");
+        companyName:
+          request.project?.createdBy?.name || null,
 
-            if (!fs.existsSync(uploadsPath)) {
-                fs.mkdirSync(uploadsPath, { recursive: true });
-            }
+        address:
+          request.address ||
+          request.project?.clientAddress ||
+          null,
 
-            const pdfPath = path.join(uploadsPath, fileName);
+        startDate: request.startDate,
+        endDate: request.endDate,
 
-            // 4. Save PDF locally
-            fs.writeFileSync(pdfPath, pdfBuffer);
+        latitude: request.latitude,
+        longitude: request.longitude,
 
-            // 5. Generate URL
-            const SERVER_URL = process.env.SERVER_URL || "http://localhost:3001";
-            const pdfUrl = `${SERVER_URL}/uploads/${fileName}`;
+        description: request.description,
 
-            return {
-                message: RESPONSE_MESSAGES.SCAFFHOLD.FETCH_BY_ID_SUCCESS,
-                pdfUrl: pdfUrl,
-            };
+        craft: request.craft,
 
-        } catch (error: any) {
-            console.error("❌ Get scaffhold request PDF error:", error);
+        length: request.length,
+        width: request.width,
+        height: request.height,
 
-            if (error instanceof CustomError) {
-                throw error;
-            }
+        priority: request.priority,
 
-            throw new CustomError(
-                RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
-                500,
-                error.message
-            );
-        }
+        tag: request.tag,
+
+        SCAFFID: request.SCAFFID,
+        REQID: request.REQID,
+
+        notes: request.notes,
+
+        status: request.status,
+
+        lightDuty: request.lightDuty,
+        mediumDuty: request.mediumDuty,
+        heavyDuty: request.heavyDuty,
+        fallProtection: request.fallProtection,
+        handRail: request.handRail,
+        toeBoard: request.toeBoard,
+        platform: request.platform,
+        midRail: request.midRail,
+        ladder: request.ladder,
+        note: request.note,
+        other: request.other,
+        tradesmanUserType:
+          request.createdBy?.user?.user_type || null,
+
+        projectId: request.projectId,
+
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt,
+
+        // ==========================================
+        // Tradesman
+        // ==========================================
+
+        tradesmanName:
+          request.createdBy?.user?.name || null,
+
+        tradesmanEmail:
+          request.createdBy?.user?.email || null,
+
+        tradesmanMobile:
+          request.createdBy?.user?.mobileNumber || null,
+
+        // ==========================================
+        // Project
+        // ==========================================
+
+        projectName:
+          request.project?.projectName || null,
+
+        clientName:
+          request.project?.clientName || null,
+
+        clientMobile:
+          request.project?.clientMobile || null,
+
+        clientEmail:
+          request.project?.clientEmail || null,
+      };
+
+      // ======================================================
+      // GENERATE IMAGE
+      // ======================================================
+
+      const imageBuffer =
+        await imageGenerator(formattedResponse);
+
+      // ======================================================
+      // UPLOADS FOLDER
+      // ======================================================
+
+      const uploadsPath = path.join(
+        process.cwd(),
+        "uploads"
+      );
+
+      if (!fs.existsSync(uploadsPath)) {
+
+        fs.mkdirSync(uploadsPath, {
+          recursive: true,
+        });
+      }
+
+      // ======================================================
+      // FILE NAME
+      // ======================================================
+
+      const fileName =
+        `scaffhold-request-${request.id}.png`;
+
+      const imagePath = path.join(
+        uploadsPath,
+        fileName
+      );
+
+      // ======================================================
+      // SAVE IMAGE
+      // ======================================================
+
+      fs.writeFileSync(
+        imagePath,
+        imageBuffer
+      );
+
+      // ======================================================
+      // SERVER URL
+      // ======================================================
+
+      const SERVER_URL =
+        process.env.SERVER_URL ||
+        "http://50.19.99.226:3001";
+
+      // ======================================================
+      // IMAGE URL
+      // ======================================================
+
+      const imageUrl =
+        `${SERVER_URL}/uploads/${fileName}`;
+
+      // ======================================================
+      // RESPONSE
+      // ======================================================
+
+      return {
+
+        message:
+          RESPONSE_MESSAGES.SCAFFHOLD
+            .FETCH_BY_ID_SUCCESS,
+
+        imageUrl,
+      };
+
+    } catch (error: any) {
+
+      console.error(
+        "❌ Get scaffhold request IMAGE error:",
+        error
+      );
+
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError(
+        RESPONSE_MESSAGES.SCAFFHOLD.FETCH_FAILED,
+        500,
+        error.message
+      );
     }
-
+  }
 
 }
 

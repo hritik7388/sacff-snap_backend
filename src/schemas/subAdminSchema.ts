@@ -25,7 +25,9 @@ export const updateTeamMemberSchema = z.object({
   name: z.string().min(2).max(100),
   user_type: z.enum(["PROJECT_MANAGER", "COMPETENT_PERSON"]),
   email: z.string().email(),
-  mobileNumber: z.string().min(6).max(15).optional(),
+  mobileNumber: z.string().min(6, { message: "Mobile number must be at least 6 digits" })
+  .max(15, { message: "Mobile number must not exceed 15 digits" })
+  .optional(),
   countryCode: z.string().min(1).max(5).optional(),
   address: z.string().min(5).max(200).optional(),
   idProofImage: z.string().min(1).max(500).optional(),
@@ -37,7 +39,9 @@ export const addNewProjectSchema = z.object({
   projectName: z.string().min(2).max(100),
   clientName: z.string().min(2).max(100),
   clientEmail: z.string().email(),
-  clientMobile: z.string().min(6).max(15),
+  clientMobile: z.string().min(6, { message: "Mobile number must be at least 6 digits" })
+  .max(15, { message: "Mobile number must not exceed 15 digits" })
+  .optional(),
   clientCountryCode: z.string().min(1).max(5).optional(),
   clientAddress: z.string().min(5).max(200).optional(),
   startDate: z.string(), // ✅ required and valid date

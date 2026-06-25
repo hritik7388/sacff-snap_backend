@@ -134,7 +134,8 @@ class competentPersonController {
                 const limit = Number(req.query.limit) || 10;
                 const status = req.query.status;
                 const id = req.user.id;
-                const result = yield competentPerson.getCompetentProjectListServices(id, page, limit, status);
+                const search = req.query.search;
+                const result = yield competentPerson.getCompetentProjectListServices(id, page, limit, status, search);
                 res.status(200).json(result);
             }
             catch (err) {

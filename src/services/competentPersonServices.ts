@@ -103,7 +103,8 @@ export class CompetentPersonServices {
         id: number,
         page: number = 1,
         limit: number = 10,
-        status?: string
+        status?: string,
+        search?: string
     ) {
         console.log("=================>>>>", status)
         try {
@@ -119,8 +120,6 @@ export class CompetentPersonServices {
                         },
                     },
                 },
-
-
             };
 
 
@@ -128,7 +127,12 @@ export class CompetentPersonServices {
             if (status && status.trim() !== "") {
                 whereCondition.status = status.trim().toUpperCase();
             }
+            if (search && search.trim() !== "") {
+                whereCondition.projectName = {
+                    contains: search.trim(),
 
+                };
+            }
             const [projects, totalCount] = await Promise.all([
                 prisma.project.findMany({
                     where: whereCondition,
@@ -153,13 +157,28 @@ export class CompetentPersonServices {
                         createdAt: true,
                         updatedAt: true,
 
+                        TradesManRequests: {
+                            where: {
+                                status: {
+                                    notIn: [
+                                        "PENDING",
+                                        "REJECTED",
+                                        "SUSPENDED"
+                                    ]
+                                }
+                            },
+                            select: {
+                                id: true
+                            }
+                        },
+
                         _count: {
                             select: {
                                 projectTimelines: true,
-                                TradesManRequests: true,
                             },
                         },
                     },
+
                     skip,
                     take: limit,
                     orderBy: {
@@ -190,7 +209,7 @@ export class CompetentPersonServices {
                 createdAt: p.createdAt,
                 updatedAt: p.updatedAt,
 
-                totalRequests: p._count.TradesManRequests,
+                totalRequests: p.TradesManRequests.length,
                 totalTimelines: p._count.projectTimelines,
             }));
             console.log("formattedProjects==============>>>>", formattedProjects)
@@ -263,11 +282,9 @@ export class CompetentPersonServices {
                 where: {
                     id: BigInt(data.scaffHoldId),
                 },
-                select: {
-                    id: true,
-                    projectId: true,
-                },
+
             });
+            console.log("request===========>>>>", request)
 
             if (!request) {
                 throw new CustomError(
@@ -283,6 +300,7 @@ export class CompetentPersonServices {
             const inspection =
                 await prisma.competentPersonProjectInspection.create({
                     data: {
+                        scaffoldRequestId: request.id,
                         projectId: request.projectId, // ✅ CORRECT FIX
 
                         Date: data.Date,
@@ -292,6 +310,7 @@ export class CompetentPersonServices {
                         createdById: BigInt(userId),
                     },
                 });
+            console.log("inspection========================>>>", inspection)
 
             return {
                 message:
@@ -331,16 +350,14 @@ export class CompetentPersonServices {
                 where: {
                     id: BigInt(data.scaffHoldId),
                 },
-                select: {
-                    projectId: true,
-                },
+
             });
 
             if (!request) {
-                throw new CustomError("Request not found", 404, "NOT_FOUND");
+                throw new CustomError("Request not found", 404, "REQUEST_NOT_FOUND");
             }
 
-            const projectId = request.projectId;
+            const scaffHoldRequest = request.id;
 
             // =========================
             // 🔥 STEP 2: INSPECTIONS
@@ -348,7 +365,7 @@ export class CompetentPersonServices {
             const [inspections, totalCount] = await Promise.all([
                 prisma.competentPersonProjectInspection.findMany({
                     where: {
-                        projectId: projectId, // ✅ FIXED
+                        scaffoldRequestId: scaffHoldRequest, // ✅ FIXED
                     },
                     skip,
                     take: limit,
@@ -374,7 +391,7 @@ export class CompetentPersonServices {
 
                 prisma.competentPersonProjectInspection.count({
                     where: {
-                        projectId: projectId,
+                        scaffoldRequestId: scaffHoldRequest,
                     },
                 }),
             ]);
@@ -439,7 +456,7 @@ export class CompetentPersonServices {
             });
 
             if (!user) {
-                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                throw new CustomError(RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Competent person not found");
             }
 
             if (user.isDeleted === true) {
@@ -468,7 +485,7 @@ export class CompetentPersonServices {
             if (!request) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    404
+                    404, "Scaffold request not found"
                 );
             }
 
@@ -1059,7 +1076,7 @@ export class CompetentPersonServices {
             if (!user) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.USER.NOT_FOUND,
-                    404
+                    404, "Competent person not found"
                 );
             }
 
@@ -1105,7 +1122,7 @@ export class CompetentPersonServices {
             if (!request) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    404
+                    404, "Scaffold request not found"
                 );
             }
 
@@ -1699,16 +1716,7 @@ export class CompetentPersonServices {
         );
 
         // 🔥 current cycle usage
-        const rentalDays =
-            totalDays - (cycle.cycleCount * 28);
 
-        // ❌ BLOCK if not completed 28 days
-        if (rentalDays < 28) {
-            throw new CustomError(
-                "28 days cycle not completed yet",
-                400
-            );
-        }
 
         // 🔥 UPDATE CYCLE
         const updated = await prisma.rentalCycle.update({
@@ -1754,7 +1762,7 @@ export class CompetentPersonServices {
             if (!request) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    404
+                    404, "Scaffold request not found"
                 );
             }
 
@@ -1848,7 +1856,7 @@ export class CompetentPersonServices {
             if (!request) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLD.NOT_FOUND,
-                    404
+                    404, "Scaffold request not found"
                 );
             }
 

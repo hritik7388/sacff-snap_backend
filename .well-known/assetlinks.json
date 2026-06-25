@@ -1,9 +1,14 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.domain.scaff_snap",
-    "sha256_cert_fingerprints":
-    ["8B:42:6D:6F:82:F3:BD:ED:2E:FB:48:DE:D1:C4:D4:E4:54:B9:50:54:DE:3C:45:F4:10:3F:A2:8F:63:8E:18:A5"]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.domain.scaff_snap",
+      "sha256_cert_fingerprints": [
+        "8B:42:6D:6F:82:F3:BD:ED:2E:FB:48:DE:D1:C4:D4:E4:54:B9:50:54:DE:3C:45:F4:10:3F:A2:8F:63:8E:18:A5"
+      ]
+    }
   }
-}]
+]

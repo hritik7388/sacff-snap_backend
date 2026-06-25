@@ -28,7 +28,9 @@ exports.updateTeamMemberSchema = zod_1.default.object({
     name: zod_1.default.string().min(2).max(100),
     user_type: zod_1.default.enum(["PROJECT_MANAGER", "COMPETENT_PERSON"]),
     email: zod_1.default.string().email(),
-    mobileNumber: zod_1.default.string().min(6).max(15).optional(),
+    mobileNumber: zod_1.default.string().min(6, { message: "Mobile number must be at least 6 digits" })
+        .max(15, { message: "Mobile number must not exceed 15 digits" })
+        .optional(),
     countryCode: zod_1.default.string().min(1).max(5).optional(),
     address: zod_1.default.string().min(5).max(200).optional(),
     idProofImage: zod_1.default.string().min(1).max(500).optional(),
@@ -40,7 +42,9 @@ exports.addNewProjectSchema = zod_1.default.object({
     projectName: zod_1.default.string().min(2).max(100),
     clientName: zod_1.default.string().min(2).max(100),
     clientEmail: zod_1.default.string().email(),
-    clientMobile: zod_1.default.string().min(6).max(15),
+    clientMobile: zod_1.default.string().min(6, { message: "Mobile number must be at least 6 digits" })
+        .max(15, { message: "Mobile number must not exceed 15 digits" })
+        .optional(),
     clientCountryCode: zod_1.default.string().min(1).max(5).optional(),
     clientAddress: zod_1.default.string().min(5).max(200).optional(),
     startDate: zod_1.default.string(), // ✅ required and valid date

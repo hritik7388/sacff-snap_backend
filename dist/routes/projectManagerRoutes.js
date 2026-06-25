@@ -91,7 +91,7 @@ router.put('/updateProfileImage', authMiddleware_2.clientAuthMiddleware, authMid
  */
 router.put('/updateUserProfileImage', authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, projectManagerRoutes.updateUserProfileImage.bind(projectManagerRoutes));
 /**
- * @route   GET /api/v1/subAdmin/generateProjectJobLink/:projectId
+ * @route   GET /api/v1/subAdmin/generateProjectJobLink/:PJT
  * @desc    Generate project job link
  * @access  Private (subAdmin)
  */

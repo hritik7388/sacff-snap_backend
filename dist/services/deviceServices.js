@@ -36,7 +36,7 @@ class DeviceServices {
                         },
                     });
                     if (!company) {
-                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 404, "Company not found");
                     }
                     user = company;
                     email = company.email;
@@ -50,7 +50,7 @@ class DeviceServices {
                         },
                     });
                     if (!foundUser) {
-                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404);
+                        throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "User not found");
                     }
                     user = foundUser;
                     email = foundUser.email;

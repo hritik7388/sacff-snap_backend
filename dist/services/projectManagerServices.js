@@ -125,6 +125,9 @@ class ProjectManagerServices {
                 if (data.user_type !== existingProjectManager.user_type) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 400, "User type mismatch");
                 }
+                if (!data.companyId) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 400, "Company ID is required");
+                }
                 const company = yield prismaClient_1.default.company.findFirst({
                     where: {
                         CMPId: data.companyId,
@@ -193,7 +196,7 @@ class ProjectManagerServices {
         });
     }
     getProjectListServices(id_1) {
-        return __awaiter(this, arguments, void 0, function* (id, page = 1, limit = 10, status) {
+        return __awaiter(this, arguments, void 0, function* (id, page = 1, limit = 10, status, search) {
             console.log("=================>>>>", status);
             try {
                 const skip = (page - 1) * limit;
@@ -204,6 +207,12 @@ class ProjectManagerServices {
                 // ✅ STATUS FILTER (FINAL FIX)
                 if (status && status.trim() !== "") {
                     whereCondition.status = status.trim().toUpperCase();
+                }
+                if (search && search.trim() !== "") {
+                    whereCondition.projectName = {
+                        contains: search.trim(),
+                        // optional (remove if MySQL doesn't support it)
+                    };
                 }
                 whereCondition.projectManagers = {
                     some: {
@@ -634,18 +643,37 @@ class ProjectManagerServices {
         });
     }
     getAllPendingModifiedRequestsByParentId(userId_1, data_1) {
-        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10) {
+        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10, projectId) {
             var _a;
             try {
                 const skip = (page - 1) * limit;
+                const pm = yield prismaClient_1.default.projectManager.findUnique({
+                    where: {
+                        userId: BigInt(userId),
+                    },
+                    select: {
+                        userId: true,
+                    },
+                });
+                if (!pm) {
+                    throw new customError_1.CustomError("Project Manager not found", 404, "Project Manager not found");
+                }
                 const whereCondition = {
-                    parentId: { not: null },
+                    parentId: {
+                        not: null,
+                    },
                     status: "PENDING",
-                    // ✅ FIXED LOGIC
                     project: {
-                        createdById: userId,
+                        projectManagers: {
+                            some: {
+                                id: pm.userId, // same as tradesman pending API
+                            },
+                        },
                     },
                 };
+                if (projectId) {
+                    whereCondition.projectId = BigInt(projectId);
+                }
                 const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
                 if (searchTerm) {
                     const term = searchTerm;
@@ -699,6 +727,7 @@ class ProjectManagerServices {
                         uuid: request.uuid,
                         REQID: request.REQID,
                         status: request.status,
+                        SCAFFID: request.SCAFFID,
                         craft: request.craft,
                         priority: request.priority,
                         length: request.length,
@@ -737,18 +766,35 @@ class ProjectManagerServices {
         });
     }
     getTrademanPendingRequestListServices(userId_1, data_1) {
-        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10) {
+        return __awaiter(this, arguments, void 0, function* (userId, data, page = 1, limit = 10, projectId) {
             var _a;
             try {
                 const skip = (page - 1) * limit;
+                const pm = yield prismaClient_1.default.projectManager.findUnique({
+                    where: {
+                        userId: BigInt(userId), // token wali PM id
+                    },
+                    select: {
+                        userId: true,
+                    },
+                });
+                if (!pm) {
+                    throw new customError_1.CustomError("Project Manager not found", 404, "Project Manager not found");
+                }
                 const whereCondition = {
                     status: "PENDING",
                     parentId: null,
-                    // ✅ CHANGED LOGIC: only projects created by this user
                     project: {
-                        createdById: userId,
+                        projectManagers: {
+                            some: {
+                                id: pm.userId, // ✅ User.id
+                            },
+                        },
                     },
                 };
+                if (projectId) {
+                    whereCondition.projectId = BigInt(projectId);
+                }
                 const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
                 if (searchTerm) {
                     const term = searchTerm;
@@ -791,6 +837,7 @@ class ProjectManagerServices {
                         where: whereCondition,
                     }),
                 ]);
+                console.log("Fetched requests:", requests, "Total count:", totalCount);
                 const formattedData = requests.map((req) => {
                     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
                     return ({
@@ -798,6 +845,7 @@ class ProjectManagerServices {
                         uuid: req.uuid,
                         REQID: req.REQID,
                         status: req.status,
+                        SCAFFID: req.SCAFFID,
                         craftId: ((_a = req.createdBy) === null || _a === void 0 ? void 0 : _a.craftId) || null,
                         craft: ((_b = req.createdBy) === null || _b === void 0 ? void 0 : _b.craft) || null,
                         length: req.length,

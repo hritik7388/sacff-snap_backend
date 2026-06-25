@@ -251,7 +251,7 @@ export class subAdminServices {
                         uuid: uuidv4(),
                         title,
                         message,
-                        type: NotificationType.PROJECT_MODIFIED,
+                        type: NotificationType. NEW_TEAM_MEMBER_CREATED,
                         role: NotificationRole.SUPER_ADMIN,
                         receiverId: a.id,
                         isRead: false,
@@ -260,7 +260,7 @@ export class subAdminServices {
                         uuid: uuidv4(),
                         title,
                         message,
-                        type: NotificationType.PROJECT_MODIFIED,
+                        type: NotificationType. NEW_TEAM_MEMBER_CREATED,
                         role: NotificationRole.COMPANY,
                         receiverId: a.id,
                         isRead: false,
@@ -271,46 +271,7 @@ export class subAdminServices {
             // ==========================
             // 📱 PUSH NOTIFICATIONS (POPUP FIX)
             // ==========================
-
-            const superAdminDevices = await prisma.device.findMany({
-                where: {
-                    user_type: "SUPER_ADMIN",
-                    deviceToken: { not: null }
-                },
-                select: {
-                    deviceToken: true
-                }
-            });
-
-            const companyDevices = await prisma.device.findMany({
-                where: {
-                    user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] },
-                    deviceToken: { not: null }
-                },
-                select: { deviceToken: true }
-            });
-            // 🔥 SUPER ADMIN PUSH
-            for (const device of superAdminDevices) {
-                if (device.deviceToken) {
-                    await pushNotificationDelhi(
-                        device.deviceToken,
-                        title,
-                        message
-                    );
-                }
-            }
-
-            // 🔥 COMPANY PUSH
-            for (const device of companyDevices) {
-                if (device.deviceToken) {
-                    await pushNotificationDelhi(
-                        device.deviceToken,
-                        title,
-                        message
-                    );
-                }
-            }
-
+ 
             // ==========================
             // ✅ RESPONSE
             // ==========================
@@ -446,29 +407,51 @@ export class subAdminServices {
         }
     }
 
-    async getProjectManagersListServices(companyId: number, page: number = 1, limit: number = 10) {
+    async getProjectManagersListServices(search: string="", companyId: number, page: number = 1, limit: number = 10) {
         try {
             const skip = (page - 1) * limit;
+                  const whereCondition: any = {
+            companyId,
+            user: {
+                user_type: "PROJECT_MANAGER",
+                isDeleted: false,
+                ...(search?.trim()
+                    ? {
+                        OR: [
+                            {
+                                name: {
+                                    contains: search,
+                                },
+                            },
+                            {
+                                email: {
+                                    contains: search,
+                                },
+                            },
+                            {
+                                mobileNumber: {
+                                    contains: search,
+                                },
+                            },
+                        ],
+                    }
+                    : {}),
+            },
+            company: {
+                isDeleted: false,
+                status: "ACTIVE",
+                isApproved: "APPROVED",
+                isVerified: true,
+                user_type: "COMPANY",
+            },
+        };
 
             const [projectManagers, totalCount] = await Promise.all([
                 prisma.projectManager.findMany({
                     skip,
                     take: limit,
                     orderBy: { id: "desc" },
-                    where: {
-                        companyId: companyId,
-                        user: {
-                            user_type: "PROJECT_MANAGER",
-                            isDeleted: false,
-                        },
-                        company: {
-                            isDeleted: false,
-                            status: "ACTIVE",
-                            isApproved: "APPROVED",
-                            isVerified: true,
-                            user_type: "COMPANY"
-                        }
-                    },
+                    where: whereCondition,
                     include: {
                         user: {
                             select: {
@@ -492,7 +475,7 @@ export class subAdminServices {
                     },
                 }),
                 prisma.projectManager.count({
-                    where: { companyId: companyId, user: { user_type: "PROJECT_MANAGER" } },
+                    where:whereCondition,
                 }),
             ]);
             const mappedPMs = projectManagers.map((pm) => {
@@ -694,31 +677,54 @@ export class subAdminServices {
         }
     }
 
-    async getCompanyCompetentPersonList(companyId: number, page: number = 1, limit: number = 10) {
+    async getCompanyCompetentPersonList(search: string="", companyId: number, page: number = 1, limit: number = 10) {
         try {
             const skip = (page - 1) * limit;
+            const whereCondition: any = {
+    companyId,
+    user: {
+        isDeleted: false,
+        status: "ACTIVE",
+        isVerified: true,
+        user_type: "COMPETENT_PERSON",
+
+        ...(search?.trim()
+            ? {
+                OR: [
+                    {
+                        name: {
+                            contains: search, 
+                        },
+                    },
+                    {
+                        email: {
+                            contains: search, 
+                        },
+                    },
+                    {
+                        mobileNumber: {
+                            contains: search,
+                        },
+                    },
+                ],
+            }
+            : {}),
+    },
+    company: {
+        isDeleted: false,
+        isApproved: "APPROVED",
+        status: "ACTIVE",
+        isVerified: true,
+        user_type: "COMPANY",
+    },
+};
 
             const [competentPerson, totalCount] = await Promise.all([
                 prisma.competentPerson.findMany({
                     skip,
                     take: limit,
                     orderBy: { id: "desc" },
-                    where: {
-                        companyId: companyId,
-                        user: {
-                            isDeleted: false,
-                            status: "ACTIVE",
-                            isVerified: true,
-                            user_type: "COMPETENT_PERSON",
-                        },
-                        company: {
-                            isDeleted: false,
-                            isApproved: "APPROVED",
-                            status: "ACTIVE",
-                            isVerified: true,
-                            user_type: "COMPANY"
-                        }
-                    },
+                    where:  whereCondition,
                     include: {
                         user: {
                             select: {
@@ -741,7 +747,7 @@ export class subAdminServices {
                     },
                 }),
                 prisma.competentPerson.count({
-                    where: { companyId: companyId, user: { user_type: "COMPETENT_PERSON" } },
+                    where:whereCondition,
                 }),
             ]);
 
@@ -926,7 +932,7 @@ export class subAdminServices {
                     PJT: generateProjectId(),
                     clientName: data.clientName,
                     clientEmail: data.clientEmail,
-                    clientMobile: data.clientMobile,
+                    clientMobile: data.clientMobile ?? "",
                     clientCountryCode: data.clientCountryCode,
                     clientAddress: data.clientAddress,
                     startDate: data.startDate,
@@ -1308,9 +1314,10 @@ export class subAdminServices {
                         createdProjectScaffRequests: {
                             some: {
                                 project: {
-                                    createdById: companyId
+                                    createdById: companyId,
+                                    isDeleted:false,
                                 }
-                            }
+                            },
                         }
                     }
                 }
@@ -1350,13 +1357,17 @@ export class subAdminServices {
             const [totalActiveScaffHold, totalDismentedScaffhold, totalActiveProjects, totalProjectManagers, totalCompetentPersons] = await Promise.all([
                 prisma.projectScaffholdRequest.count({
                     where: {
-                        status: "ACTIVE",
+                         status: {
+        notIn: ["PENDING", "REJECTED", "SUSPENDED","DISMANTLED"]
+    },
                         project: {
                             createdById: companyId
                         }
                     }
                 }),
-                prisma.projectScaffholdRequest.count({ where: { status: "DISMANTLED", createdById: companyId } }),
+                prisma.projectScaffholdRequest.count({ where: { status: "DISMANTLED",   project: {
+            createdById: companyId,
+        }, } }),
                 prisma.project.count({ where: { status: "ONGOING", createdById: companyId } }),
                 prisma.user.count({
                     where: {
@@ -1461,7 +1472,7 @@ export class subAdminServices {
 
                     prisma.projectScaffholdRequest.count({
                         where: {
-                            status: "APPROVED", // or your "ERECTED" equivalent
+                            status: "ERECTED", // or your "ERECTED" equivalent
                             project: {
                                 isDeleted: false,
                                 createdById: companyId,
@@ -1471,7 +1482,7 @@ export class subAdminServices {
 
                     prisma.projectScaffholdRequest.count({
                         where: {
-                            status: "REJECTED", // or map to DISMANTLED if you use that logic
+                            status: "DISMANTLED", // or map to DISMANTLED if you use that logic
                             project: {
                                 isDeleted: false,
                                 createdById: companyId,
@@ -1982,9 +1993,10 @@ export class subAdminServices {
             );
         }
     }
-    async getProjectListServices(companyId: number, page: number = 1, limit: number = 10) {
+    async getProjectListServices(companyId: number, page: number = 1, limit: number = 10,search: string ,status?: string,) {
         try {
             const skip = (page - 1) * limit;
+               const searchTerm = search?.trim() || "";
 
             const companyData = await prisma.company.findUnique({
                 where: {
@@ -2003,10 +2015,30 @@ export class subAdminServices {
                 );
             }
 
-            const whereCondition = {
-                isDeleted: false,
-                createdById: companyId,
-            };
+          const whereCondition: any = {
+            isDeleted: false,
+            createdById: companyId,
+        };
+
+        if (status && status.trim() !== "") {
+                whereCondition.status = status.trim().toUpperCase();
+            }
+
+        // ✅ SEARCH FILTER
+       if (searchTerm) {
+    whereCondition.OR = [
+        {
+            projectName: {
+                contains: searchTerm,
+            },
+        },
+        {
+            PJT: {
+                contains: searchTerm,
+            },
+        },
+    ];
+}
 
             const [projects, totalCount] = await Promise.all([
                 prisma.project.findMany({

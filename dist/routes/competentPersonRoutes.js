@@ -56,13 +56,13 @@ router.get("/getAllTimelineImages", authMiddleware_2.clientAuthMiddleware, authM
  */
 router.get("/getCompetentPersonScaffHold", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, competentPersonRoutes.getCompetentPersonScaffHold.bind(competentPersonRoutes));
 /**
- * @route   GET /api/v1/rental-cycle/:scaffHoldId
+ * @route   GET /api/v1/competentPerson/:scaffHoldId
  * @desc    Get rental cycle details
  * @access  Private
  */
 router.get("/getRentalCycle/:scaffHoldId", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, competentPersonRoutes.getRentalCycle.bind(competentPersonRoutes));
 /**
- * @route   POST /api/v1/rental-cycle/clear
+ * @route   POST /api/v1/competentPerson/clearRentalCycle
  * @desc    Manually clear rental cycle (TAG action)
  * @access  Private
  */

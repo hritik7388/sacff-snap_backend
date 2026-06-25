@@ -1,6 +1,7 @@
 // src/schemas/tradesManSchema.ts
 import { Priority } from "@prisma/client";
 import e from "express";
+import { start } from "repl";
 import z from "zod";
 const emptyToUndefined = z.string().transform((val) => (val.trim() === "" ? undefined : val));
 
@@ -75,7 +76,13 @@ export const requestScaffOldSchema = z.object({
     height: z.string().optional(),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
     expectedEndDate: z.string().optional(),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    description: z.string().optional(),
+    address: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
 
 })
 
@@ -86,7 +93,14 @@ export const updateScaffOldSRequestchema = z.object({
     height: z.string().optional(),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
     expectedEndDate: z.string().optional(),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    description: z.string().optional(),
+    address: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+    rejectReason: z.string().optional(),
 
 })
 

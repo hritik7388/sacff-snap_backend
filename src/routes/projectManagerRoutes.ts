@@ -96,7 +96,7 @@ router.put('/updateUserProfileImage', clientAuthMiddleware, authMiddleware, proj
 
 
 /**
- * @route   GET /api/v1/subAdmin/generateProjectJobLink/:projectId
+ * @route   GET /api/v1/subAdmin/generateProjectJobLink/:PJT
  * @desc    Generate project job link
  * @access  Private (subAdmin)
  */

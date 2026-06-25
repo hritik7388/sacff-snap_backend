@@ -39,35 +39,32 @@ model Company {
 }
 
 model User {
-  id               BigInt           @id @default(autoincrement())
-  uuid             String           @unique
-  name             String
-  email            String           @unique
-  password         String
-  mobileNumber     String
-  countryCode      String           @default("+91")
-  user_type        Role
-  otp              String?
-  otpExpireTime    DateTime?
-  status           UserStatus       @default(ACTIVE)
-  isDeleted        Boolean          @default(false)
-  isVerified       Boolean          @default(true)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  lastLogin        DateTime?
-  companiesCreated Company[]        @relation("CompanyCreatedBy")
-  competentPerson  CompetentPerson?
-  projectManager   ProjectManager?
-  tradesman        TradesMan?
-  projectsManaged  Project[]        @relation("ProjectManagers")
-  userMedias       UserMedia[]
-
-  blogs Blog[]
-
+  id                        BigInt                             @id @default(autoincrement())
+  uuid                      String                             @unique
+  name                      String
+  email                     String                             @unique
+  password                  String
+  mobileNumber              String
+  countryCode               String                             @default("+91")
+  user_type                 Role
+  otp                       String?
+  otpExpireTime             DateTime?
+  status                    UserStatus                         @default(ACTIVE)
+  isDeleted                 Boolean                            @default(false)
+  isVerified                Boolean                            @default(true)
+  createdAt                 DateTime                           @default(now())
+  updatedAt                 DateTime                           @updatedAt
+  lastLogin                 DateTime?
+  blogs                     Blog[]
+  companiesCreated          Company[]                          @relation("CompanyCreatedBy")
+  competentPerson           CompetentPerson?
   createdProjectInspections CompetentPersonProjectInspection[] @relation("UserCreatedProjectInspection")
-
-  projectScaffholdTimeline ProjectScaffholdTimeline[] @relation("UserCreatedTimeline") // ✅ ADD
-  notificationSetting      NotificationSetting?
+  notificationSetting       NotificationSetting?
+  projectManager            ProjectManager?
+  projectScaffholdTimeline  ProjectScaffholdTimeline[]         @relation("UserCreatedTimeline")
+  tradesman                 TradesMan?
+  userMedias                UserMedia[]
+  projectsManaged           Project[]                          @relation("ProjectManagers")
 }
 
 model ProjectManager {
@@ -102,22 +99,23 @@ model CompetentPerson {
 }
 
 model TradesMan {
-  id         BigInt  @id @default(autoincrement())
-  userId     BigInt  @unique
-  address    String?
-  craft      String?
-  craftId    Int?
-  experience String?
-  latitude   Float?
-  longitude  Float?
-  uuid       String  @unique
-
-  user                        User                      @relation(fields: [userId], references: [id])
-  craftInfo                   craft?                    @relation(fields: [craftId], references: [id])
-  projects                    TradesManOnProject[]
+  id                          BigInt                    @id @default(autoincrement())
+  userId                      BigInt                    @unique
+  address                     String?
+  craft                       String?
+  craftId                     Int?
+  experience                  String?
+  latitude                    Float?
+  longitude                   Float?
+  uuid                        String                    @unique
   jobCraftsJoined             JobCraftTradesman[]
-  createdProjectScaffRequests ProjectScaffholdRequest[] @relation("CreatedByTradesmanProject") // ✅ FIX
+  createdProjectScaffRequests ProjectScaffholdRequest[] @relation("CreatedByTradesmanProject")
+  craftInfo                   craft?                    @relation(fields: [craftId], references: [id])
+  user                        User                      @relation(fields: [userId], references: [id])
+  projects                    TradesManOnProject[]
   projectContexts             TradesmanProjectContext[]
+
+  @@index([craftId], map: "TradesMan_craftId_fkey")
 }
 
 model Device {
@@ -142,6 +140,8 @@ model UserMedia {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "UserMedia_userId_fkey")
 }
 
 model craft {
@@ -151,51 +151,51 @@ model craft {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   tradesmen        TradesMan[]
-  projectJobCrafts projectJobCraft[] // ✅ ADD THIS
+  projectJobCrafts projectJobCraft[]
 }
 
 model Project {
-  id                BigInt        @id @default(autoincrement())
-  uuid              String        @unique
-  projectName       String
-  PJT               String?
-  clientName        String
-  clientEmail       String
-  clientMobile      String
-  clientCountryCode String        @default("+91")
-  clientAddress     String?
-  startDate         String
-  endDate           String?
-  latitude          Float?
-  longitude         Float?
-  status            ProjectStatus @default(CREATED)
-  isDeleted         Boolean       @default(false)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  createdById BigInt?
-  createdBy   Company? @relation(fields: [createdById], references: [id])
-
-  projectManagers    User[]                             @relation("ProjectManagers")
+  id                 BigInt                             @id @default(autoincrement())
+  uuid               String                             @unique
+  projectName        String
+  clientName         String
+  clientEmail        String
+  clientMobile       String
+  clientCountryCode  String                             @default("+91")
+  clientAddress      String?
+  startDate          String
+  endDate            String?
+  latitude           Float?
+  longitude          Float?
+  status             ProjectStatus                      @default(CREATED)
+  isDeleted          Boolean                            @default(false)
+  createdAt          DateTime                           @default(now())
+  updatedAt          DateTime                           @updatedAt
+  createdById        BigInt?
+  PJT                String?
   competentPersons   CompetentPersonOnProject[]
+  projectInspections CompetentPersonProjectInspection[]
+  createdBy          Company?                           @relation(fields: [createdById], references: [id])
   TradesManRequests  ProjectScaffholdRequest[]
-  tradesMen          TradesManOnProject[]
-  jobCrafts          projectJobCraft[]
   projectTimelines   ProjectScaffholdTimeline[]
-  projectInspections CompetentPersonProjectInspection[] // ✅ FIX
-  tradesmanContexts  TradesmanProjectContext[]
   rentalCycles       RentalCycle[]
+  tradesMen          TradesManOnProject[]
+  tradesmanContexts  TradesmanProjectContext[]
+  jobCrafts          projectJobCraft[]
+  projectManagers    User[]                             @relation("ProjectManagers")
+
+  @@index([createdById], map: "Project_createdById_fkey")
 }
 
 model CompetentPersonOnProject {
   id                BigInt          @id @default(autoincrement())
   projectid         BigInt
   competentPersonId BigInt
-  project           Project         @relation(fields: [projectid], references: [id])
-  competentPerson   CompetentPerson @relation(fields: [competentPersonId], references: [id])
   assignedAt        DateTime        @default(now())
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  competentPerson   CompetentPerson @relation(fields: [competentPersonId], references: [id])
+  project           Project         @relation(fields: [projectid], references: [id])
 
   @@unique([projectid, competentPersonId])
   @@index([competentPersonId])
@@ -205,11 +205,11 @@ model TradesManOnProject {
   id          BigInt    @id @default(autoincrement())
   projectId   BigInt
   tradesManId BigInt
-  project     Project   @relation(fields: [projectId], references: [id])
-  tradesMan   TradesMan @relation(fields: [tradesManId], references: [id])
   assignedAt  DateTime  @default(now())
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id])
+  tradesMan   TradesMan @relation(fields: [tradesManId], references: [id])
 
   @@unique([projectId, tradesManId])
   @@index([tradesManId])
@@ -223,186 +223,164 @@ model projectJobCraft {
   joinedCount       Int                 @default(0)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
-  scaffhold         Project             @relation(fields: [projectId], references: [id])
-  craft             craft               @relation(fields: [craftId], references: [id])
   jobCraftTradesmen JobCraftTradesman[]
+  craft             craft               @relation(fields: [craftId], references: [id])
+  scaffhold         Project             @relation(fields: [projectId], references: [id])
 
   @@unique([projectId, craftId])
+  @@index([craftId], map: "projectJobCraft_craftId_fkey")
 }
 
 model JobCraftTradesman {
   id                BigInt           @id @default(autoincrement())
   jobCraftId        BigInt
   tradesmanId       BigInt
-  projectJobCraftId BigInt? // ✅ ADD
   createdAt         DateTime         @default(now())
-  projectJobCraft   projectJobCraft? @relation(fields: [projectJobCraftId], references: [id]) // ✅ ADD
+  projectJobCraftId BigInt?
+  projectJobCraft   projectJobCraft? @relation(fields: [projectJobCraftId], references: [id])
   tradesman         TradesMan        @relation(fields: [tradesmanId], references: [id])
 
   @@unique([jobCraftId, tradesmanId])
+  @@index([projectJobCraftId], map: "JobCraftTradesman_projectJobCraftId_fkey")
+  @@index([tradesmanId], map: "JobCraftTradesman_tradesmanId_fkey")
 }
 
 model ProjectScaffholdRequest {
-  id   BigInt @id @default(autoincrement())
-  uuid String @unique
-
-  projectId BigInt
-  project   Project @relation(fields: [projectId], references: [id])
-
-  // 🔽 FROM SCAFFHOLD
-  startDate   String?
-  endDate     String?
-  address     String?
-  latitude    Float?
-  longitude   Float?
-  tag         ScaffholdTags @default(UNTAGED)
-  SCAFFID     String?
-  description String?       @db.Text
-
-  // 🔽 EXISTING
-  craft            String?
-  length           String?
-  width            String?
-  height           String?
-  priority         Priority      @default(MEDIUM)
-  expectedEndDate  String?
-  REQID            String?
-  notes            String?
-  reajectionReason String?
-  status           RequestStatus @default(PENDING)
-  parentId         BigInt? // 🔥 ADD THIS
-
-  parent                ProjectScaffholdRequest?  @relation("RequestParent", fields: [parentId], references: [id])
-  children              ProjectScaffholdRequest[] @relation("RequestParent")
-  // 🔥 NEW (IMPORTANT)
-  isConvertedToScaffold Boolean                   @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  createdById BigInt
-  createdBy   TradesMan @relation("CreatedByTradesmanProject", fields: [createdById], references: [id])
-
-  updatesRequest            updateProjectScaffHoldRequest[]
+  id                        BigInt                             @id @default(autoincrement())
+  uuid                      String                             @unique
+  projectId                 BigInt
+  craft                     String?
+  length                    String?
+  width                     String?
+  height                    String?
+  priority                  String?
+  expectedEndDate           String?
+  REQID                     String?
+  notes                     String?
+  reajectionReason          String?
+  status                    RequestStatus                      @default(PENDING)
+  createdAt                 DateTime                           @default(now())
+  updatedAt                 DateTime                           @updatedAt
+  createdById               BigInt
+  SCAFFID                   String?
+  address                   String?
+  description               String?                            @db.Text
+  endDate                   String?
+  isConvertedToScaffold     Boolean                            @default(false)
+  latitude                  Float?
+  longitude                 Float?
+  startDate                 String?
+  tag                       ScaffholdTags                      @default(UNTAGED)
+  parentId                  BigInt?
+  heavyDuty                 Boolean                            @default(false)
+  lightDuty                 Boolean                            @default(false)
+  mediumDuty                Boolean                            @default(false)
+  fallProtection            Boolean                            @default(false)
+  handRail                  Boolean                            @default(false)
+  ladder                    Boolean                            @default(false)
+  midRail                   Boolean                            @default(false)
+  note                      String?                            @db.Text
+  other                     String?                            @db.Text
+  platform                  Boolean                            @default(false)
+  toeBoard                  Boolean                            @default(false)
+  projectInspections        CompetentPersonProjectInspection[]
+  createdBy                 TradesMan                          @relation("CreatedByTradesmanProject", fields: [createdById], references: [id])
+  parent                    ProjectScaffholdRequest?           @relation("RequestParent", fields: [parentId], references: [id])
+  children                  ProjectScaffholdRequest[]          @relation("RequestParent")
+  project                   Project                            @relation(fields: [projectId], references: [id])
+  projectScaffholdTimelines ProjectScaffholdTimeline[]
   rentalCycles              RentalCycle[]
-  projectScaffholdTimelines ProjectScaffholdTimeline[] 
-  lightDuty  Boolean @default(false)
+  updatesRequest            updateProjectScaffHoldRequest[]
 
-  mediumDuty Boolean @default(false)
-
-  heavyDuty  Boolean @default(false)
+  @@index([createdById], map: "ProjectScaffholdRequest_createdById_fkey")
+  @@index([parentId], map: "ProjectScaffholdRequest_parentId_fkey")
+  @@index([projectId], map: "ProjectScaffholdRequest_projectId_fkey")
 }
 
 model updateProjectScaffHoldRequest {
-  id              BigInt    @id @default(autoincrement())
-  requestId       BigInt
-  projectId       BigInt
-  length          String?
-  width           String?
-  height          String?
-  priority        Priority?
-  expectedEndDate String?
-  notes           String?
-  createdAt       DateTime  @default(now())
-
+  id               BigInt                  @id @default(autoincrement())
+  requestId        BigInt
+  projectId        BigInt
+  length           String?
+  width            String?
+  height           String?
+  priority         Priority?
+  expectedEndDate  String?
+  notes            String?
+  createdAt        DateTime                @default(now())
   scaffholdRequest ProjectScaffholdRequest @relation(fields: [requestId], references: [id])
+
+  @@index([requestId], map: "updateProjectScaffHoldRequest_requestId_fkey")
 }
 
 model CompetentPersonProjectInspection {
-  id        BigInt @id @default(autoincrement())
-  projectId BigInt
+  id                BigInt                   @id @default(autoincrement())
+  projectId         BigInt
+  createdById       BigInt
+  shift             String?
+  note              String?
+  Date              String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  scaffoldRequestId BigInt?
+  createdBy         User                     @relation("UserCreatedProjectInspection", fields: [createdById], references: [id])
+  Project           Project                  @relation(fields: [projectId], references: [id])
+  scaffoldRequest   ProjectScaffholdRequest? @relation(fields: [scaffoldRequestId], references: [id])
 
-  Project Project @relation(fields: [projectId], references: [id]) // ✅ FIX
-
-  createdById BigInt
-  createdBy   User   @relation("UserCreatedProjectInspection", fields: [createdById], references: [id]) // ✅ FIX
-
-  shift String?
-  note  String?
-  Date  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([createdById], map: "CompetentPersonProjectInspection_createdById_fkey")
+  @@index([projectId], map: "CompetentPersonProjectInspection_projectId_fkey")
+  @@index([scaffoldRequestId], map: "CompetentPersonProjectInspection_scaffoldRequestId_fkey")
 }
 
 model TradesmanProjectContext {
-  id BigInt @id @default(autoincrement())
-
-  tradesmanId BigInt
-  projectId   BigInt
-
+  id           BigInt    @id @default(autoincrement())
+  tradesmanId  BigInt
+  projectId    BigInt
   employerName String
-
-  createdAt DateTime @default(now())
-
-  tradesman TradesMan @relation(fields: [tradesmanId], references: [id])
-  project   Project   @relation(fields: [projectId], references: [id])
+  createdAt    DateTime  @default(now())
+  project      Project   @relation(fields: [projectId], references: [id])
+  tradesman    TradesMan @relation(fields: [tradesmanId], references: [id])
 
   @@unique([tradesmanId, projectId])
+  @@index([projectId], map: "TradesmanProjectContext_projectId_fkey")
 }
 
 model ProjectScaffholdTimeline {
-  id   BigInt @id @default(autoincrement())
-  uuid String @unique
-
-  note String?
-
-  // =========================
-  // 🔥 PROJECT
-  // =========================
-  projectId BigInt
-
-  scaffhold Project @relation(fields: [projectId], references: [id])
-
-  // =========================
-  // 🔥 REQUEST
-  // =========================
+  id                BigInt                  @id @default(autoincrement())
+  uuid              String                  @unique
+  note              String?
+  projectId         BigInt
+  timeLineStatus    ScaffholdStatus
+  address           String?
+  latitude          Float?
+  longitude         Float?
+  tag               String?
+  createdById       BigInt
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   scaffoldRequestId BigInt
-
-  scaffoldRequest ProjectScaffholdRequest @relation(fields: [scaffoldRequestId], references: [id])
-
-  // =========================
-  // 🔥 TIMELINE DATA
-  // =========================
-  timeLineStatus ScaffholdStatus
-
-  address   String?
-  latitude  Float?
-  longitude Float?
-
-  tag String?
-
-  // =========================
-  // 🔥 IMAGES
-  // =========================
-  image TimelineImage[] @relation("TimelineImagesMain")
-
-  optionalImages TimelineImage[] @relation("TimelineImagesOptional")
-
-  // =========================
-  // 🔥 CREATED BY
-  // =========================
-  createdById BigInt
-
-  createdBy User @relation("UserCreatedTimeline", fields: [createdById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdBy         User                    @relation("UserCreatedTimeline", fields: [createdById], references: [id])
+  scaffhold         Project                 @relation(fields: [projectId], references: [id])
+  scaffoldRequest   ProjectScaffholdRequest @relation(fields: [scaffoldRequestId], references: [id])
+  optionalImages    TimelineImage[]         @relation("TimelineImagesOptional")
+  image             TimelineImage[]         @relation("TimelineImagesMain")
 
   @@index([projectId])
   @@index([scaffoldRequestId])
+  @@index([createdById], map: "ProjectScaffholdTimeline_createdById_fkey")
 }
 
 model TimelineImage {
-  id     BigInt  @id @default(autoincrement())
-  url    String
-  status String?
-
-  timelineId BigInt
-  timeline   ProjectScaffholdTimeline @relation("TimelineImagesMain", fields: [timelineId], references: [id])
-
+  id                BigInt                    @id @default(autoincrement())
+  url               String
+  status            String?
+  timelineId        BigInt
   projectTimelineId BigInt?
   projectTimeline   ProjectScaffholdTimeline? @relation("TimelineImagesOptional", fields: [projectTimelineId], references: [id])
+  timeline          ProjectScaffholdTimeline  @relation("TimelineImagesMain", fields: [timelineId], references: [id])
+
+  @@index([projectTimelineId], map: "TimelineImage_projectTimelineId_fkey")
+  @@index([timelineId], map: "TimelineImage_timelineId_fkey")
 }
 
 model Notification {
@@ -425,25 +403,17 @@ model Notification {
 }
 
 model NotificationSetting {
-  id     BigInt @id @default(autoincrement())
-  userId BigInt @unique
-
-  // 🔐 Security Alerts
-  unusualActivity Boolean @default(true)
-  newDeviceLogin  Boolean @default(true)
-
-  // 📊 Activity Notifications
-  projectCreated    Boolean @default(true)
-  teamMemberChanged Boolean @default(true)
-  scaffoldUpdates   Boolean @default(true)
-
-  // 📧 Master Email Toggle
-  emailEnabled Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
+  id                BigInt   @id @default(autoincrement())
+  userId            BigInt   @unique
+  unusualActivity   Boolean  @default(true)
+  newDeviceLogin    Boolean  @default(true)
+  projectCreated    Boolean  @default(true)
+  teamMemberChanged Boolean  @default(true)
+  scaffoldUpdates   Boolean  @default(true)
+  emailEnabled      Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id])
 }
 
 model Blog {
@@ -454,20 +424,20 @@ model Blog {
   publishDate DateTime?
   image       String?
   blogBody    String    @db.Text
-  status      String?
-
-  createdBy   User   @relation(fields: [createdById], references: [id])
+  status      String?   @default("CREATED")
   createdById BigInt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   User      @relation(fields: [createdById], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([createdById], map: "Blog_createdById_fkey")
 }
 
 model ContactSubmission {
   id           BigInt   @id @default(autoincrement())
   uuid         String   @unique
   name         String
-  email        String   @unique
+  email        String
   mobileNumber String
   countryCode  String   @default("+91")
   message      String   @db.Text
@@ -477,32 +447,22 @@ model ContactSubmission {
 }
 
 model RentalCycle {
-  id   BigInt @id @default(autoincrement())
-  uuid String @unique
-
+  id                BigInt                  @id @default(autoincrement())
+  uuid              String                  @unique
   projectId         BigInt
+  erectedAt         DateTime
+  taggedAt          DateTime?
+  totalDays         Int                     @default(0)
+  cycleCount        Int                     @default(0)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   scaffoldRequestId BigInt
-
-  project         Project                 @relation(fields: [projectId], references: [id])
-  scaffoldRequest ProjectScaffholdRequest @relation(fields: [scaffoldRequestId], references: [id])
-
-  erectedAt DateTime
-
-  taggedAt DateTime?
-
-  // 🔥 TOTAL TIME (NEVER RESET)
-  totalDays Int @default(0)
-
-  // 🔥 MANUAL CYCLE COUNT
-  cycleCount Int @default(0)
-
-  // 🔥 RESET AFTER EACH CLEAR
-  rentalDays Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  rentalDays        Int                     @default(0)
+  project           Project                 @relation(fields: [projectId], references: [id])
+  scaffoldRequest   ProjectScaffholdRequest @relation(fields: [scaffoldRequestId], references: [id])
 
   @@index([scaffoldRequestId])
+  @@index([projectId])
 }
 
 enum NotificationType {
@@ -525,6 +485,7 @@ enum NotificationType {
   DAILY_INSPECTION_REMINDER
   PROJECT_ASSIGNED
   PROJECT_MODIFIED
+  NEW_TEAM_MEMBER_CREATED
 }
 
 enum NotificationRole {
@@ -579,13 +540,6 @@ enum Role {
   PROJECT_MANAGER
   COMPETENT_PERSON
   TRADESMAN
-}
-
-enum JobStatus {
-  OPEN
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
 }
 
 enum MediaType {

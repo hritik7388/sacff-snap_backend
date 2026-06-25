@@ -3,13 +3,13 @@ import { Response } from "express";
 import { Request } from "express";
 import { AuthenticatedRequest } from "../types/index";
 import { ScaffHoldsServices } from "../services/scaffHoldServices";
-import { changePriorityAndTagsSchema,  removeScaffCompetentPerson, scaffCompetentPerson, ScaffCompetentPerson, scaffHoldDetailsById, scaffHoldSchema } from "../schemas/scaffHoldSchema";
+import { changePriorityAndTagsSchema, removeScaffCompetentPerson, scaffCompetentPerson, ScaffCompetentPerson, scaffHoldDetailsById, scaffHoldSchema } from "../schemas/scaffHoldSchema";
 import { searchFilter } from "../schemas/tradesManSchema";
 
 const scaffHold = new ScaffHoldsServices();
 
 export class scaffHoldController {
- 
+
 
     async getAllScaffHold(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
@@ -32,34 +32,32 @@ export class scaffHoldController {
         }
 
     }
-async getProjectScaffHold(req: AuthenticatedRequest, res: Response, next: Function) {
-  try {
-    const projectId = BigInt(req.body.projectId);
+    async getProjectScaffHold(req: AuthenticatedRequest, res: Response, next: Function) {
+        try {
+            const projectId = BigInt(req.body.projectId);
 
-   
 
-    
 
-    // ✅ Zod validation
-    const data = searchFilter.parse(req.body);
+            // ✅ Zod validation
+            const data = searchFilter.parse(req.body);
 
-    // 📄 pagination
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+            // 📄 pagination
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 10;
 
-    // 🚀 service call
-    const result = await scaffHold.getProjectScaffHold(
-      data,
-      page,
-      limit,
-      projectId
-    );
+            // 🚀 service call
+            const result = await scaffHold.getProjectScaffHold(
+                data,
+                page,
+                limit,
+                projectId
+            );
 
-    return res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
-}
+            return res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
 
     async getScaffHoldCompetentPerson(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
@@ -73,7 +71,7 @@ async getProjectScaffHold(req: AuthenticatedRequest, res: Response, next: Functi
     async getScaffCompetentPerson(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
             const data = scaffHoldDetailsById.parse(req.query);
-            const scaffHoldData = await scaffHold.projectAndCompetentPersons(data);
+            const scaffHoldData = await scaffHold.projectAndCompetentPersons(data, req.user);
             res.status(200).json(scaffHoldData);
         } catch (err) {
             next(err);
@@ -84,8 +82,8 @@ async getProjectScaffHold(req: AuthenticatedRequest, res: Response, next: Functi
 
             const data = ScaffCompetentPerson.parse(req.body);
             const userId = req.user!.id;
-            
-            const competentData = await scaffHold.addCompetentPersonToProject(userId,data);
+
+            const competentData = await scaffHold.addCompetentPersonToProject(userId, data);
             res.status(200).json(competentData);
 
         } catch (err) {
@@ -128,23 +126,23 @@ async getProjectScaffHold(req: AuthenticatedRequest, res: Response, next: Functi
         }
     }
 
-async getScaffHoldHistory(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: Function
-) {
-    try {
+    async getScaffHoldHistory(
+        req: AuthenticatedRequest,
+        res: Response,
+        next: Function
+    ) {
+        try {
 
- 
-        const requestId = parseInt(req.query.requestId as string);
 
-        const scaffHoldData =
-            await scaffHold.getScaffholdRequestHistory(requestId);
+            const requestId = parseInt(req.query.requestId as string);
 
-        res.status(200).json(scaffHoldData);
+            const scaffHoldData =
+                await scaffHold.getScaffholdRequestHistory(requestId);
 
-    } catch (err) {
-        next(err);
+            res.status(200).json(scaffHoldData);
+
+        } catch (err) {
+            next(err);
+        }
     }
-}
 }

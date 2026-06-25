@@ -1,5 +1,6 @@
 // src/schemas/scaffHoldSchema.ts
 import { Priority } from "@prisma/client";
+import { platform } from "os";
 import z from "zod";
 
 export const scaffHoldSchema = z.object({
@@ -68,13 +69,26 @@ export const removeScaffCompetentPerson = z.object({
 
 export const changePriorityAndTagsSchema = z.object({
   scaffHoldId: z.number(),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(), // match Prisma enum
+  priority: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.enum(["LOW", "MEDIUM", "HIGH"]).optional()
+  ),// match Prisma enum
   tag: z.enum(["UNTAGED", "GREEN", "RED", "YELLOW"]).optional(), // match Prisma enum
   lightDuty: z.boolean().optional(),
 
   mediumDuty: z.boolean().optional(),
 
   heavyDuty: z.boolean().optional(),
+  fallProtection: z.boolean().optional(),
+
+  handRail: z.boolean().optional(),
+  midRail: z.boolean().optional(),
+  toeBoard: z.boolean().optional(),
+  platform: z.boolean().optional(),
+  ladder: z.boolean().optional(),
+
+  note: z.string().optional(),
+  other: z.string().optional(),
 });
 
 

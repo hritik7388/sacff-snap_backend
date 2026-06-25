@@ -34,7 +34,8 @@ class projectManagerController {
                 const limit = Number(req.query.limit) || 10;
                 const status = req.query.status;
                 const id = req.user.id;
-                const result = yield projectManager.getProjectListServices(id, page, limit, status);
+                const search = req.query.search;
+                const result = yield projectManager.getProjectListServices(id, page, limit, status, search);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -85,7 +86,8 @@ class projectManagerController {
                 const limit = Number(req.query.limit) || 10;
                 const data = tradesManSchema_1.searchFilter.parse(req.query);
                 const id = req.user.id;
-                const result = yield projectManager.getTrademanPendingRequestListServices(id, data, page, limit);
+                const projectId = req.query.projectId ? Number(req.query.projectId) : undefined;
+                const result = yield projectManager.getTrademanPendingRequestListServices(id, data, page, limit, projectId !== null && projectId !== void 0 ? projectId : 0);
                 res.status(200).json(result);
             }
             catch (err) {
@@ -96,11 +98,12 @@ class projectManagerController {
     getAllPendingModifiedRequestDetails(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const id = req.user.id;
+                const data = tradesManSchema_1.searchFilter.parse(req.query);
                 const page = Number(req.query.page) || 1;
                 const limit = Number(req.query.limit) || 10;
-                const data = tradesManSchema_1.searchFilter.parse(req.query);
-                const id = req.user.id;
-                const result = yield projectManager.getAllPendingModifiedRequestsByParentId(id, data, page, limit);
+                const projectId = Number(req.query.projectId) || undefined;
+                const result = yield projectManager.getAllPendingModifiedRequestsByParentId(id, data, page, limit, projectId);
                 res.status(200).json(result);
             }
             catch (err) {

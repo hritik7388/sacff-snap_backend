@@ -257,58 +257,107 @@ export const qrCodeGenerator = async (text: string, userType: string, status: st
   }
 };
 
-export const pdfGenerator = async (scaffholdDetails: any) => {
+export const imageGenerator = async (
+  scaffholdDetails: any
+): Promise<Buffer> => {
+
   try {
+
     const tag = scaffholdDetails.tag?.toUpperCase();
 
     if (!tag || tag === "RED") {
       throw new CustomError(
-        "PDF generation not allowed for untagged or RED scaffold."
+        "Image generation not allowed for untagged or RED scaffold."
       );
     }
 
-    const BASE_URL = "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
+    // ======================================================
+    // QR URL
+    // ======================================================
+
+    const BASE_URL =
+      "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
+
     const qrFinalLink =
       `${BASE_URL}?scaffId=${scaffholdDetails.id}` +
       `&userType=${scaffholdDetails.tradesmanUserType}` +
-      `&PJT=${scaffholdDetails.PJT}`;
+      `&PJT=${scaffholdDetails.PJT}+&requestId=${scaffholdDetails.id}`;
+
     const qrResult = await qrCodeGenerator(
       qrFinalLink,
       scaffholdDetails.tradesmanUserType,
-      scaffholdDetails.status
+      scaffholdDetails.status,
     );
 
     if (!qrResult.success) {
       throw new Error("QR generation failed");
     }
 
+    // ======================================================
+    // HTML TEMPLATE
+    // ======================================================
+
     let html: string;
 
     if (tag === "GREEN") {
+
       html = greenpdfTemplate({
         ...scaffholdDetails,
         qrCode: qrResult.qrCode,
       });
+
     } else {
+
       html = yellowpdfTemplate({
         ...scaffholdDetails,
         qrCode: qrResult.qrCode,
       });
     }
 
-    const options = {
-      format: "A4",
-      printBackground: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    };
+    // ======================================================
+    // PUPPETEER
+    // ======================================================
 
-    const file = { content: html };
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+      ],
+    });
 
-    const pdfBuffer: Buffer = await htmlPdf.generatePdf(file, options);
+    const page = await browser.newPage();
 
-    return pdfBuffer;
+    // 80mm ≈ 302px
+    await page.setViewport({
+      width: 540,
+      height: 100,
+      deviceScaleFactor: 3,
+    });
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+    });
+
+    // ======================================================
+    // SCREENSHOT
+    // ======================================================
+
+    const screenshotBuffer = await page.screenshot({
+      type: "png",
+      fullPage: true,
+    });
+
+    await browser.close();
+
+    return Buffer.from(
+      screenshotBuffer as Uint8Array
+    );
+
   } catch (err) {
-    console.error("PDF GEN ERR:", err);
+
+    console.error("❌ IMAGE GEN ERR:", err);
+
     throw err;
   }
 };
