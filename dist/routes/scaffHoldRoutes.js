@@ -39,6 +39,10 @@ router.get("/getScaffHoldCompetentPerson", authMiddleware_2.clientAuthMiddleware
  */
 router.get("/getScaffCompetentPerson", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, scaffHoldRoutes.getScaffCompetentPerson.bind(scaffHoldRoutes));
 /**
+ * POST /api/v1/scaffHold/scan
+ */
+router.get("/scan", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, scaffHoldRoutes.scanValidate.bind(scaffHoldRoutes));
+/**
  * @route POST/api/v1/scaffhold/addCompetentPerson
  * @des   add competent person by id
  * @access Private (Authenticated Users)

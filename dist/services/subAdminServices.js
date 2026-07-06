@@ -917,16 +917,6 @@ class subAdminServices {
                 // =========================
                 // 📱 PUSH NOTIFICATION (POPUP)
                 // =========================
-                const devices = yield prismaClient_1.default.device.findMany({
-                    where: {
-                        userId: { in: allowedUserIds },
-                        deviceToken: { not: null }
-                    },
-                    select: { deviceToken: true }
-                });
-                for (const device of devices) {
-                    yield (0, utils_1.pushNotificationDelhi)(device.deviceToken, "PROJECT CREATED", message);
-                }
                 // =========================
                 // RESPONSE
                 // =========================

@@ -546,7 +546,7 @@ export class ProjectManagerServices {
                 }
             });
 
-            if (!requestData || requestData.status !== "PENDING") {
+            if (!requestData) {
                 throw new CustomError(
                     RESPONSE_MESSAGES.SCAFFHOLDREQUEST.REQUEST_NOT_FOUND,
                     404,
@@ -586,8 +586,8 @@ export class ProjectManagerServices {
             if (isModifiedRequest) {
                 notificationTitle =
                     data.status === "APPROVED"
-                        ? "Scaffold Modification Approved"
-                        : "Scaffold Modification Declined";
+                        ? "Modification REQUEST Approved"
+                        : "Modification REQUEST Declined";
 
                 notificationType =
                     data.status === "APPROVED"
@@ -763,46 +763,45 @@ export class ProjectManagerServices {
         data: SearchScaffHoldDTO,
         page: number = 1,
         limit: number = 10,
-       projectId?: number
+        projectId?: number
     ) {
         try {
             const skip = (page - 1) * limit;
 
-           const pm = await prisma.projectManager.findUnique({
-    where: {
-        userId: BigInt(userId),
-    },
-    select: {
-        userId: true,
-    },
-});
+            const pm = await prisma.projectManager.findUnique({
+                where: {
+                    userId: BigInt(userId),
+                },
+                select: {
+                    userId: true,
+                },
+            });
 
-if (!pm) {
-    throw new CustomError(
-        "Project Manager not found",
-        404,
-        "Project Manager not found"
-    );
-}
+            if (!pm) {
+                throw new CustomError(
+                    "Project Manager not found",
+                    404,
+                    "Project Manager not found"
+                );
+            }
 
-const whereCondition: any = {
-    parentId: {
-        not: null,
-    },
-    status: "PENDING",
+            const whereCondition: any = {
+                parentId: {
+                    not: null,
+                },
 
-    project: {
-        projectManagers: {
-            some: {
-                id: pm.userId, // same as tradesman pending API
-            },
-        },
-    },
-};
+                project: {
+                    projectManagers: {
+                        some: {
+                            id: pm.userId, // same as tradesman pending API
+                        },
+                    },
+                },
+            };
 
-if (projectId) {
-    whereCondition.projectId = BigInt(projectId);
-}
+            if (projectId) {
+                whereCondition.projectId = BigInt(projectId);
+            }
             const searchTerm = data?.search?.trim();
 
             if (searchTerm) {
@@ -917,42 +916,42 @@ if (projectId) {
         page: number = 1,
         limit: number = 10,
         projectId?: number
-    ) { 
+    ) {
         try {
             const skip = (page - 1) * limit;
 
-const pm = await prisma.projectManager.findUnique({
-    where: {
-        userId: BigInt(userId), // token wali PM id
-    },
-    select: {
-        userId: true,
-    },
-}); 
+            const pm = await prisma.projectManager.findUnique({
+                where: {
+                    userId: BigInt(userId), // token wali PM id
+                },
+                select: {
+                    userId: true,
+                },
+            });
 
-if (!pm) {
-    throw new CustomError(
-        "Project Manager not found",
-        404,
-        "Project Manager not found"
-    );
-}
-const whereCondition: any = {
-    status: "PENDING",
-    parentId: null,
+            if (!pm) {
+                throw new CustomError(
+                    "Project Manager not found",
+                    404,
+                    "Project Manager not found"
+                );
+            }
+            const whereCondition: any = {
+                status: "PENDING",
+                parentId: null,
 
-    project: {
-        projectManagers: {
-            some: {
-                id: pm.userId, // ✅ User.id
-            },
-        },
-    },
-}; 
+                project: {
+                    projectManagers: {
+                        some: {
+                            id: pm.userId, // ✅ User.id
+                        },
+                    },
+                },
+            };
 
-if (projectId) {
-    whereCondition.projectId = BigInt(projectId);
-} 
+            if (projectId) {
+                whereCondition.projectId = BigInt(projectId);
+            }
 
             const searchTerm = data?.search?.trim();
 

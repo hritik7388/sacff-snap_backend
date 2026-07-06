@@ -516,8 +516,8 @@ class ProjectManagerServices {
                 if (isModifiedRequest) {
                     notificationTitle =
                         data.status === "APPROVED"
-                            ? "Scaffold Modification Approved"
-                            : "Scaffold Modification Declined";
+                            ? "Modification REQUEST Approved"
+                            : "Modification REQUEST Declined";
                     notificationType =
                         data.status === "APPROVED"
                             ? "MODIFICATION_ACCEPTED"
@@ -662,7 +662,6 @@ class ProjectManagerServices {
                     parentId: {
                         not: null,
                     },
-                    status: "PENDING",
                     project: {
                         projectManagers: {
                             some: {

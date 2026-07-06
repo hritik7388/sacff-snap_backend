@@ -377,7 +377,7 @@ class CompetentPersonServices {
     }
     competentPersonTimeline(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d, _e;
             try {
                 // 🔥 USER VALIDATION (same)
                 const user = yield prismaClient_1.default.user.findFirst({
@@ -481,7 +481,7 @@ class CompetentPersonServices {
                         });
                     }
                     // 🔥 CREATE NEW CYCLE
-                    yield prismaClient_1.default.rentalCycle.create({
+                    const newCycle = yield prismaClient_1.default.rentalCycle.create({
                         data: {
                             uuid: (0, uuid_1.v4)(),
                             projectId: request.projectId,
@@ -492,6 +492,51 @@ class CompetentPersonServices {
                             rentalDays: 0,
                         },
                     });
+                    const projectWithPMs = yield prismaClient_1.default.project.findUnique({
+                        where: {
+                            id: request.projectId,
+                        },
+                        include: {
+                            projectManagers: {
+                                select: {
+                                    id: true,
+                                },
+                            },
+                        },
+                    });
+                    const projectManagerIds = (projectWithPMs === null || projectWithPMs === void 0 ? void 0 : projectWithPMs.projectManagers.map(pm => pm.id)) || [];
+                    const rentalMessage = `The 28-day rental cycle for Scaffold ${request.id} has been completed. Action is required`;
+                    for (const pmId of projectManagerIds) {
+                        yield prismaClient_1.default.notification.create({
+                            data: {
+                                uuid: (0, uuid_1.v4)(),
+                                title: `Rental Cycle Completed ${newCycle.cycleCount}`,
+                                message: rentalMessage,
+                                type: "RENTAL_CYCLE_UPDATED",
+                                role: "PROJECT_MANAGER",
+                                receiverId: pmId,
+                                senderId: userId.toString(),
+                                scaffoldRequestId: request.id.toString(),
+                                isRead: false,
+                                notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/rental.png",
+                            },
+                        });
+                    }
+                    const pmDevices = yield prismaClient_1.default.device.findMany({
+                        where: {
+                            userId: { in: projectManagerIds },
+                            user_type: "PROJECT_MANAGER",
+                            deviceToken: { not: null },
+                        },
+                        select: {
+                            deviceToken: true,
+                        },
+                    });
+                    for (const d of pmDevices) {
+                        if (!d.deviceToken)
+                            continue;
+                        yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, `Rental Cycle ${newCycle.cycleCount}`, rentalMessage);
+                    }
                 }
                 // 🔥 UPDATE REQUEST STATUS
                 yield prismaClient_1.default.projectScaffholdRequest.update({
@@ -547,13 +592,22 @@ class CompetentPersonServices {
                     },
                 });
                 // 🔥 NOTIFICATION MESSAGE
-                const notificationMessage = `Project ${request.projectId} | ${(_a = request.project) === null || _a === void 0 ? void 0 : _a.projectName} has been ${data.timeLineStatus}. Action performed by ${user.name}.`;
+                const isCompleted = data.timeLineStatus === "DISMANTLED";
+                const notificationTitle = isCompleted
+                    ? "Scaffold Completed!"
+                    : "Scaffold Status Updated";
+                const notificationMessage = isCompleted
+                    ? `Scaffold ${request.id} Dismantled: "${data.timeLineStatus}" completed.`
+                    : `Scaffold ${request.id} update: "${data.timeLineStatus}" completed.`;
+                const notificationImage = isCompleted
+                    ? "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/statusCompleted.png"
+                    : "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/statusUpdated.png";
                 // 🔥 COMPANY NOTIFICATION
                 if (projectFullData) {
                     yield prismaClient_1.default.notification.create({
                         data: {
                             uuid: (0, uuid_1.v4)(),
-                            title: `Project ${data.timeLineStatus}`,
+                            title: notificationTitle,
                             message: notificationMessage,
                             type: "SCAFFOLD_STATUS_UPDATE",
                             role: "COMPANY",
@@ -562,7 +616,7 @@ class CompetentPersonServices {
                             senderId: userId.toString(),
                             scaffoldRequestId: request.id.toString(),
                             isRead: false,
-                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/scaffDismented.png",
+                            notificationImage: notificationImage,
                         },
                     });
                     // 🔥 DEVICE PUSH (COMPANY)
@@ -576,11 +630,6 @@ class CompetentPersonServices {
                             deviceToken: true,
                         },
                     });
-                    for (const d of companyDevice) {
-                        if (!d.deviceToken)
-                            continue;
-                        yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, `Project ${data.timeLineStatus}`, notificationMessage);
-                    }
                 }
                 // 🔥 PROJECT MANAGERS
                 const projectWithPMs = yield prismaClient_1.default.project.findUnique({
@@ -604,7 +653,7 @@ class CompetentPersonServices {
                             message: notificationMessage,
                             type: "SCAFFOLD_STATUS_UPDATE",
                             role: "PROJECT_MANAGER",
-                            companyId: (_b = projectFullData === null || projectFullData === void 0 ? void 0 : projectFullData.createdById) !== null && _b !== void 0 ? _b : undefined,
+                            companyId: (_a = projectFullData === null || projectFullData === void 0 ? void 0 : projectFullData.createdById) !== null && _a !== void 0 ? _a : undefined,
                             receiverId: pmId,
                             senderId: userId.toString(),
                             scaffoldRequestId: request.id.toString(),
@@ -645,9 +694,9 @@ class CompetentPersonServices {
                         },
                     },
                 });
-                if ((_c = tradesmenData === null || tradesmenData === void 0 ? void 0 : tradesmenData.tradesMen) === null || _c === void 0 ? void 0 : _c.length) {
+                if ((_b = tradesmenData === null || tradesmenData === void 0 ? void 0 : tradesmenData.tradesMen) === null || _b === void 0 ? void 0 : _b.length) {
                     for (const tm of tradesmenData.tradesMen) {
-                        const receiverId = (_d = tm.tradesMan) === null || _d === void 0 ? void 0 : _d.userId;
+                        const receiverId = (_c = tm.tradesMan) === null || _c === void 0 ? void 0 : _c.userId;
                         if (!receiverId)
                             continue;
                         yield prismaClient_1.default.notification.create({
@@ -657,7 +706,7 @@ class CompetentPersonServices {
                                 message: notificationMessage,
                                 type: "SCAFFOLD_STATUS_UPDATE",
                                 role: "TRADESMAN",
-                                companyId: (_e = projectFullData === null || projectFullData === void 0 ? void 0 : projectFullData.createdById) !== null && _e !== void 0 ? _e : undefined,
+                                companyId: (_d = projectFullData === null || projectFullData === void 0 ? void 0 : projectFullData.createdById) !== null && _d !== void 0 ? _d : undefined,
                                 scaffoldRequestId: request.id.toString(),
                                 receiverId,
                                 senderId: userId.toString(),
@@ -683,7 +732,7 @@ class CompetentPersonServices {
                     }
                 }
                 // 🔥 COMPETENT PERSONS
-                const competentPersonsData = ((_f = projectFullData === null || projectFullData === void 0 ? void 0 : projectFullData.competentPersons) === null || _f === void 0 ? void 0 : _f.map((cp) => ({
+                const competentPersonsData = ((_e = projectFullData === null || projectFullData === void 0 ? void 0 : projectFullData.competentPersons) === null || _e === void 0 ? void 0 : _e.map((cp) => ({
                     userId: cp.competentPerson.userId,
                 }))) || [];
                 if (competentPersonsData.length > 0) {

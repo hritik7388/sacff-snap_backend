@@ -635,7 +635,7 @@ export class ScaffHoldsServices {
                     data: newCPUsers.map(cp => ({
                         uuid: uuidv4(),
                         title: "PROJECT ASSIGNED",
-                        message: `You have been assigned to Project ${projectData.projectName}.`,
+                        message: `You have been assigned to Project ${projectData.PJT} for inspection and updates .`,
                         type: "PROJECT_ASSIGNED",
                         role: "COMPETENT_PERSON",
                         isRead: false,
@@ -977,6 +977,7 @@ export class ScaffHoldsServices {
     user?: any
 ) {
     try {
+        console.log("id============>>>>",data.id,data.scaffoldRequestId)
 
         // =====================================
         // QR SCAN AUTHORIZATION
@@ -1005,6 +1006,7 @@ export class ScaffHoldsServices {
                         },
                     },
                 });
+                console.log("scaffoldRequest==================>>>>",scaffoldRequest)
 
             if (!scaffoldRequest) {
                 throw new CustomError(
@@ -1016,19 +1018,19 @@ export class ScaffHoldsServices {
 
             const projectCmpId =
                 scaffoldRequest.project?.createdBy?.CMPId;
-
+console.log("projectCmpId==============>>>",projectCmpId)
             const userCmpId =
                 user.companyId;
-
+console.log("userCmpId============>>>",userCmpId)
             if (
                 !projectCmpId ||
                 !userCmpId ||
                 projectCmpId !== userCmpId
             ) {
                 throw new CustomError(
-                    "You are not authorized to access this scaffold",
+                    "You are not a member of this company",
                     403,
-                    "Unauthorized"
+                    "NOT_PROJECT_MEMBER"
                 );
             }
         }
@@ -1089,7 +1091,7 @@ export class ScaffHoldsServices {
                 children: true,
             },
         });
-
+console.log("request====================>>>>",request)
         if (!request) {
             throw new CustomError(
                 RESPONSE_MESSAGES.PROJECT.NOT_FOUND,
@@ -1135,6 +1137,7 @@ export class ScaffHoldsServices {
                     },
                 },
             });
+            console.log("competentPersons===================>>>>",competentPersons)
 
         const formattedCP = competentPersons.map((cp: any) => ({
             id: cp.competentPersonId,
@@ -1250,6 +1253,186 @@ export class ScaffHoldsServices {
     }
 }
 
+async scanValidate(userId: number, requestId: number, user: any) {
+  try {
+   
+
+    // ==========================
+    // USER DETAILS
+    // ==========================
+    const projectManager = await prisma.projectManager.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+    });
+
+    const competentPerson = await prisma.competentPerson.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+    });
+
+    console.log("PM DATA =>", projectManager);
+    console.log("CP DATA =>", competentPerson);
+
+    const userCmpId =
+      projectManager?.cmpId || competentPerson?.cmpId || null;
+
+    console.log("USER CMP ID =>", userCmpId);
+
+    // ==========================
+    // REQUEST + PROJECT + COMPANY
+    // ==========================
+    const request = await prisma.projectScaffholdRequest.findUnique({
+      where: {
+        id: BigInt(requestId),
+      },
+      include: {
+        project: {
+          include: {
+            createdBy: true,
+          },
+        },
+      },
+    });
+
+    console.log("REQUEST =>", request);
+
+    if (!request) {
+      return {
+        success: false,
+        allowed: false,
+        message: "Scaffold request not found",
+      };
+    }
+
+    const projectCmpId = request.project?.createdBy?.CMPId;
+
+    console.log("PROJECT CMP ID =>", projectCmpId);
+    console.log(
+      "CMP MATCH =>",
+      userCmpId === projectCmpId
+    );
+
+    // ==========================
+    // COMPANY CHECK
+    // ==========================
+    if (!userCmpId || !projectCmpId || userCmpId !== projectCmpId) {
+      return {
+        success: true,
+        allowed: false,
+        message: "Company mismatch",
+      };
+    }
+
+    // ==========================
+    // PM CHECK
+    // ==========================
+    if (projectManager) {
+      console.log("INSIDE PM CHECK");
+
+      const pmUser = await prisma.user.findUnique({
+        where: {
+          id: BigInt(userId),
+        },
+        include: {
+          projectsManaged: true,
+        },
+      });
+
+      console.log(
+        "PM PROJECTS =>",
+        pmUser?.projectsManaged?.map((p) => ({
+          id: p.id.toString(),
+          name: p.projectName,
+        }))
+      );
+
+      const isAssigned =
+        pmUser?.projectsManaged?.some(
+          (p) => p.id === request.projectId
+        ) || false;
+
+      console.log("PM ASSIGNED =>", isAssigned);
+
+      if (!isAssigned) {
+        return {
+          success: true,
+          allowed: false,
+          message: "PM not assigned to this project",
+        };
+      }
+    }
+
+    // ==========================
+    // CP CHECK
+    // ==========================
+    if (competentPerson) {
+      console.log("INSIDE CP CHECK");
+
+      console.log(
+        "CP TABLE ID =>",
+        competentPerson.id.toString()
+      );
+
+      console.log(
+        "CP USER ID =>",
+        competentPerson.userId.toString()
+      );
+
+      console.log(
+        "REQUEST PROJECT ID =>",
+        request.projectId.toString()
+      );
+
+      const cpAssignment =
+        await prisma.competentPersonOnProject.findFirst({
+          where: {
+            projectid: request.projectId,
+            competentPersonId: competentPerson.id, // IMPORTANT -> CP TABLE ID
+          },
+        });
+
+      console.log("CP ASSIGNMENT =>", cpAssignment);
+
+      const isAssigned = !!cpAssignment;
+
+      console.log("CP ASSIGNED =>", isAssigned);
+
+      if (!isAssigned) {
+        return {
+          success: true,
+          allowed: false,
+          message:
+            "CP is not assigned to this project",
+        };
+      }
+    }
+
+    // ==========================
+    // SUCCESS
+    // ==========================
+    console.log("ACCESS GRANTED");
+
+    return {
+      success: true,
+      allowed: true,
+      message: "Access granted",
+      data: {
+        requestId: request.id.toString(),
+        projectId: request.projectId.toString(),
+      },
+    };
+  } catch (error: any) {
+    console.log("SCAN VALIDATE ERROR =>", error);
+
+    return {
+      success: false,
+      allowed: false,
+      message: error.message || "Internal server error",
+    };
+  }
+}
     async changePriorityAndTags(data: changePriorityAndTagsDTO) {
         try {
 
@@ -1352,34 +1535,62 @@ export class ScaffHoldsServices {
                 });
 
             // 3. GET PROJECT OWNER
-            const project = await prisma.project.findUnique({
-                where: { id: scaffhold.projectId },
-                select: {
-                    createdById: true,
-                },
-            });
+            const projectData = await prisma.project.findUnique({
+    where: {
+        id: scaffhold.projectId,
+    },
+    include: {
+        projectManagers: {
+            select: {
+                id: true,
+            },
+        },
+    },
+});
 
-            // 4. NOTIFICATION MESSAGE
-            const notificationMessage =
-                `Scaffold ${scaffhold.SCAFFID} updated to ${data.tag}`;
+const notificationMessage =
+    `Tag of Scaffold ${scaffhold.SCAFFID} updated to: "${data.tag}"`;
 
-            // 5. CREATE NOTIFICATION
-            await prisma.notification.create({
-                data: {
-                    uuid: uuidv4(),
-                    title: "Scaffold Updated",
-                    message: notificationMessage,
-                    type: "SCAFFOLD_STATUS_UPDATE",
+const pmUserIds =
+    projectData?.projectManagers.map(pm => pm.id) || [];
 
-                    role: "COMPANY",
-                    companyId: project?.createdById ?? null,
-                    receiverId: project?.createdById ?? null,
+for (const pmId of pmUserIds) {
+    await prisma.notification.create({
+        data: {
+            uuid: uuidv4(),
+            title: "Scaffold Tag Updated",
+            message: notificationMessage,
+            type: "SCAFFOLD_STATUS_UPDATE",
+            role: "PROJECT_MANAGER",
+            receiverId: pmId,
+            senderId: scaffhold.createdById.toString(),
+            scaffoldRequestId: scaffhold.id.toString(),
+            isRead: false,
+            notificationImage:
+                "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/tag.png",
+        },
+    });
+}
+const devices = await prisma.device.findMany({
+    where: {
+        userId: {
+            in: pmUserIds,
+        },
+        deviceToken: {
+            not: null,
+        },
+    },
+});
 
-                    senderId: scaffhold.createdById.toString(), // ✅ FIXED
+for (const device of devices) {
+    if (!device.deviceToken) continue;
 
-                    isRead: false,
-                },
-            });
+    await pushNotificationDelhi(
+        device.deviceToken,
+        "Scaffold Tag Updated",
+        notificationMessage
+    );
+}
 
             // 6. GET DEVICES
       

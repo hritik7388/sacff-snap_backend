@@ -486,6 +486,7 @@ enum NotificationType {
   PROJECT_ASSIGNED
   PROJECT_MODIFIED
   NEW_TEAM_MEMBER_CREATED
+  RENTAL_CYCLE_UPDATED
 }
 
 enum NotificationRole {

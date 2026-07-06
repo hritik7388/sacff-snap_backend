@@ -148,7 +148,7 @@ class tradesManServices {
                         isVerified: true,
                     },
                     include: {
-                        tradesman: true, // 🔥 IMPORTANT
+                        tradesman: true,
                     },
                 });
                 if (!user) {
@@ -175,15 +175,28 @@ class tradesManServices {
                         PJT: data.PJT,
                         isDeleted: false,
                     },
+                    include: {
+                        projectManagers: true,
+                    },
                 });
                 if (!project) {
-                    throw new customError_1.CustomError("You dont have project to  login or ProjectId is invalid", 404);
+                    throw new customError_1.CustomError("You dont have project to login or ProjectId is invalid", 404);
                 }
                 // ✅ STEP 6: EMPLOYER NAME VALIDATION
                 if (!data.employerName) {
                     throw new customError_1.CustomError("Employer name is required", 400);
                 }
-                // ✅ STEP 7: UPSERT CONTEXT (🔥 CORE LOGIC)
+                // ✅ CHECK IF TRADESMAN ALREADY JOINED THIS PROJECT
+                const existingContext = yield prismaClient_1.default.tradesmanProjectContext.findUnique({
+                    where: {
+                        tradesmanId_projectId: {
+                            tradesmanId: tradesman.id,
+                            projectId: project.id,
+                        },
+                    },
+                });
+                const isFirstTimeJoin = !existingContext;
+                // ✅ STEP 7: UPSERT CONTEXT
                 yield prismaClient_1.default.tradesmanProjectContext.upsert({
                     where: {
                         tradesmanId_projectId: {
@@ -200,6 +213,38 @@ class tradesManServices {
                         employerName: data.employerName,
                     },
                 });
+                // ✅ SEND NOTIFICATION ONLY ON FIRST JOIN
+                if (isFirstTimeJoin) {
+                    const projectManagerIds = project.projectManagers.map((pm) => pm.id);
+                    const message = `Tradesman ${user.name} (${tradesman.craft}) joined project ${project.projectName}`;
+                    for (const pmId of projectManagerIds) {
+                        yield prismaClient_1.default.notification.create({
+                            data: {
+                                uuid: (0, uuid_1.v4)(),
+                                title: "TRADESMAN JOINED PROJECT",
+                                message,
+                                type: "TRADESMAN_JOINED_PROJECT",
+                                role: "PROJECT_MANAGER",
+                                receiverId: BigInt(pmId),
+                                senderId: user.id.toString(),
+                                isRead: false,
+                                notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/join.png",
+                                tradesmanCraft: tradesman.craft,
+                            },
+                        });
+                    }
+                    // ✅ PUSH NOTIFICATION
+                    const devices = yield prismaClient_1.default.device.findMany({
+                        where: {
+                            userId: { in: projectManagerIds },
+                            user_type: "PROJECT_MANAGER",
+                            deviceToken: { not: null },
+                        },
+                    });
+                    yield Promise.all(devices.map((d) => d.deviceToken
+                        ? (0, utils_1.pushNotificationDelhi)(d.deviceToken, "TRADESMAN JOINED PROJECT", message)
+                        : null));
+                }
                 // ✅ STEP 8: TOKEN
                 const jwtPayload = {
                     login_id: user.email,
@@ -207,7 +252,7 @@ class tradesManServices {
                     uuid: user.uuid,
                     user_type: user.user_type,
                     userId: user.id,
-                    PJT: data.PJT
+                    PJT: data.PJT,
                 };
                 const token = (0, utils_1.generateToken)(jwtPayload);
                 // ✅ STEP 9: UPDATE LAST LOGIN
@@ -220,7 +265,7 @@ class tradesManServices {
                     uuid: user.uuid,
                     projectId: project.id,
                     projectCode: project.PJT,
-                    employerName: data.employerName, // 🔥 return for frontend
+                    employerName: data.employerName,
                     user_type: user.user_type,
                     craft: tradesman.craft,
                 };
@@ -228,7 +273,7 @@ class tradesManServices {
                 return {
                     message: "Login successful",
                     token,
-                    data: userRes, // 🔥 return user details for frontend use
+                    data: userRes,
                 };
             }
             catch (error) {
@@ -709,13 +754,13 @@ class tradesManServices {
                 };
                 // ✅ 7. SEND NOTIFICATION TO PROJECT MANAGERS
                 const pmUserIds = projectData.projectManagers.map(pm => pm.id);
-                const notificationMessage = `New Project Scaffold request ${newRequest.REQID} has been created for project ${projectData.PJT} by ${tradesManData.name}.`;
+                const notificationMessage = `New  Scaffold request ${newRequest.REQID} has been received from  ${tradesManData.name} for ${requestData.SCAFFID}.`;
                 if (pmUserIds.length > 0) {
                     for (const pmId of pmUserIds) {
                         yield prismaClient_1.default.notification.create({
                             data: {
                                 uuid: (0, uuid_1.v4)(),
-                                title: "New Project Scaffold Request",
+                                title: "New  Scaffold Request",
                                 message: notificationMessage,
                                 type: "SCAFFHOLD_REQUEST",
                                 scaffoldRequestId: newRequest.id.toString(),
@@ -890,7 +935,7 @@ class tradesManServices {
                 };
                 // ✅ 8. Notifications (PM)
                 const pmUserIds = ((_a = projectData === null || projectData === void 0 ? void 0 : projectData.projectManagers) === null || _a === void 0 ? void 0 : _a.map((pm) => pm.id)) || [];
-                const notificationMessage = `Project scaffold request ${updatedRequest.REQID} has been modified for Project ${projectData === null || projectData === void 0 ? void 0 : projectData.PJT} by ${tradesManData.user.name}.`;
+                const notificationMessage = `A modified  request ${updatedRequest.REQID} has been submited from  ${tradesManData.user.name}for ${request.SCAFFID}.`;
                 if (pmUserIds.length > 0) {
                     for (const pmId of pmUserIds) {
                         const scaffoldIdToSend = updatedRequest.parentId
@@ -915,14 +960,15 @@ class tradesManServices {
                 // ✅ 9. Push Notification
                 const devices = yield prismaClient_1.default.device.findMany({
                     where: {
-                        userId: Number(projectData === null || projectData === void 0 ? void 0 : projectData.createdById),
-                        deviceToken: { not: null },
-                    },
+                        userId: { in: pmUserIds },
+                        deviceToken: { not: null }
+                    }
                 });
+                console.log("devices=================>>>>", devices);
                 for (const d of devices) {
                     if (!d.deviceToken)
                         continue;
-                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "Project Modification Request", notificationMessage);
+                    yield (0, utils_1.pushNotificationDelhi)(d.deviceToken, "Modified Scaffold Request", notificationMessage);
                 }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.UPDATE_SUCCESS,

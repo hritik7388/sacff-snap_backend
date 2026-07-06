@@ -255,6 +255,35 @@ class superAdminServices {
                 const html = (0, templates_1.companyAddTemplate)(newCompany.name, newCompany.user_type, newCompany.email, data.password);
                 const mail = yield (0, utils_1.sendMail)(newCompany.email, "Welcome to ScaffSnapp Team!", html);
                 console.log("mail====================>>>", mail);
+                const superAdmins = yield prismaClient_1.default.user.findMany({
+                    where: { user_type: "SUPER_ADMIN" },
+                    select: { id: true },
+                });
+                console.log("superAdmin-==================>>>>>", superAdmins);
+                if (superAdmins) {
+                    const superAdmin = superAdmins[0];
+                    const superAdminDevice = yield prismaClient_1.default.device.findFirst({
+                        where: {
+                            //  userId:superAdmins.,
+                            deviceToken: { not: null },
+                        },
+                        select: { deviceToken: true },
+                    });
+                    const notification = yield prismaClient_1.default.notification.create({
+                        data: {
+                            uuid: (0, uuid_1.v4)(),
+                            title: "New Company Registered",
+                            message: `A new company "${newCompany.name}" has been registered and is awaiting approval.`,
+                            type: "NEW_COMPANY_REGISTERED",
+                            role: "SUPER_ADMIN",
+                            companyId: newCompany.id,
+                            isRead: false,
+                            receiverId: Number(superAdmin.id),
+                            senderId: newCompany.id.toString(),
+                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/newCompreg.png"
+                        },
+                    });
+                }
                 const companyData = {
                     id: newCompany.id,
                     name: newCompany.name,
@@ -818,6 +847,74 @@ class superAdminServices {
             }
         });
     }
+    getpublishBlogs(status_1, search_1) {
+        return __awaiter(this, arguments, void 0, function* (status, search, page = 1, limit = 10) {
+            try {
+                const skip = (page - 1) * limit;
+                const endOfToday = new Date();
+                endOfToday.setHours(23, 59, 59, 999);
+                const whereClause = Object.assign(Object.assign({ status: { not: "DELETED" } }, (status && { status })), (search && {
+                    OR: [
+                        { blogTitle: { contains: search } },
+                        { blogBody: { contains: search } },
+                        { category: { contains: search } }
+                    ]
+                }));
+                const [blogs, total] = yield Promise.all([
+                    prismaClient_1.default.blog.findMany({
+                        where: whereClause,
+                        select: {
+                            id: true,
+                            blogTitle: true,
+                            category: true,
+                            publishDate: true,
+                            image: true,
+                            blogBody: true,
+                            status: true,
+                            createdById: true,
+                            createdAt: true,
+                            updatedAt: true,
+                        },
+                        skip,
+                        take: limit,
+                        orderBy: { publishDate: "desc" }
+                    }),
+                    prismaClient_1.default.blog.count({ where: whereClause })
+                ]);
+                const formattedBlogs = yield Promise.all(blogs.map((blog) => __awaiter(this, void 0, void 0, function* () {
+                    return ({
+                        id: blog.id,
+                        blogTitle: blog.blogTitle,
+                        category: blog.category,
+                        publishDate: blog.publishDate,
+                        image: blog.image ? yield (0, utils_1.generateReadUrl)(blog.image) : null,
+                        blogBody: blog.blogBody,
+                        status: blog.status,
+                        createdById: blog.createdById,
+                        createdAt: blog.createdAt,
+                        updatedAt: blog.updatedAt,
+                    });
+                })));
+                return {
+                    message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_FETCH_SUCCESS,
+                    data: formattedBlogs,
+                    pagination: {
+                        total,
+                        page,
+                        limit,
+                        totalPages: Math.ceil(total / limit)
+                    }
+                };
+            }
+            catch (error) {
+                console.error("Error fetching blogs:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error;
+            }
+        });
+    }
     getpublishBlog(status_1, search_1) {
         return __awaiter(this, arguments, void 0, function* (status, search, page = 1, limit = 10) {
             try {
@@ -1159,8 +1256,8 @@ class superAdminServices {
 }
 exports.superAdminServices = superAdminServices;
 (() => __awaiter(void 0, void 0, void 0, function* () {
-    const superadminEmail = "dushyant.kumar@mailinator.com";
-    const superadminPassword = "Agicent@1";
+    const superadminEmail = "Scaffsnapp@gmail.com";
+    const superadminPassword = "scaffsnap@1";
     try {
         const existingSuperAdmin = yield prismaClient_1.default.user.findFirst({
             where: { user_type: "SUPER_ADMIN" },

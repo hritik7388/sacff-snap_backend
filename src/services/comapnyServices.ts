@@ -213,99 +213,99 @@ export class CompanyServices {
         }
     }
 
-async getCompanyallDetails(page: number, limit: number) {
-    try {
-        const skip = (page - 1) * limit;
+    async getCompanyallDetails(page: number, limit: number) {
+        try {
+            const skip = (page - 1) * limit;
 
-        const [companyData, totalCount] = await Promise.all([
-            prisma.company.findMany({
-                where: {
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    isApproved: "APPROVED",
-                    isVerified: true,
-                    user_type: "COMPANY"
-                },
-                skip,
-                take: limit,
-                orderBy: {
-                    createdAt: "desc",
-                },
-                include: {
-                    projects: {
-                        include: {
-                            _count: {
-                                select: {
-                                    TradesManRequests: {
-                                        where: {
-                                            status: {
-                                                notIn: ["PENDING", "SUSPENDED", "REJECTED"]
+            const [companyData, totalCount] = await Promise.all([
+                prisma.company.findMany({
+                    where: {
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
+                        user_type: "COMPANY"
+                    },
+                    skip,
+                    take: limit,
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                    include: {
+                        projects: {
+                            include: {
+                                _count: {
+                                    select: {
+                                        TradesManRequests: {
+                                            where: {
+                                                status: {
+                                                    notIn: ["PENDING", "SUSPENDED", "REJECTED"]
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                    },
-                    _count: {
-                        select: {
-                            projects: true
+                        },
+                        _count: {
+                            select: {
+                                projects: true
+                            }
                         }
                     }
-                }
-            }),
+                }),
 
-            prisma.company.count({
-                where: {
-                    isDeleted: false,
-                    status: "ACTIVE",
-                    isApproved: "APPROVED",
-                    isVerified: true,
-                    user_type: "COMPANY"
-                },
-            })
-        ]);
+                prisma.company.count({
+                    where: {
+                        isDeleted: false,
+                        status: "ACTIVE",
+                        isApproved: "APPROVED",
+                        isVerified: true,
+                        user_type: "COMPANY"
+                    },
+                })
+            ]);
 
-        const companyWithProjectsCount = await Promise.all(
-            companyData.map(async ({ _count, projects, ...company }) => {
+            const companyWithProjectsCount = await Promise.all(
+                companyData.map(async ({ _count, projects, ...company }) => {
 
-                const totalScaffoldRequests = projects.reduce((sum, project) => {
-                    return sum + (project._count?.TradesManRequests || 0);
-                }, 0);
+                    const totalScaffoldRequests = projects.reduce((sum, project) => {
+                        return sum + (project._count?.TradesManRequests || 0);
+                    }, 0);
 
-                return {
-                    ...company,
-                    totalProjects: _count.projects,
-                    totalScaffoldRequests,
-                    image: company.image
-                };
-            })
-        );
+                    return {
+                        ...company,
+                        totalProjects: _count.projects,
+                        totalScaffoldRequests,
+                        image: company.image
+                    };
+                })
+            );
 
-        const totalPages = Math.ceil(totalCount / limit);
+            const totalPages = Math.ceil(totalCount / limit);
 
-        return {
-            message: RESPONSE_MESSAGES.COMPANY.FETCH_ALL_SUCCESS,
-            data: companyWithProjectsCount,
-            totalCount,
-            totalPages,
-            currentPage: page
-        };
+            return {
+                message: RESPONSE_MESSAGES.COMPANY.FETCH_ALL_SUCCESS,
+                data: companyWithProjectsCount,
+                totalCount,
+                totalPages,
+                currentPage: page
+            };
 
-    } catch (error: any) {
-        console.log("error===================>>>", error);
+        } catch (error: any) {
+            console.log("error===================>>>", error);
 
-        if (error instanceof CustomError) {
-            throw error;
+            if (error instanceof CustomError) {
+                throw error;
+            }
+
+            throw new CustomError(
+                RESPONSE_MESSAGES.COMPANY.FETCH_FAILED,
+                500,
+                error.message
+            );
         }
-
-        throw new CustomError(
-            RESPONSE_MESSAGES.COMPANY.FETCH_FAILED,
-            500,
-            error.message
-        );
     }
-}
 
     async getCompanyById(data: CompanyIdDTO) {
         try {
@@ -597,7 +597,7 @@ async getCompanyallDetails(page: number, limit: number) {
             const html = otpTemplate(user.name, emailOTP.otp.toString());
             console.log("html==================>>>>>", html)
 
-           const sendmails = await sendMail(
+            const sendmails = await sendMail(
                 user.email,
                 "Scaff Snap - OTP Verification",
                 html

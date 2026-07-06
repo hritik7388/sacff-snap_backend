@@ -1042,21 +1042,7 @@ export class subAdminServices {
             // =========================
             // 📱 PUSH NOTIFICATION (POPUP)
             // =========================
-            const devices = await prisma.device.findMany({
-                where: {
-                    userId: { in: allowedUserIds },
-                    deviceToken: { not: null }
-                },
-                select: { deviceToken: true }
-            });
-
-            for (const device of devices) {
-                await pushNotificationDelhi(
-                    device.deviceToken!,
-                    "PROJECT CREATED",
-                    message
-                );
-            }
+          
 
             // =========================
             // RESPONSE

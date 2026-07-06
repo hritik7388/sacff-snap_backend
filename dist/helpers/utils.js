@@ -249,7 +249,7 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
         const BASE_URL = "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
         const qrFinalLink = `${BASE_URL}?scaffId=${scaffholdDetails.id}` +
             `&userType=${scaffholdDetails.tradesmanUserType}` +
-            `&PJT=${scaffholdDetails.PJT}`;
+            `&PJT=${scaffholdDetails.PJT}+&requestId=${scaffholdDetails.id}`;
         const qrResult = yield (0, exports.qrCodeGenerator)(qrFinalLink, scaffholdDetails.tradesmanUserType, scaffholdDetails.status);
         if (!qrResult.success) {
             throw new Error("QR generation failed");

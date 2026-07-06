@@ -77,6 +77,22 @@ export class scaffHoldController {
             next(err);
         }
     }
+ async scanValidate(req: AuthenticatedRequest, res: Response, next: Function) {
+    try {
+       
+ const userId = Number(req.user!.id);
+      const requestId = Number(req.query.requestId)
+
+      const result = await scaffHold.scanValidate( userId, requestId, req.user
+      );
+
+      return res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+    
     async addScaffHoldCompetentPerson(req: AuthenticatedRequest, res: Response, next: Function) {
         try {
 

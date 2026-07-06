@@ -962,7 +962,7 @@ ${data.heavyDuty ? `
                             </div>
                             <div>
                                 <div class="contact-label">Name</div>
-                                <div class="contact-value">${data.clientname || 'N/A'}</div>
+                                <div class="contact-value">${data.clientName || 'N/A'}</div>
                             </div>
                         </div>
                         <div class="contact-item">

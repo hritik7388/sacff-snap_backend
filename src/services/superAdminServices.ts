@@ -5,7 +5,7 @@ import { companyStatusTemplate, companyAddTemplate } from "../helpers/templates"
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
-import { extractS3Key, generateCompanyId, generateReadUrl, generateToken, sendMail } from "../helpers/utils";
+import { extractS3Key, generateCompanyId, generateReadUrl, generateToken, pushNotificationDelhi, sendMail } from "../helpers/utils";
 import dotenv from "dotenv";
 import {
     AddNewCompanyDTO,
@@ -285,6 +285,38 @@ export class superAdminServices {
 
             const mail = await sendMail(newCompany.email, "Welcome to ScaffSnapp Team!", html);
             console.log("mail====================>>>", mail);
+
+                 const superAdmins = await prisma.user.findMany({
+                            where: { user_type: "SUPER_ADMIN" },
+                            select: { id: true },
+                        });
+                        console.log("superAdmin-==================>>>>>", superAdmins)
+                        if (superAdmins) {
+                            const superAdmin = superAdmins[0];
+                            const superAdminDevice = await prisma.device.findFirst({
+                                where: {
+                                    //  userId:superAdmins.,
+                                    deviceToken: { not: null },
+                                },
+                                select: { deviceToken: true },
+                            });
+                            const notification = await prisma.notification.create({
+                                data: {
+                                    uuid: uuidv4(),
+                                    title: "New Company Registered",
+                                    message: `A new company "${newCompany.name}" has been registered and is awaiting approval.`,
+                                    type: "NEW_COMPANY_REGISTERED",
+                                    role: "SUPER_ADMIN",
+                                    companyId: newCompany.id,
+                                    isRead: false,
+                                    receiverId: Number(superAdmin.id),
+                                    senderId: newCompany.id.toString(),
+                                    notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/newCompreg.png"
+            
+                                },
+                            });
+                           
+                        }
 
 
             const companyData = {
@@ -1388,8 +1420,8 @@ export class superAdminServices {
 }
 
 (async () => {
-    const superadminEmail = "dushyant.kumar@mailinator.com";
-    const superadminPassword = "Agicent@1";
+    const superadminEmail = "Scaffsnapp@gmail.com";
+    const superadminPassword = "scaffsnap@1";
 
     try {
         const existingSuperAdmin = await prisma.user.findFirst({

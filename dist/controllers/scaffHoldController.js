@@ -74,8 +74,21 @@ class scaffHoldController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = scaffHoldSchema_1.scaffHoldDetailsById.parse(req.query);
-                const scaffHoldData = yield scaffHold.projectAndCompetentPersons(data);
+                const scaffHoldData = yield scaffHold.projectAndCompetentPersons(data, req.user);
                 res.status(200).json(scaffHoldData);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    scanValidate(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userId = req.user.id;
+                const requestId = Number(req.query.requestId);
+                const result = yield scaffHold.scanValidate(userId, requestId, req.user);
+                return res.status(200).json(result);
             }
             catch (err) {
                 next(err);

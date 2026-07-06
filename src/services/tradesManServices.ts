@@ -146,7 +146,7 @@ export class tradesManServices {
                     isVerified: true,
                 },
                 include: {
-                    tradesman: true, // 🔥 IMPORTANT
+                    tradesman: true,
                 },
             });
 
@@ -181,11 +181,14 @@ export class tradesManServices {
                     PJT: data.PJT,
                     isDeleted: false,
                 },
+                include: {
+                    projectManagers: true,
+                },
             });
 
             if (!project) {
                 throw new CustomError(
-                    "You dont have project to  login or ProjectId is invalid",
+                    "You dont have project to login or ProjectId is invalid",
                     404
                 );
             }
@@ -195,7 +198,20 @@ export class tradesManServices {
                 throw new CustomError("Employer name is required", 400);
             }
 
-            // ✅ STEP 7: UPSERT CONTEXT (🔥 CORE LOGIC)
+            // ✅ CHECK IF TRADESMAN ALREADY JOINED THIS PROJECT
+            const existingContext =
+                await prisma.tradesmanProjectContext.findUnique({
+                    where: {
+                        tradesmanId_projectId: {
+                            tradesmanId: tradesman.id,
+                            projectId: project.id,
+                        },
+                    },
+                });
+
+            const isFirstTimeJoin = !existingContext;
+
+            // ✅ STEP 7: UPSERT CONTEXT
             await prisma.tradesmanProjectContext.upsert({
                 where: {
                     tradesmanId_projectId: {
@@ -213,6 +229,54 @@ export class tradesManServices {
                 },
             });
 
+            // ✅ SEND NOTIFICATION ONLY ON FIRST JOIN
+            if (isFirstTimeJoin) {
+                const projectManagerIds = project.projectManagers.map(
+                    (pm) => pm.id
+                );
+
+                const message = `Tradesman ${user.name} (${tradesman.craft}) joined project ${project.projectName}`;
+
+                for (const pmId of projectManagerIds) {
+                    await prisma.notification.create({
+                        data: {
+                            uuid: uuidv4(),
+                            title: "TRADESMAN JOINED PROJECT",
+                            message,
+                            type: "TRADESMAN_JOINED_PROJECT",
+                            role: "PROJECT_MANAGER",
+                            receiverId: BigInt(pmId),
+                            senderId: user.id.toString(),
+                            isRead: false,
+                            notificationImage:
+                                "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/join.png",
+                            tradesmanCraft: tradesman.craft,
+                        },
+                    });
+                }
+
+                // ✅ PUSH NOTIFICATION
+                const devices = await prisma.device.findMany({
+                    where: {
+                        userId: { in: projectManagerIds },
+                        user_type: "PROJECT_MANAGER",
+                        deviceToken: { not: null },
+                    },
+                });
+
+                await Promise.all(
+                    devices.map((d) =>
+                        d.deviceToken
+                            ? pushNotificationDelhi(
+                                d.deviceToken,
+                                "TRADESMAN JOINED PROJECT",
+                                message
+                            )
+                            : null
+                    )
+                );
+            }
+
             // ✅ STEP 8: TOKEN
             const jwtPayload = {
                 login_id: user.email,
@@ -220,7 +284,7 @@ export class tradesManServices {
                 uuid: user.uuid,
                 user_type: user.user_type,
                 userId: user.id,
-                PJT: data.PJT
+                PJT: data.PJT,
             };
 
             const token = generateToken(jwtPayload);
@@ -230,28 +294,33 @@ export class tradesManServices {
                 where: { id: user.id },
                 data: { lastLogin: new Date() },
             });
+
             const userRes = {
                 id: user.id.toString(),
                 uuid: user.uuid,
                 projectId: project.id,
                 projectCode: project.PJT,
-                employerName: data.employerName, // 🔥 return for frontend
+                employerName: data.employerName,
                 user_type: user.user_type,
                 craft: tradesman.craft,
-            }
+            };
 
             // ✅ STEP 10: RESPONSE
             return {
                 message: "Login successful",
                 token,
-                data: userRes, // 🔥 return user details for frontend use
-
+                data: userRes,
             };
         } catch (error: any) {
             if (error instanceof CustomError) {
                 throw error;
             }
-            throw new CustomError("Login failed", 500, error.message);
+
+            throw new CustomError(
+                "Login failed",
+                500,
+                error.message
+            );
         }
     }
     async getTradesManDetails(id: number) {
@@ -783,14 +852,14 @@ export class tradesManServices {
             // ✅ 7. SEND NOTIFICATION TO PROJECT MANAGERS
             const pmUserIds = projectData.projectManagers.map(pm => pm.id);
 
-            const notificationMessage = `New Project Scaffold request ${newRequest.REQID} has been created for project ${projectData.PJT} by ${tradesManData.name}.`;
+            const notificationMessage = `New  Scaffold request ${newRequest.REQID} has been received from  ${tradesManData.name} for ${requestData.SCAFFID}.`;
 
             if (pmUserIds.length > 0) {
                 for (const pmId of pmUserIds) {
                     await prisma.notification.create({
                         data: {
                             uuid: uuidv4(),
-                            title: "New Project Scaffold Request",
+                            title: "New  Scaffold Request",
                             message: notificationMessage,
                             type: "SCAFFHOLD_REQUEST",
                             scaffoldRequestId: newRequest.id.toString(),
@@ -1005,7 +1074,7 @@ export class tradesManServices {
             const pmUserIds =
                 projectData?.projectManagers?.map((pm) => pm.id) || [];
 
-            const notificationMessage = `Project scaffold request ${updatedRequest.REQID} has been modified for Project ${projectData?.PJT} by ${tradesManData.user.name}.`;
+            const notificationMessage = `A modified  request ${updatedRequest.REQID} has been submited from  ${tradesManData.user.name}for ${request.SCAFFID}.`;
 
             if (pmUserIds.length > 0) {
                 for (const pmId of pmUserIds) {
@@ -1035,17 +1104,18 @@ export class tradesManServices {
             // ✅ 9. Push Notification
             const devices = await prisma.device.findMany({
                 where: {
-                    userId: Number(projectData?.createdById),
-                    deviceToken: { not: null },
-                },
+                    userId: { in: pmUserIds },
+                    deviceToken: { not: null }
+                }
             });
+            console.log("devices=================>>>>", devices)
 
             for (const d of devices) {
                 if (!d.deviceToken) continue;
 
                 await pushNotificationDelhi(
                     d.deviceToken,
-                    "Project Modification Request",
+                    "Modified Scaffold Request",
                     notificationMessage
                 );
             }
@@ -1591,18 +1661,18 @@ export class tradesManServices {
             }
 
             // ✅ 2. Only PENDING allowed
-            if (existingRequest.status !== "PENDING") {
-                throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLD.REVOKE_NOT_ALLOWED,
-                    400,
-                    "Only pending requests can be revoked"
-                );
-            }
+
 
             // ✅ 3. Delete history
             await prisma.updateProjectScaffHoldRequest.deleteMany({
                 where: {
                     requestId: requestId.scaffHoldId,
+                },
+            });
+            await prisma.notification.deleteMany({
+                where: {
+                    scaffoldRequestId:
+                        requestId.scaffHoldId.toString(),
                 },
             });
 

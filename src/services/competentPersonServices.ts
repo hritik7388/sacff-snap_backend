@@ -598,7 +598,7 @@ export class CompetentPersonServices {
                 }
 
                 // 🔥 CREATE NEW CYCLE
-                await prisma.rentalCycle.create({
+                const newCycle = await prisma.rentalCycle.create({
                     data: {
 
                         uuid: uuidv4(),
@@ -616,6 +616,65 @@ export class CompetentPersonServices {
                         rentalDays: 0,
                     },
                 });
+                const projectWithPMs = await prisma.project.findUnique({
+                    where: {
+                        id: request.projectId,
+                    },
+                    include: {
+                        projectManagers: {
+                            select: {
+                                id: true,
+                            },
+                        },
+                    },
+                });
+
+                const projectManagerIds =
+                    projectWithPMs?.projectManagers.map(pm => pm.id) || [];
+
+                const rentalMessage =
+                    `The 28-day rental cycle for Scaffold ${request.id} has been completed. Action is required`;
+
+                for (const pmId of projectManagerIds) {
+
+                    await prisma.notification.create({
+                        data: {
+                            uuid: uuidv4(),
+                            title: `Rental Cycle Completed ${newCycle.cycleCount}`,
+                            message: rentalMessage,
+                            type: "RENTAL_CYCLE_UPDATED",
+                            role: "PROJECT_MANAGER",
+                            receiverId: pmId,
+                            senderId: userId.toString(),
+                            scaffoldRequestId: request.id.toString(),
+                            isRead: false,
+                            notificationImage:
+                                "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/rental.png",
+                        },
+                    });
+                }
+
+                const pmDevices = await prisma.device.findMany({
+                    where: {
+                        userId: { in: projectManagerIds },
+                        user_type: "PROJECT_MANAGER",
+                        deviceToken: { not: null },
+                    },
+                    select: {
+                        deviceToken: true,
+                    },
+                });
+
+                for (const d of pmDevices) {
+
+                    if (!d.deviceToken) continue;
+
+                    await pushNotificationDelhi(
+                        d.deviceToken,
+                        `Rental Cycle ${newCycle.cycleCount}`,
+                        rentalMessage
+                    );
+                }
             }
 
             // 🔥 UPDATE REQUEST STATUS
@@ -699,44 +758,35 @@ export class CompetentPersonServices {
                 });
 
             // 🔥 NOTIFICATION MESSAGE
-            const notificationMessage =
-                `Project ${request.projectId} | ${request.project?.projectName
-                } has been ${data.timeLineStatus
-                }. Action performed by ${user.name
-                }.`;
+            const isCompleted = data.timeLineStatus === "DISMANTLED";
 
+            const notificationTitle = isCompleted
+                ? "Scaffold Completed!"
+                : "Scaffold Status Updated";
+
+            const notificationMessage = isCompleted
+                ? `Scaffold ${request.id} Dismantled: "${data.timeLineStatus}" completed.`
+                : `Scaffold ${request.id} update: "${data.timeLineStatus}" completed.`;
+
+            const notificationImage = isCompleted
+                ? "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/statusCompleted.png"
+                : "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/statusUpdated.png";
             // 🔥 COMPANY NOTIFICATION
             if (projectFullData) {
 
                 await prisma.notification.create({
                     data: {
-
                         uuid: uuidv4(),
-
-                        title:
-                            `Project ${data.timeLineStatus}`,
-
+                        title: notificationTitle,
                         message: notificationMessage,
-
                         type: "SCAFFOLD_STATUS_UPDATE",
-
                         role: "COMPANY",
-
-                        companyId:
-                            projectFullData.createdById,
-
-                        receiverId:
-                            projectFullData.createdById,
-
+                        companyId: projectFullData.createdById,
+                        receiverId: projectFullData.createdById,
                         senderId: userId.toString(),
-
-                        scaffoldRequestId:
-                            request.id.toString(),
-
+                        scaffoldRequestId: request.id.toString(),
                         isRead: false,
-
-                        notificationImage:
-                            "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/scaffDismented.png",
+                        notificationImage: notificationImage,
                     },
                 });
 
@@ -755,16 +805,6 @@ export class CompetentPersonServices {
                         },
                     });
 
-                for (const d of companyDevice) {
-
-                    if (!d.deviceToken) continue;
-
-                    await pushNotificationDelhi(
-                        d.deviceToken,
-                        `Project ${data.timeLineStatus}`,
-                        notificationMessage
-                    );
-                }
             }
 
             // 🔥 PROJECT MANAGERS

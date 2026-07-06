@@ -231,6 +231,21 @@ class superAdminController {
             }
         });
     }
+    getPublishblogs(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const search = req.query.search ? String(req.query.search) : undefined;
+                const page = req.query.page ? Number(req.query.page) : 1;
+                const limit = req.query.limit ? Number(req.query.limit) : 10;
+                const status = req.query.status ? String(req.query.status) : undefined;
+                const result = yield superAdmin.getpublishBlogs(status, search, page, limit);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
     getPublishblog(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
