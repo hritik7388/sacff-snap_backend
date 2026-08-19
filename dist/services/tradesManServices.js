@@ -1456,13 +1456,15 @@ class tradesManServices {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.NOT_FOUND, 404, "Project scaffhold request not found");
                 }
                 // ✅ 2. Only PENDING allowed
-                if (existingRequest.status !== "PENDING") {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLD.REVOKE_NOT_ALLOWED, 400, "Only pending requests can be revoked");
-                }
                 // ✅ 3. Delete history
                 yield prismaClient_1.default.updateProjectScaffHoldRequest.deleteMany({
                     where: {
                         requestId: requestId.scaffHoldId,
+                    },
+                });
+                yield prismaClient_1.default.notification.deleteMany({
+                    where: {
+                        scaffoldRequestId: requestId.scaffHoldId.toString(),
                     },
                 });
                 // ✅ 4. Get PM IDs

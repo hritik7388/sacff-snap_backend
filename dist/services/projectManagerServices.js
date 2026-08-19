@@ -486,7 +486,7 @@ class ProjectManagerServices {
                         }
                     }
                 });
-                if (!requestData || requestData.status !== "PENDING") {
+                if (!requestData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.REQUEST_NOT_FOUND, 404, "No pending request found");
                 }
                 // ✅ 2. UPDATE REQUEST

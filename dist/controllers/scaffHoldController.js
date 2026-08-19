@@ -85,7 +85,7 @@ class scaffHoldController {
     scanValidate(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const userId = req.user.id;
+                const userId = Number(req.user.id);
                 const requestId = Number(req.query.requestId);
                 const result = yield scaffHold.scanValidate(userId, requestId, req.user);
                 return res.status(200).json(result);

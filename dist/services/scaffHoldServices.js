@@ -1025,11 +1025,6 @@ class ScaffHoldsServices {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c, _d;
             try {
-                console.log("======================================");
-                console.log("TOKEN USER ID =>", userId);
-                console.log("TOKEN ROLE =>", user === null || user === void 0 ? void 0 : user.user_type);
-                console.log("REQUEST ID =>", requestId);
-                console.log("======================================");
                 // ==========================
                 // USER DETAILS
                 // ==========================
