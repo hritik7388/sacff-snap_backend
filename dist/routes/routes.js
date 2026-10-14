@@ -15,6 +15,7 @@ const projectManagerRoutes_1 = __importDefault(require("./projectManagerRoutes")
 const passwordRoutes_1 = __importDefault(require("./passwordRoutes"));
 const scaffHoldRoutes_1 = __importDefault(require("./scaffHoldRoutes"));
 const competentPersonRoutes_1 = __importDefault(require("./competentPersonRoutes"));
+const subscriptionRoutes_1 = __importDefault(require("./subscriptionRoutes"));
 const router = (0, express_1.Router)();
 router.use('/v1/company', companyRoutes_1.default);
 router.use('/v1/device', deviceRoutes_1.default);
@@ -26,4 +27,5 @@ router.use('/v1/projectManager', projectManagerRoutes_1.default);
 router.use('/v1/password', passwordRoutes_1.default);
 router.use('/v1/scaffHold', scaffHoldRoutes_1.default);
 router.use('/v1/competentPerson', competentPersonRoutes_1.default);
+router.use('/v1/subscription', subscriptionRoutes_1.default);
 exports.default = router;

@@ -94,6 +94,7 @@ model Company {
   competentPersons CompetentPerson[]
   projects         Project[]
   projectManagers  ProjectManager[]
+  subscription     CompanySubscription?
 
   @@index([createdById], map: "Company_createdById_fkey")
 }
@@ -682,4 +683,38 @@ enum ScaffholdTags {
   GREEN
   RED
   YELLOW
+}
+
+// ─── Subscription ────────────────────────────────────────────────────────────
+
+model CompanySubscription {
+  id                     BigInt             @id @default(autoincrement())
+  uuid                   String             @unique
+  companyId              BigInt             @unique
+  planType               SubscriptionPlan   @default(MONTHLY)
+  status                 SubscriptionStatus @default(PENDING)
+  stripeCustomerId       String?
+  stripeSessionId        String?
+  stripeSubscriptionId   String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  company                Company            @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  FAILED
 }
