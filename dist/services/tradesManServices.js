@@ -855,7 +855,7 @@ class tradesManServices {
                         craft: request.craft,
                         REQID: request.REQID,
                         createdById: request.createdById,
-                        status: request.status,
+                        status: "PENDING",
                         length: data.length,
                         width: data.width,
                         height: data.height,

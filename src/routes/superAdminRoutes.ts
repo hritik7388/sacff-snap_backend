@@ -16,6 +16,63 @@ const superAdminRoutes = new superAdminController();
  * @access  Public
  */
 router.post('/login', clientAuthMiddleware, superAdminRoutes.superAdminLogin.bind(superAdminRoutes));
+router.post(
+    "/questionnaire/create",
+    clientAuthMiddleware,
+    authMiddleware,isSUperAdmin,
+    superAdminRoutes.createQuestionnaire.bind(superAdminRoutes)
+);
+
+router.get(
+  "/questionnaire/list",
+  clientAuthMiddleware,
+  authMiddleware,isSUperAdmin,
+  superAdminRoutes.getAllQuestionnaires.bind(
+    superAdminRoutes,
+  ),
+);
+
+// Get complete quiz with questions and options
+router.get(
+  "/questionnaire/:id",
+  clientAuthMiddleware,
+  authMiddleware,isSUperAdmin,
+  superAdminRoutes.getQuestionnaireById.bind(
+    superAdminRoutes,
+  ),
+);
+
+// Update quiz
+router.put(
+  "/questionnaire/update",
+  clientAuthMiddleware,
+  authMiddleware,isSUperAdmin,
+  superAdminRoutes.updateQuestionnaire.bind(
+    superAdminRoutes,
+  ),
+);
+
+// Change only quiz status
+router.patch(
+  "/questionnaire/status",
+  clientAuthMiddleware,
+  authMiddleware,isSUperAdmin,
+  superAdminRoutes.changeQuestionnaireStatus.bind(
+    superAdminRoutes,
+  ),
+);
+
+/**
+ * @route   GET /api/v1/superAdmin/questionnaire/dashboard
+ * @desc    Get questionnaire dashboard counts
+ * @access  SuperAdmin
+ */
+router.get(
+    "/questionnaire/dashboard",
+    clientAuthMiddleware,
+    authMiddleware,isSUperAdmin,
+    superAdminRoutes.getQuestionnaireDashboard.bind(superAdminRoutes)
+);
 
 /**
  * @route   GET /api/v1/superAdmin/dashboard

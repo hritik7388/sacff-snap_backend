@@ -5,9 +5,56 @@ export const superAdminSchema = z.object({
     email: z.string().email(),
     password: z.string(),
 
-})
+})  
+
+export const searchQuestionnaireSchema = z.object({
+  search: z.string().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export type SearchQuestionnaireDTO = z.infer<
+  typeof searchQuestionnaireSchema
+>;
 
 
+
+export const createQuestionnaireSchema = z.object({
+    testName: z.string().trim().min(1, "Test title is required"),
+    description: z.string().trim().min(1, "Description is required"),
+    status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
+    videoUrl: z.string().url("Valid video URL is required"),
+    certificateTemplateUrl: z.string().url("Valid certificate URL is required"),
+
+    questions: z.array(
+        z.object({
+            questionText: z.string().trim().min(1, "Question is required"),
+            options: z.array(
+                z.object({
+                    optionText: z.string().trim().min(1, "Option text is required"),
+                    isCorrect: z.boolean(),
+                })
+            ).length(4, "Each question must have exactly 4 options"),
+        }).superRefine((question, ctx) => {
+            const correctCount = question.options.filter(
+                (option) => option.isCorrect
+            ).length;
+
+            if (correctCount !== 1) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Exactly one option must be correct",
+                    path: ["options"],
+                });
+            }
+        })
+    ).min(1, "At least one question is required"),
+});
+
+export type CreateQuestionnaireDTO = z.infer<
+    typeof createQuestionnaireSchema
+>;
 
 
 export const approveCompanyRequestSchema = z.object({
@@ -20,6 +67,21 @@ export const rejectCompanyRequestSchema = z.object({
 export const companyStatus = z.object({
     id: z.number(),
 });
+
+export const updateQuestionnaireSchema =
+  createQuestionnaireSchema.partial();
+
+export const changeQuestionnaireStatusSchema = z.object({
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
+});
+
+export type UpdateQuestionnaireDTO = z.infer<
+  typeof updateQuestionnaireSchema
+>;
+
+export type ChangeQuestionnaireStatusDTO = z.infer<
+  typeof changeQuestionnaireStatusSchema
+>;
 
 export const addNewCompanySchema = z.object({
     name: z.string().min(1, "Company Name is required"),

@@ -14,6 +14,92 @@ const superAdminServices_1 = require("../services/superAdminServices");
 const superAdminSchema_1 = require("../schemas/superAdminSchema");
 const superAdmin = new superAdminServices_1.superAdminServices();
 class superAdminController {
+    createQuestionnaire(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = superAdminSchema_1.createQuestionnaireSchema.parse(req.body);
+                // JWT authentication middleware must attach the verified user to req.user.
+                const superAdminId = BigInt(req.user.id);
+                const result = yield superAdmin.createQuestionnaireServices(data, superAdminId);
+                res.status(201).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    getQuestionnaireDashboard(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const result = yield superAdmin.getQuestionnaireDashboardServices();
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    getAllQuestionnaires(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = superAdminSchema_1.searchQuestionnaireSchema.parse({
+                    search: req.query.search,
+                    status: req.query.status,
+                    startDate: req.query.startDate,
+                    endDate: req.query.endDate,
+                });
+                const page = Number(req.query.page) || 1;
+                const limit = Number(req.query.limit) || 10;
+                const result = yield superAdmin.getAllQuestionnairesServices(data, page, limit);
+                res.status(200).json(result);
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
+    getQuestionnaireById(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const result = yield superAdmin.getQuestionnaireByIdServices(Array.isArray(req.params.id) ? ((_a = req.params.id[0]) !== null && _a !== void 0 ? _a : "") : req.params.id);
+                res.status(200).json(result);
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
+    // 2. Update quiz by ID
+    updateQuestionnaire(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const id = String((_a = req.body.id) !== null && _a !== void 0 ? _a : "");
+                const data = superAdminSchema_1.updateQuestionnaireSchema.parse(req.body);
+                const result = yield superAdmin.updateQuestionnaireServices(id, data);
+                res.status(200).json(result);
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
+    // 3. Change quiz status
+    changeQuestionnaireStatus(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const id = String((_a = req.body.id) !== null && _a !== void 0 ? _a : "");
+                const { status } = superAdminSchema_1.changeQuestionnaireStatusSchema.parse(req.body);
+                const result = yield superAdmin.changeQuestionnaireStatusServices(id, status);
+                res.status(200).json(result);
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
     superAdminLogin(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {

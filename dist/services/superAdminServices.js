@@ -35,16 +35,397 @@ const utils_1 = require("../helpers/utils");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 class superAdminServices {
+    createQuestionnaireServices(data, superAdminId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const superAdmin = yield prismaClient_1.default.user.findFirst({
+                    where: {
+                        id: superAdminId,
+                        user_type: "SUPER_ADMIN",
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                    select: { id: true },
+                });
+                if (!superAdmin) {
+                    throw new customError_1.CustomError("Unauthorized SuperAdmin", 403, "SuperAdmin access required");
+                }
+                const questionnaire = yield prismaClient_1.default.questionnaire.create({
+                    data: {
+                        uuid: (0, uuid_1.v4)(),
+                        testName: data.testName,
+                        description: data.description,
+                        status: data.status,
+                        videoUrl: data.videoUrl,
+                        certificateTemplateUrl: data.certificateTemplateUrl,
+                        createdById: superAdmin.id,
+                        questions: {
+                            create: data.questions.map((question, index) => ({
+                                questionText: question.questionText,
+                                sortOrder: index,
+                                timeLimitSeconds: 60,
+                                options: {
+                                    create: question.options.map((option) => ({
+                                        optionText: option.optionText,
+                                        isCorrect: option.isCorrect,
+                                    })),
+                                },
+                            })),
+                        },
+                    },
+                    include: {
+                        questions: {
+                            orderBy: { sortOrder: "asc" },
+                            include: {
+                                options: {
+                                    select: {
+                                        id: true,
+                                        optionText: true,
+                                        isCorrect: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+                return {
+                    status: 201,
+                    message: "Questionnaire created successfully",
+                    data: questionnaire,
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to create questionnaire", 500, error.message);
+            }
+        });
+    }
+    getQuestionnaireDashboardServices() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const [totalQuizzes, active, inactive, suspended] = yield Promise.all([
+                    prismaClient_1.default.questionnaire.count(),
+                    prismaClient_1.default.questionnaire.count({
+                        where: { status: "ACTIVE" },
+                    }),
+                    prismaClient_1.default.questionnaire.count({
+                        where: { status: "INACTIVE" },
+                    }),
+                    prismaClient_1.default.questionnaire.count({
+                        where: { status: "SUSPENDED" },
+                    }),
+                ]);
+                return {
+                    status: 200,
+                    message: "Questionnaire dashboard fetched successfully",
+                    data: {
+                        totalQuizzes,
+                        active,
+                        inactive,
+                        suspended,
+                    },
+                };
+            }
+            catch (error) {
+                throw new customError_1.CustomError("Failed to fetch questionnaire dashboard", 500, error.message);
+            }
+        });
+    }
+    getAllQuestionnairesServices(data_1) {
+        return __awaiter(this, arguments, void 0, function* (data, page = 1, limit = 10) {
+            var _a;
+            try {
+                // Pagination validation
+                page = Number(page);
+                limit = Number(limit);
+                if (!Number.isInteger(page) ||
+                    !Number.isInteger(limit) ||
+                    page < 1 ||
+                    limit < 1 ||
+                    limit > 100) {
+                    throw new customError_1.CustomError("Invalid pagination values", 400, "Page must be >= 1 and limit must be between 1 and 100");
+                }
+                const skip = (page - 1) * limit;
+                const whereCondition = {};
+                // Search by quiz title or description
+                const searchTerm = (_a = data === null || data === void 0 ? void 0 : data.search) === null || _a === void 0 ? void 0 : _a.trim();
+                if (searchTerm) {
+                    whereCondition.OR = [
+                        {
+                            testName: {
+                                contains: searchTerm,
+                            },
+                        },
+                        {
+                            description: {
+                                contains: searchTerm,
+                            },
+                        },
+                    ];
+                }
+                // Optional status filter
+                if (data === null || data === void 0 ? void 0 : data.status) {
+                    whereCondition.status = data.status;
+                }
+                // Optional date filter
+                if ((data === null || data === void 0 ? void 0 : data.startDate) || (data === null || data === void 0 ? void 0 : data.endDate)) {
+                    const createdAt = {};
+                    if (data.startDate) {
+                        const startDate = new Date(data.startDate);
+                        if (Number.isNaN(startDate.getTime())) {
+                            throw new customError_1.CustomError("Invalid start date", 400, "Please provide a valid startDate");
+                        }
+                        createdAt.gte = startDate;
+                    }
+                    if (data.endDate) {
+                        const endDate = new Date(data.endDate);
+                        if (Number.isNaN(endDate.getTime())) {
+                            throw new customError_1.CustomError("Invalid end date", 400, "Please provide a valid endDate");
+                        }
+                        // Include the complete end date when YYYY-MM-DD is provided
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(data.endDate)) {
+                            endDate.setDate(endDate.getDate() + 1);
+                            createdAt.lt = endDate;
+                        }
+                        else {
+                            createdAt.lte = endDate;
+                        }
+                    }
+                    if (createdAt.gte && createdAt.lt && createdAt.gte >= createdAt.lt) {
+                        throw new customError_1.CustomError("Invalid date range", 400, "startDate must be before or equal to endDate");
+                    }
+                    whereCondition.createdAt = createdAt;
+                }
+                const [questionnaires, totalCount] = yield Promise.all([
+                    prismaClient_1.default.questionnaire.findMany({
+                        where: whereCondition,
+                        select: {
+                            id: true,
+                            uuid: true,
+                            testName: true,
+                            description: true,
+                            videoUrl: true,
+                            certificateTemplateUrl: true,
+                            status: true,
+                            createdById: true,
+                            createdAt: true,
+                            updatedAt: true,
+                            _count: {
+                                select: {
+                                    questions: true,
+                                },
+                            },
+                        },
+                        orderBy: {
+                            createdAt: "desc",
+                        },
+                        skip,
+                        take: limit,
+                    }),
+                    prismaClient_1.default.questionnaire.count({
+                        where: whereCondition,
+                    }),
+                ]);
+                const totalPages = Math.ceil(totalCount / limit);
+                const responseData = questionnaires.map((quiz) => ({
+                    id: quiz.id.toString(),
+                    uuid: quiz.uuid,
+                    testName: quiz.testName,
+                    description: quiz.description,
+                    videoUrl: quiz.videoUrl,
+                    certificateTemplateUrl: quiz.certificateTemplateUrl,
+                    status: quiz.status,
+                    createdById: quiz.createdById.toString(),
+                    totalQuestions: quiz._count.questions,
+                    createdAt: quiz.createdAt,
+                    updatedAt: quiz.updatedAt,
+                }));
+                return {
+                    message: "Questionnaires fetched successfully",
+                    data: responseData,
+                    totalCount,
+                    totalPages,
+                    currentPage: page,
+                    limit,
+                };
+            }
+            catch (error) {
+                console.error("Error fetching questionnaires:", error);
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch questionnaires", 500, error.message);
+            }
+        });
+    }
+    getQuestionnaireByIdServices(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (!/^\d+$/.test(id) || BigInt(id) <= BigInt(0)) {
+                    throw new customError_1.CustomError("Invalid questionnaire ID", 400, "Invalid ID");
+                }
+                const quiz = yield prismaClient_1.default.questionnaire.findUnique({
+                    where: { id: BigInt(id) },
+                    include: {
+                        questions: {
+                            orderBy: { sortOrder: "asc" },
+                            include: {
+                                options: {
+                                    select: {
+                                        id: true,
+                                        questionId: true,
+                                        optionText: true,
+                                        isCorrect: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+                if (!quiz) {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Not found");
+                }
+                return {
+                    message: "Questionnaire fetched successfully",
+                    data: Object.assign(Object.assign({}, quiz), { id: quiz.id.toString(), createdById: quiz.createdById.toString(), questions: quiz.questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))) }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to fetch questionnaire", 500, error.message);
+            }
+        });
+    }
+    updateQuestionnaireServices(id, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const questionnaireId = BigInt(id);
+                const existing = yield prismaClient_1.default.questionnaire.findUnique({
+                    where: { id: questionnaireId },
+                    select: { id: true },
+                });
+                if (!existing) {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Not found");
+                }
+                const updated = yield prismaClient_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                    // Update quiz details
+                    yield tx.questionnaire.update({
+                        where: { id: questionnaireId },
+                        data: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (data.testName !== undefined && {
+                            testName: data.testName,
+                        })), (data.description !== undefined && {
+                            description: data.description,
+                        })), (data.videoUrl !== undefined && {
+                            videoUrl: data.videoUrl,
+                        })), (data.certificateTemplateUrl !== undefined && {
+                            certificateTemplateUrl: data.certificateTemplateUrl,
+                        })), (data.status !== undefined && {
+                            status: data.status,
+                        })),
+                    });
+                    // Replace questions and options only when provided
+                    if (data.questions !== undefined) {
+                        yield tx.question.deleteMany({
+                            where: { questionnaireId },
+                        });
+                        for (const [index, question] of data.questions.entries()) {
+                            yield tx.question.create({
+                                data: {
+                                    questionnaireId,
+                                    questionText: question.questionText,
+                                    sortOrder: index,
+                                    timeLimitSeconds: 60,
+                                    options: {
+                                        create: question.options.map((option) => ({
+                                            optionText: option.optionText,
+                                            isCorrect: option.isCorrect,
+                                        })),
+                                    },
+                                },
+                            });
+                        }
+                    }
+                    return tx.questionnaire.findUniqueOrThrow({
+                        where: { id: questionnaireId },
+                        include: {
+                            questions: {
+                                orderBy: { sortOrder: "asc" },
+                                include: {
+                                    options: true,
+                                },
+                            },
+                        },
+                    });
+                }), {
+                    maxWait: 10000,
+                    timeout: 30000,
+                });
+                return {
+                    message: "Questionnaire updated successfully",
+                    data: Object.assign(Object.assign({}, updated), { id: updated.id.toString(), createdById: updated.createdById.toString(), questions: updated.questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))) }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                if (error.code === "P2025") {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Not found");
+                }
+                throw new customError_1.CustomError("Failed to update questionnaire", 500, error.message);
+            }
+        });
+    }
+    changeQuestionnaireStatusServices(id, status) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const updated = yield prismaClient_1.default.questionnaire.update({
+                    where: { id: BigInt(id) },
+                    data: { status },
+                    select: {
+                        id: true,
+                        uuid: true,
+                        testName: true,
+                        status: true,
+                        updatedAt: true,
+                    },
+                });
+                return {
+                    message: "Questionnaire status updated successfully",
+                    data: Object.assign(Object.assign({}, updated), { id: updated.id.toString() }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                if (error.code === "P2025") {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Not found");
+                }
+                throw new customError_1.CustomError("Failed to update questionnaire status", 500, error.message);
+            }
+        });
+    }
     loginSuperAdminServices(data) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const userData = yield prismaClient_1.default.user.findUnique({
-                    where: { email: data.email, status: "ACTIVE", isDeleted: false, isVerified: true },
+                    where: {
+                        email: data.email,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
                 });
                 if (!userData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 500, "User not found");
                 }
-                const isPasswordValid = userData.password ? yield bcryptjs_1.default.compare(data.password, userData.password) : false;
+                const isPasswordValid = userData.password
+                    ? yield bcryptjs_1.default.compare(data.password, userData.password)
+                    : false;
                 if (!isPasswordValid) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.PASSWORD_MISMATCH, 500, "Invalid password");
                 }
@@ -103,7 +484,7 @@ class superAdminServices {
                 const totalProjects = yield prismaClient_1.default.project.count({
                     where: {
                         isDeleted: false,
-                    }
+                    },
                 });
                 const blockCount = yield prismaClient_1.default.company.count({
                     where: {
@@ -162,7 +543,7 @@ class superAdminServices {
                     where: { id: data.id },
                     data: {
                         isApproved: "APPROVED",
-                        status: "ACTIVE"
+                        status: "ACTIVE",
                     },
                 });
                 const html = (0, templates_1.companyStatusTemplate)(updatedCompany.name, updatedCompany.CMPId || "", updatedCompany.isApproved);
@@ -187,7 +568,12 @@ class superAdminServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const companyData = yield prismaClient_1.default.company.findUnique({
-                    where: { id: data.id, isDeleted: false, isApproved: "PENDING", isVerified: true },
+                    where: {
+                        id: data.id,
+                        isDeleted: false,
+                        isApproved: "PENDING",
+                        isVerified: true,
+                    },
                 });
                 if (!companyData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.COMPANY.NOT_FOUND, 500, "Company Not found");
@@ -249,7 +635,7 @@ class superAdminServices {
                         latitude: data.latitude,
                         longitude: data.longitude,
                         CMPId: cmpId,
-                        image: data.image
+                        image: data.image,
                     },
                 });
                 const html = (0, templates_1.companyAddTemplate)(newCompany.name, newCompany.user_type, newCompany.email, data.password);
@@ -280,7 +666,7 @@ class superAdminServices {
                             isRead: false,
                             receiverId: Number(superAdmin.id),
                             senderId: newCompany.id.toString(),
-                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/newCompreg.png"
+                            notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/newCompreg.png",
                         },
                     });
                 }
@@ -296,7 +682,7 @@ class superAdminServices {
                     user_type: newCompany.user_type,
                     latitude: newCompany.latitude,
                     longitude: newCompany.longitude,
-                    CMPId: newCompany.CMPId
+                    CMPId: newCompany.CMPId,
                 };
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.COMPANY.REGISTER_SUCCESS,
@@ -321,7 +707,7 @@ class superAdminServices {
                         id: data.id,
                         isDeleted: false,
                         status: "ACTIVE",
-                        isVerified: true
+                        isVerified: true,
                     },
                 });
                 if (!companyData) {
@@ -331,7 +717,7 @@ class superAdminServices {
                     where: { id: companyData.id },
                     data: {
                         status: "SUSPENDED",
-                        isApproved: "REJECTED"
+                        isApproved: "REJECTED",
                     },
                 });
                 return {
@@ -357,7 +743,7 @@ class superAdminServices {
                         id: data.id,
                         isDeleted: false,
                         status: "SUSPENDED",
-                        isVerified: true
+                        isVerified: true,
                     },
                 });
                 if (!companyData) {
@@ -408,11 +794,7 @@ class superAdminServices {
                                             TradesManRequests: {
                                                 where: {
                                                     status: {
-                                                        notIn: [
-                                                            "PENDING",
-                                                            "SUSPENDED",
-                                                            "REJECTED",
-                                                        ],
+                                                        notIn: ["PENDING", "SUSPENDED", "REJECTED"],
                                                     },
                                                 },
                                             },
@@ -541,7 +923,7 @@ class superAdminServices {
                 // 1️⃣ check user table
                 const user = yield prismaClient_1.default.user.findUnique({
                     where: { id: BigInt(userId) },
-                    select: { user_type: true }
+                    select: { user_type: true },
                 });
                 if (user) {
                     role = user.user_type;
@@ -550,7 +932,7 @@ class superAdminServices {
                     // 2️⃣ check company table
                     const company = yield prismaClient_1.default.company.findUnique({
                         where: { id: BigInt(userId) },
-                        select: { user_type: true }
+                        select: { user_type: true },
                     });
                     if (!company) {
                         throw new customError_1.CustomError("User or Company not found", 404);
@@ -561,13 +943,13 @@ class superAdminServices {
                 const notifications = yield prismaClient_1.default.notification.findMany({
                     where: {
                         receiverId: userId,
-                        role: role
+                        role: role,
                     },
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: { createdAt: "desc" },
                     skip,
-                    take: limit
+                    take: limit,
                 });
-                const mappedNotifications = notifications.map(n => {
+                const mappedNotifications = notifications.map((n) => {
                     var _a, _b, _c;
                     return ({
                         id: n.id.toString(),
@@ -585,14 +967,14 @@ class superAdminServices {
                         notificationImage: n.notificationImage || "",
                         createdAt: n.createdAt,
                         updatedAt: n.updatedAt,
-                        tradesmanCraft: n.tradesmanCraft || ""
+                        tradesmanCraft: n.tradesmanCraft || "",
                     });
                 });
                 const unreadCount = yield prismaClient_1.default.notification.count({
-                    where: { receiverId: userId, isRead: false }
+                    where: { receiverId: userId, isRead: false },
                 });
                 const totalCount = yield prismaClient_1.default.notification.count({
-                    where: { receiverId: userId }
+                    where: { receiverId: userId },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.NOTIFICATION.SUCCESS_GET,
@@ -602,8 +984,8 @@ class superAdminServices {
                         page,
                         limit,
                         totalPages: Math.ceil(totalCount / limit),
-                        notifications: mappedNotifications
-                    }
+                        notifications: mappedNotifications,
+                    },
                 };
             }
             catch (error) {
@@ -711,8 +1093,8 @@ class superAdminServices {
                         id: userId,
                         status: "ACTIVE",
                         isDeleted: false,
-                        isVerified: true
-                    }
+                        isVerified: true,
+                    },
                 });
                 if (!userData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
@@ -726,12 +1108,12 @@ class superAdminServices {
                         image: data.image,
                         blogBody: data.blogBody,
                         createdById: userData.id,
-                        status: data.status
-                    }
+                        status: data.status,
+                    },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_CREATION_SUCCESS,
-                    data: newBlog
+                    data: newBlog,
                 };
             }
             catch (error) {
@@ -752,8 +1134,8 @@ class superAdminServices {
                         id: userId,
                         status: "ACTIVE",
                         isDeleted: false,
-                        isVerified: true
-                    }
+                        isVerified: true,
+                    },
                 });
                 if (!userData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
@@ -761,17 +1143,15 @@ class superAdminServices {
                 const blogData = yield prismaClient_1.default.blog.findUnique({
                     where: {
                         id: data.id,
-                    }
+                    },
                 });
                 if (!blogData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404, "Provided blog id not in the databse");
                 }
-                const imageKey = data.image
-                    ? (0, utils_1.extractS3Key)(data.image)
-                    : blogData.image;
+                const imageKey = data.image ? (0, utils_1.extractS3Key)(data.image) : blogData.image;
                 const newBlog = yield prismaClient_1.default.blog.update({
                     where: {
-                        id: data.id
+                        id: data.id,
                     },
                     data: {
                         uuid: blogData.uuid,
@@ -781,12 +1161,12 @@ class superAdminServices {
                         status: data.status,
                         image: imageKey,
                         blogBody: data.blogBody,
-                        createdById: userData.id
-                    }
+                        createdById: userData.id,
+                    },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_PUBLISH_SUCCESS,
-                    data: newBlog
+                    data: newBlog,
                 };
             }
             catch (error) {
@@ -807,8 +1187,8 @@ class superAdminServices {
                         id: userId,
                         status: "ACTIVE",
                         isDeleted: false,
-                        isVerified: true
-                    }
+                        isVerified: true,
+                    },
                 });
                 if (!userData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
@@ -816,7 +1196,7 @@ class superAdminServices {
                 const blogData = yield prismaClient_1.default.blog.findUnique({
                     where: {
                         id: data.id,
-                    }
+                    },
                 });
                 if (!blogData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404, "Provided blog id not in the databse");
@@ -826,15 +1206,15 @@ class superAdminServices {
                 }
                 const newBlog = yield prismaClient_1.default.blog.update({
                     where: {
-                        id: data.id
+                        id: data.id,
                     },
                     data: {
                         status: "DELETED",
-                    }
+                    },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_DELETE_SUCCESS,
-                    data: newBlog
+                    data: newBlog,
                 };
             }
             catch (error) {
@@ -857,8 +1237,8 @@ class superAdminServices {
                     OR: [
                         { blogTitle: { contains: search } },
                         { blogBody: { contains: search } },
-                        { category: { contains: search } }
-                    ]
+                        { category: { contains: search } },
+                    ],
                 }));
                 const [blogs, total] = yield Promise.all([
                     prismaClient_1.default.blog.findMany({
@@ -877,9 +1257,9 @@ class superAdminServices {
                         },
                         skip,
                         take: limit,
-                        orderBy: { publishDate: "desc" }
+                        orderBy: { publishDate: "desc" },
                     }),
-                    prismaClient_1.default.blog.count({ where: whereClause })
+                    prismaClient_1.default.blog.count({ where: whereClause }),
                 ]);
                 const formattedBlogs = yield Promise.all(blogs.map((blog) => __awaiter(this, void 0, void 0, function* () {
                     return ({
@@ -902,8 +1282,8 @@ class superAdminServices {
                         total,
                         page,
                         limit,
-                        totalPages: Math.ceil(total / limit)
-                    }
+                        totalPages: Math.ceil(total / limit),
+                    },
                 };
             }
             catch (error) {
@@ -922,13 +1302,13 @@ class superAdminServices {
                 const endOfToday = new Date();
                 endOfToday.setHours(23, 59, 59, 999);
                 const whereClause = Object.assign(Object.assign(Object.assign({ status: { not: "DELETED" } }, (status && { status })), { publishDate: {
-                        lte: endOfToday
+                        lte: endOfToday,
                     } }), (search && {
                     OR: [
                         { blogTitle: { contains: search } },
                         { blogBody: { contains: search } },
-                        { category: { contains: search } }
-                    ]
+                        { category: { contains: search } },
+                    ],
                 }));
                 const [blogs, total] = yield Promise.all([
                     prismaClient_1.default.blog.findMany({
@@ -947,9 +1327,9 @@ class superAdminServices {
                         },
                         skip,
                         take: limit,
-                        orderBy: { publishDate: "desc" }
+                        orderBy: { publishDate: "desc" },
                     }),
-                    prismaClient_1.default.blog.count({ where: whereClause })
+                    prismaClient_1.default.blog.count({ where: whereClause }),
                 ]);
                 const formattedBlogs = yield Promise.all(blogs.map((blog) => __awaiter(this, void 0, void 0, function* () {
                     return ({
@@ -972,8 +1352,8 @@ class superAdminServices {
                         total,
                         page,
                         limit,
-                        totalPages: Math.ceil(total / limit)
-                    }
+                        totalPages: Math.ceil(total / limit),
+                    },
                 };
             }
             catch (error) {
@@ -997,11 +1377,11 @@ class superAdminServices {
                         countryCode: data.countryCode,
                         message: data.message,
                         submittedAt: data.submittedAt,
-                    }
+                    },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.SUBMIT_SUCCESS, // ✅ Using RESPONSE_MESSAGES
-                    data: submission
+                    data: submission,
                 };
             }
             catch (error) {
@@ -1022,17 +1402,17 @@ class superAdminServices {
                         { name: { contains: search } },
                         { email: { contains: search } },
                         { mobileNumber: { contains: search } },
-                        { message: { contains: search } }
-                    ]
+                        { message: { contains: search } },
+                    ],
                 }));
                 const [contacts, total] = yield Promise.all([
                     prismaClient_1.default.contactSubmission.findMany({
                         where: whereClause,
                         skip,
                         take: limit,
-                        orderBy: { createdAt: "desc" }
+                        orderBy: { createdAt: "desc" },
                     }),
-                    prismaClient_1.default.contactSubmission.count({ where: whereClause })
+                    prismaClient_1.default.contactSubmission.count({ where: whereClause }),
                 ]);
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_SUCCESS,
@@ -1041,8 +1421,8 @@ class superAdminServices {
                         total,
                         page,
                         limit,
-                        totalPages: Math.ceil(total / limit)
-                    }
+                        totalPages: Math.ceil(total / limit),
+                    },
                 };
             }
             catch (error) {
@@ -1062,8 +1442,8 @@ class superAdminServices {
                         id: userId,
                         status: "ACTIVE",
                         isDeleted: false,
-                        isVerified: true
-                    }
+                        isVerified: true,
+                    },
                 });
                 if (!userData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_SUPER_ADMIN, 404, "User not found");
@@ -1071,19 +1451,19 @@ class superAdminServices {
                 const blogData = yield prismaClient_1.default.contactSubmission.findUnique({
                     where: {
                         id: data.id,
-                    }
+                    },
                 });
                 if (!blogData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.NOT_FOUND, 404, "Provided contact id not in the databse");
                 }
                 const newBlog = yield prismaClient_1.default.contactSubmission.delete({
                     where: {
-                        id: data.id
+                        id: data.id,
                     },
                 });
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.CONTACT_DELETE_SUCCESS,
-                    data: newBlog
+                    data: newBlog,
                 };
             }
             catch (error) {
@@ -1102,14 +1482,14 @@ class superAdminServices {
                 const contact = yield prismaClient_1.default.contactSubmission.findUnique({
                     where: {
                         id: data.id,
-                    }
+                    },
                 });
                 if (!contact) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.CONTACT.NOT_FOUND, 404, "Contact submission not found");
                 }
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.CONTACT.GET_SUCCESS,
-                    data: contact
+                    data: contact,
                 };
             }
             catch (error) {
@@ -1125,7 +1505,7 @@ class superAdminServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const blog = yield prismaClient_1.default.blog.findUnique({
-                    where: { id: data.id }
+                    where: { id: data.id },
                 });
                 if (!blog) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_NOT_FOUND, 404, "Blog not found");
@@ -1144,7 +1524,7 @@ class superAdminServices {
                 };
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.BLOG.BLOG_FETCH_SUCCESS,
-                    data: formattedBlog
+                    data: formattedBlog,
                 };
             }
             catch (error) {
@@ -1165,7 +1545,7 @@ class superAdminServices {
                         user_type: "SUPER_ADMIN",
                         isDeleted: false,
                         isVerified: true,
-                        status: "ACTIVE"
+                        status: "ACTIVE",
                     },
                 });
                 if (!userExists) {
