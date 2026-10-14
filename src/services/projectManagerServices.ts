@@ -832,6 +832,7 @@ export class ProjectManagerServices {
         parentId: {
           not: null,
         },
+        status: "PENDING",
 
         project: {
           projectManagers: {

@@ -16,9 +16,8 @@ exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pu
 // src/helpers/utils.ts
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const qrcode_1 = __importDefault(require("qrcode"));
-;
 const puppeteer_1 = __importDefault(require("puppeteer"));
-const templates_1 = require("../helpers/templates");
+// import { yellowpdfTemplate, greenpdfTemplate } from "../helpers/templates";
 exports.mailTransporter = nodemailer_1.default.createTransport({
     host: process.env.EMAIL_HOST, // smtp.gmail.com
     port: Number(process.env.EMAIL_PORT), // 587
@@ -52,7 +51,7 @@ const extractS3Key = (image) => {
     if (!image)
         return null;
     // Agar URL hai to key nikalo
-    if (image.startsWith('http')) {
+    if (image.startsWith("http")) {
         const url = new URL(image);
         return url.pathname.substring(1); // remove leading /
     }
@@ -76,7 +75,9 @@ const generatePresignedUrl = (filename, contentType) => __awaiter(void 0, void 0
         Key: key,
         ContentType: contentType,
     });
-    const url = yield (0, s3_request_presigner_1.getSignedUrl)(s3Client, putObjectCommand, { expiresIn: 3600 });
+    const url = yield (0, s3_request_presigner_1.getSignedUrl)(s3Client, putObjectCommand, {
+        expiresIn: 3600,
+    });
     return { url, key };
 });
 exports.generatePresignedUrl = generatePresignedUrl;
@@ -236,6 +237,79 @@ const qrCodeGenerator = (text, userType, status) => __awaiter(void 0, void 0, vo
     }
 });
 exports.qrCodeGenerator = qrCodeGenerator;
+// export const imageGenerator = async (
+//   scaffholdDetails: any,
+// ): Promise<Buffer> => {
+//   try {
+//     const tag = scaffholdDetails.tag?.toUpperCase();
+//     if (!tag || tag === "RED") {
+//       throw new CustomError(
+//         "Image generation not allowed for untagged or RED scaffold.",
+//       );
+//     }
+//     // <<<<<<<<======================================================>>>>>>>>
+//     // QR URL
+//     // <<<<<<<<======================================================>>>>>>>>
+//     const BASE_URL = "https://scaff-snap.onelink.me/1Cvw/uwq12rs8";
+//     const qrFinalLink =
+//       `${BASE_URL}?scaffId=${scaffholdDetails.id}` +
+//       `&userType=${scaffholdDetails.tradesmanUserType}` +
+//       `&PJT=${scaffholdDetails.PJT}+&requestId=${scaffholdDetails.id}`;
+//     const qrResult = await qrCodeGenerator(
+//       qrFinalLink,
+//       scaffholdDetails.tradesmanUserType,
+//       scaffholdDetails.status,
+//     );
+//     if (!qrResult.success) {
+//       throw new Error("QR generation failed");
+//     }
+//     // ======================================================
+//     // HTML TEMPLATE
+//     // ======================================================
+//     let html: string;
+//     if (tag === "GREEN") {
+//       html = greenpdfTemplate({
+//         ...scaffholdDetails,
+//         qrCode: qrResult.qrCode,
+//       });
+//     } else {
+//       html = yellowpdfTemplate({
+//         ...scaffholdDetails,
+//         qrCode: qrResult.qrCode,
+//       });
+//     }
+//     // ======================================================
+//     // PUPPETEER
+//     // ======================================================
+//     const browser = await puppeteer.launch({
+//       headless: true,
+//       args: ["--no-sandbox", "--disable-setuid-sandbox"],
+//     });
+//     const page = await browser.newPage();
+//     // 80mm ≈ 302px
+//     await page.setViewport({
+//       width: 610,
+//       height: 100,
+//       deviceScaleFactor: 3,
+//     });
+//     await page.setContent(html, {
+//       waitUntil: "networkidle0",
+//     });
+//     // ======================================================
+//     // SCREENSHOT
+//     // ======================================================
+//     const screenshotBuffer = await page.screenshot({
+//       type: "png",
+//       fullPage: true,
+//     });
+//     await browser.close();
+//     return Buffer.from(screenshotBuffer as Uint8Array);
+//   } catch (err) {
+//     console.error("❌ IMAGE GEN ERR:", err);
+//     throw err;
+//   }
+// };
+const sharp_1 = __importDefault(require("sharp"));
 const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -258,41 +332,96 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
         // HTML TEMPLATE
         // ======================================================
         let html;
-        if (tag === "GREEN") {
-            html = (0, templates_1.greenpdfTemplate)(Object.assign(Object.assign({}, scaffholdDetails), { qrCode: qrResult.qrCode }));
-        }
-        else {
-            html = (0, templates_1.yellowpdfTemplate)(Object.assign(Object.assign({}, scaffholdDetails), { qrCode: qrResult.qrCode }));
-        }
+        // if (tag === "GREEN") {
+        //   html = greenpdfTemplate({
+        //     ...scaffholdDetails,
+        //     qrCode: qrResult.qrCode,
+        //   });
+        // } else {
+        //   html = yellowpdfTemplate({
+        //     ...scaffholdDetails,
+        //     qrCode: qrResult.qrCode,
+        //   });
+        // }
         // ======================================================
-        // PUPPETEER
+        // PUPPETEER — render normally, no scaling/clipping tricks
         // ======================================================
+        const RENDER_WIDTH = 610; // matches your template's design width
         const browser = yield puppeteer_1.default.launch({
             headless: true,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-            ],
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
         });
         const page = yield browser.newPage();
-        // 80mm ≈ 302px
+        // Give it plenty of height room; the element screenshot
+        // below only captures the actual rendered content, so a
+        // generous viewport height here is harmless.
         yield page.setViewport({
-            width: 540,
-            height: 100,
+            width: RENDER_WIDTH,
+            height: 1200,
             deviceScaleFactor: 3,
         });
-        yield page.setContent(html, {
-            waitUntil: "networkidle0",
-        });
-        // ======================================================
-        // SCREENSHOT
-        // ======================================================
-        const screenshotBuffer = yield page.screenshot({
+        // await page.setContent(html, {
+        //   waitUntil: "networkidle0",
+        // });
+        // Screenshot ONLY the #tag element, exactly as it renders.
+        // No transform, no clip guessing — this always matches the
+        // element's true size, so no black bars / cut-off content.
+        const tagElement = yield page.$("#tag");
+        if (!tagElement) {
+            throw new Error("Could not find #tag element to screenshot");
+        }
+        const rawBuffer = (yield tagElement.screenshot({
             type: "png",
-            fullPage: true,
-        });
+        }));
         yield browser.close();
-        return Buffer.from(screenshotBuffer);
+        // ======================================================
+        // NORMALIZE ASPECT RATIO (post-process, not DOM-based)
+        // ======================================================
+        // Physical label is 4in x 6in => width/height ratio = 2/3.
+        // We pad the rendered image (white background) onto a
+        // canvas of that ratio so every tag color produces an
+        // image with the SAME aspect ratio for printing — without
+        // ever touching the page layout.
+        const LABEL_ASPECT_RATIO = 4 / 6; // width / height
+        const meta = yield (0, sharp_1.default)(rawBuffer).metadata();
+        const contentWidth = meta.width;
+        const contentHeight = meta.height;
+        // Decide target canvas: keep the rendered width, extend
+        // height (or vice versa) to hit the label ratio, whichever
+        // requires only ADDING space (never cropping content).
+        let canvasWidth;
+        let canvasHeight;
+        const contentRatio = contentWidth / contentHeight;
+        if (contentRatio > LABEL_ASPECT_RATIO) {
+            // Content is "wider" than the label ratio -> keep width,
+            // grow height to fit the ratio.
+            canvasWidth = contentWidth;
+            canvasHeight = Math.round(contentWidth / LABEL_ASPECT_RATIO);
+        }
+        else {
+            // Content is "taller/narrower" than the label ratio -> keep
+            // height, grow width to fit the ratio.
+            canvasHeight = contentHeight;
+            canvasWidth = Math.round(contentHeight * LABEL_ASPECT_RATIO);
+        }
+        const finalBuffer = yield (0, sharp_1.default)({
+            create: {
+                width: canvasWidth,
+                height: canvasHeight,
+                channels: 4,
+                background: { r: 255, g: 255, b: 255, alpha: 1 },
+            },
+        })
+            .composite([
+            {
+                input: rawBuffer,
+                top: 0,
+                left: 0, // top-left aligned; change to center if preferred
+            },
+        ])
+            .png()
+            .toBuffer();
+        return finalBuffer;
     }
     catch (err) {
         console.error("❌ IMAGE GEN ERR:", err);

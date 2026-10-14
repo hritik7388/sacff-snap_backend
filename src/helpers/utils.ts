@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 import QRCode from "qrcode";
 import puppeteer from "puppeteer";
 import htmlPdf from "html-pdf-node";
-import { yellowpdfTemplate, greenpdfTemplate } from "../helpers/templates";
+// import { yellowpdfTemplate, greenpdfTemplate } from "../helpers/templates";
 export const mailTransporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST, // smtp.gmail.com
   port: Number(process.env.EMAIL_PORT), // 587
@@ -408,17 +408,17 @@ export const imageGenerator = async (
 
     let html: string;
 
-    if (tag === "GREEN") {
-      html = greenpdfTemplate({
-        ...scaffholdDetails,
-        qrCode: qrResult.qrCode,
-      });
-    } else {
-      html = yellowpdfTemplate({
-        ...scaffholdDetails,
-        qrCode: qrResult.qrCode,
-      });
-    }
+    // if (tag === "GREEN") {
+    //   html = greenpdfTemplate({
+    //     ...scaffholdDetails,
+    //     qrCode: qrResult.qrCode,
+    //   });
+    // } else {
+    //   html = yellowpdfTemplate({
+    //     ...scaffholdDetails,
+    //     qrCode: qrResult.qrCode,
+    //   });
+    // }
 
     // ======================================================
     // PUPPETEER — render normally, no scaling/clipping tricks
@@ -442,9 +442,9 @@ export const imageGenerator = async (
       deviceScaleFactor: 3,
     });
 
-    await page.setContent(html, {
-      waitUntil: "networkidle0",
-    });
+    // await page.setContent(html, {
+    //   waitUntil: "networkidle0",
+    // });
 
     // Screenshot ONLY the #tag element, exactly as it renders.
     // No transform, no clip guessing — this always matches the

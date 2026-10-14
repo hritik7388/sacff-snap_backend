@@ -110,7 +110,12 @@ class ProjectManagerServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const existingProjectManager = yield prismaClient_1.default.user.findUnique({
-                    where: { email: data.email, status: "ACTIVE", user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] }, isVerified: true }
+                    where: {
+                        email: data.email,
+                        status: "ACTIVE",
+                        user_type: { in: ["PROJECT_MANAGER", "COMPETENT_PERSON"] },
+                        isVerified: true,
+                    },
                 });
                 if (!existingProjectManager) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Not found with this email");
@@ -134,8 +139,8 @@ class ProjectManagerServices {
                         isDeleted: false,
                         status: "ACTIVE",
                         isApproved: "APPROVED",
-                        isVerified: true
-                    }
+                        isVerified: true,
+                    },
                 });
                 if (!company) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "Company not active or not approved or Deleted or not verified with this ID");
@@ -144,8 +149,8 @@ class ProjectManagerServices {
                     const projectManager = yield prismaClient_1.default.projectManager.findFirst({
                         where: {
                             cmpId: data.companyId,
-                            userId: existingProjectManager.id
-                        }
+                            userId: existingProjectManager.id,
+                        },
                     });
                     if (!projectManager) {
                         throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "No user found for this company");
@@ -154,8 +159,8 @@ class ProjectManagerServices {
                 else if (data.user_type === "COMPETENT_PERSON") {
                     const competentPerson = yield prismaClient_1.default.competentPerson.findFirst({
                         where: {
-                            cmpId: data.companyId
-                        }
+                            cmpId: data.companyId,
+                        },
                     });
                     if (!competentPerson) {
                         throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.USER.NOT_FOUND, 404, "No competent person found for this company");
@@ -178,12 +183,12 @@ class ProjectManagerServices {
                     name: existingProjectManager.name,
                     email: existingProjectManager.email,
                     user_type: existingProjectManager.user_type,
-                    companyId: data.companyId
+                    companyId: data.companyId,
                 };
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.USER.USER_SUCCESS,
                     token,
-                    data: user
+                    data: user,
                 };
             }
             catch (error) {
@@ -330,30 +335,30 @@ class ProjectManagerServices {
                                 mediaType: true,
                                 url: true,
                                 createdAt: true,
-                            }
+                            },
                         },
                         projectManager: {
                             select: {
                                 cmpId: true,
-                            }
+                            },
                         },
                         competentPerson: {
                             select: {
                                 cmpId: true,
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 });
                 if (!user) {
                     throw new customError_1.CustomError("USER_NOT_FOUND", 404, "User not found");
                 }
                 const cmpId = ((_a = user.projectManager) === null || _a === void 0 ? void 0 : _a.cmpId) || ((_b = user.competentPerson) === null || _b === void 0 ? void 0 : _b.cmpId) || null;
                 const { userMedias, projectManager, competentPerson } = user, rest = __rest(user, ["userMedias", "projectManager", "competentPerson"]);
-                const idProofImage = ((_c = user.userMedias.find(media => media.mediaType === "ID_PROOF_IMAGE")) === null || _c === void 0 ? void 0 : _c.url) || null;
-                const photoImage = ((_d = user.userMedias.find(media => media.mediaType === "PHOTO_IMAGE")) === null || _d === void 0 ? void 0 : _d.url) || null;
+                const idProofImage = ((_c = user.userMedias.find((media) => media.mediaType === "ID_PROOF_IMAGE")) === null || _c === void 0 ? void 0 : _c.url) || null;
+                const photoImage = ((_d = user.userMedias.find((media) => media.mediaType === "PHOTO_IMAGE")) === null || _d === void 0 ? void 0 : _d.url) || null;
                 return {
                     message: "User details fetched successfully",
-                    data: Object.assign(Object.assign({}, rest), { cmpId, idProofImage: idProofImage, photoImage: photoImage })
+                    data: Object.assign(Object.assign({}, rest), { cmpId, idProofImage: idProofImage, photoImage: photoImage }),
                 };
             }
             catch (error) {
@@ -467,7 +472,7 @@ class ProjectManagerServices {
                     where: { id: data.requestId },
                     include: {
                         createdBy: {
-                            select: { id: true, craft: true, userId: true }
+                            select: { id: true, craft: true, userId: true },
                         },
                         project: {
                             include: {
@@ -476,15 +481,15 @@ class ProjectManagerServices {
                                         competentPerson: {
                                             select: {
                                                 id: true,
-                                                userId: true
-                                            }
-                                        }
-                                    }
+                                                userId: true,
+                                            },
+                                        },
+                                    },
                                 },
-                                createdBy: true
-                            }
-                        }
-                    }
+                                createdBy: true,
+                            },
+                        },
+                    },
                 });
                 if (!requestData) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SCAFFHOLDREQUEST.REQUEST_NOT_FOUND, 404, "No pending request found");
@@ -494,15 +499,13 @@ class ProjectManagerServices {
                     where: { id: data.requestId },
                     data: {
                         status: data.status,
-                        reajectionReason: data.status === "REJECTED"
-                            ? (_a = data.reajectionReason) !== null && _a !== void 0 ? _a : null
-                            : null,
+                        reajectionReason: data.status === "REJECTED" ? ((_a = data.reajectionReason) !== null && _a !== void 0 ? _a : null) : null,
                     },
                     include: {
                         createdBy: {
-                            select: { userId: true, craft: true }
-                        }
-                    }
+                            select: { userId: true, craft: true },
+                        },
+                    },
                 });
                 const isModifiedRequest = updatedRequest.parentId !== null;
                 const tradesmanId = updatedRequest.createdBy.userId;
@@ -522,8 +525,7 @@ class ProjectManagerServices {
                         data.status === "APPROVED"
                             ? "MODIFICATION_ACCEPTED"
                             : "MODIFICATION_REJECTED";
-                    notificationMessage =
-                        `Your modification request for Project ${requestData.project.projectName} has been ${data.status}.`;
+                    notificationMessage = `Your modification request for Project ${requestData.project.projectName} has been ${data.status}.`;
                     notificationImage =
                         data.status === "APPROVED"
                             ? "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/accept.png"
@@ -538,8 +540,7 @@ class ProjectManagerServices {
                         data.status === "APPROVED"
                             ? client_1.NotificationType.REQUEST_ACCEPTED
                             : client_1.NotificationType.REQUEST_REJECTED;
-                    notificationMessage =
-                        `Your scaffold request for Project ${requestData.project.projectName} has been ${data.status}.`;
+                    notificationMessage = `Your scaffold request for Project ${requestData.project.projectName} has been ${data.status}.`;
                     notificationImage =
                         data.status === "APPROVED"
                             ? "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/requestAccepted.png"
@@ -555,33 +556,43 @@ class ProjectManagerServices {
                             isDeleted: false,
                             status: "ACTIVE",
                             isVerified: true,
-                            user_type: "TRADESMAN"
-                        }
+                            user_type: "TRADESMAN",
+                        },
                     });
                     if (validTradesman) {
-                        yield prismaClient_1.default.notification.create({
-                            data: {
-                                uuid: (0, uuid_1.v4)(),
-                                title: notificationTitle,
-                                message: notificationMessage,
-                                type: notificationType,
-                                role: "TRADESMAN",
+                        const existingNotification = yield prismaClient_1.default.notification.findFirst({
+                            where: {
                                 receiverId: BigInt(tradesmanId),
-                                senderId: (_d = (_c = (_b = requestData.createdBy) === null || _b === void 0 ? void 0 : _b.id) === null || _c === void 0 ? void 0 : _c.toString()) !== null && _d !== void 0 ? _d : "0",
-                                isRead: false,
-                                notificationImage,
-                                tradesmanCraft: requestData.createdBy.craft || null,
+                                role: "TRADESMAN",
                                 scaffoldRequestId: updatedRequest.id.toString(),
-                            }
+                                type: notificationType,
+                            },
                         });
+                        if (!existingNotification) {
+                            yield prismaClient_1.default.notification.create({
+                                data: {
+                                    uuid: (0, uuid_1.v4)(),
+                                    title: notificationTitle,
+                                    message: notificationMessage,
+                                    type: notificationType,
+                                    role: "TRADESMAN",
+                                    receiverId: BigInt(tradesmanId),
+                                    senderId: (_d = (_c = (_b = requestData.createdBy) === null || _b === void 0 ? void 0 : _b.id) === null || _c === void 0 ? void 0 : _c.toString()) !== null && _d !== void 0 ? _d : "0",
+                                    isRead: false,
+                                    notificationImage,
+                                    tradesmanCraft: requestData.createdBy.craft || null,
+                                    scaffoldRequestId: updatedRequest.id.toString(),
+                                },
+                            });
+                        }
                         const devices = yield prismaClient_1.default.device.findMany({
                             where: {
                                 userId: tradesmanId,
                                 user_type: "TRADESMAN",
-                                deviceToken: { not: null }
-                            }
+                                deviceToken: { not: null },
+                            },
                         });
-                        yield Promise.all(devices.map(d => d.deviceToken
+                        yield Promise.all(devices.map((d) => d.deviceToken
                             ? (0, utils_1.pushNotificationDelhi)(d.deviceToken, notificationTitle, notificationMessage)
                             : Promise.resolve()));
                     }
@@ -589,17 +600,32 @@ class ProjectManagerServices {
                 // ===============================
                 // 🔥 COMPETENT PERSON NOTIFICATION
                 // ===============================
-                const competentUserIds = requestData.project.competentPersons.map(cp => cp.competentPerson.userId);
+                // ===============================
+                // 🔥 COMPETENT PERSON NOTIFICATION
+                // ===============================
+                const competentUserIds = [
+                    ...new Set(requestData.project.competentPersons.map((cp) => cp.competentPerson.userId)),
+                ];
                 const validCompetentUsers = yield prismaClient_1.default.user.findMany({
                     where: {
                         id: { in: competentUserIds },
                         isDeleted: false,
                         status: "ACTIVE",
                         isVerified: true,
-                        user_type: "COMPETENT_PERSON"
-                    }
+                        user_type: "COMPETENT_PERSON",
+                    },
                 });
                 for (const cpUser of validCompetentUsers) {
+                    const existingNotification = yield prismaClient_1.default.notification.findFirst({
+                        where: {
+                            receiverId: BigInt(cpUser.id),
+                            role: "COMPETENT_PERSON",
+                            scaffoldRequestId: updatedRequest.id.toString(),
+                            type: notificationType,
+                        },
+                    });
+                    if (existingNotification)
+                        continue;
                     yield prismaClient_1.default.notification.create({
                         data: {
                             uuid: (0, uuid_1.v4)(),
@@ -616,17 +642,17 @@ class ProjectManagerServices {
                             senderId: (_g = (_f = (_e = requestData.createdBy) === null || _e === void 0 ? void 0 : _e.id) === null || _f === void 0 ? void 0 : _f.toString()) !== null && _g !== void 0 ? _g : "0",
                             notificationImage,
                             tradesmanCraft: requestData.createdBy.craft || null,
-                        }
+                        },
                     });
                 }
                 const devices = yield prismaClient_1.default.device.findMany({
                     where: {
-                        userId: { in: validCompetentUsers.map(u => u.id) },
+                        userId: { in: validCompetentUsers.map((u) => u.id) },
                         user_type: "COMPETENT_PERSON",
-                        deviceToken: { not: null }
-                    }
+                        deviceToken: { not: null },
+                    },
                 });
-                yield Promise.all(devices.map(d => d.deviceToken
+                yield Promise.all(devices.map((d) => d.deviceToken
                     ? (0, utils_1.pushNotificationDelhi)(d.deviceToken, notificationTitle, notificationMessage)
                     : Promise.resolve()));
                 return {
@@ -1136,9 +1162,7 @@ class ProjectManagerServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw new customError_1.CustomError(error.message ||
-                    "Failed to generate project job link", error.statusCode || 500, error.details ||
-                    "INTERNAL_ERROR");
+                throw new customError_1.CustomError(error.message || "Failed to generate project job link", error.statusCode || 500, error.details || "INTERNAL_ERROR");
             }
         });
     }

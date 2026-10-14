@@ -2,10 +2,10 @@
 export const companyStatusTemplate = (
   companyName: string,
   cmpId: string,
-  isApproved: "APPROVED" | "REJECTED",
+  isApproved: "APPROVED" | "REJECTED"
 ) => {
-  const LOGO_URL =
-    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+
 
   return `
 <html lang="en">
@@ -42,15 +42,14 @@ export const companyStatusTemplate = (
               <p style="font-size:16px;">Dear <strong>${companyName}</strong>,</p>
 
               <p style="font-size:15px;color:#444;line-height:1.6;">
-                ${
-                  isApproved === "APPROVED"
-                    ? `
+                ${isApproved === "APPROVED"
+      ? `
                   We’re pleased to inform you that your company registration has been 
                   <strong style="color:#16a34a;">APPROVED</strong> by our review team.`
-                    : `
+      : `
                   We regret to inform you that your company registration has been 
                   <strong style="color:#dc2626;">REJECTED</strong> after review.`
-                }
+    }
               </p>
 
               <h3 style="margin:20px 0 12px;color:#111827;font-size:20px;">Company Details</h3>
@@ -69,11 +68,10 @@ export const companyStatusTemplate = (
                 </span>
               </p>
 
-              ${
-                isApproved === "APPROVED"
-                  ? `<p>You can now log in and access your company dashboard.</p>`
-                  : `<p>For more details or to reapply, please contact our support team.</p>`
-              }
+              ${isApproved === "APPROVED"
+      ? `<p>You can now log in and access your company dashboard.</p>`
+      : `<p>For more details or to reapply, please contact our support team.</p>`
+    }
 
               <p style="margin-top:30px;font-size:15px;color:#111;">
                 Best regards,<br><strong>The Scaff Admin Team</strong>
@@ -99,10 +97,9 @@ export const companyAddTemplate = (
   memberName: string,
   userType: string,
   email: string,
-  tempPassword: string,
+  tempPassword: string
 ) => {
-  const LOGO_URL =
-    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
 
   return `
 <html lang="en">
@@ -182,10 +179,9 @@ export const teamMemberAddTemplate = (
   userType: string,
   email: string,
   tempPassword: string,
-  cmpId: string,
+  cmpId: string
 ) => {
-  const LOGO_URL =
-    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
 
   return `
 <html lang="en">
@@ -262,8 +258,8 @@ export const teamMemberAddTemplate = (
 };
 
 export const otpTemplate = (name: string, otp: string) => {
-  const LOGO_URL =
-    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+
 
   return `<html lang="en">
 <head>
@@ -348,7 +344,7 @@ export const newDeviceTemplate = (
   deviceName: string,
   deviceType: string,
   osVersion: string,
-  lastLogin: string,
+  lastLogin: string
 ) => {
   const LOGO_URL =
     "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
@@ -444,7 +440,7 @@ export const unusualActivityTemplate = (
   deviceName: string,
   deviceType: string,
   osVersion: string,
-  lastLogin: string,
+  lastLogin: string
 ) => {
   const LOGO_URL =
     "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
@@ -544,7 +540,8 @@ export const unusualActivityTemplate = (
 </body>
 </html>`;
 };
-export const greenpdfTemplate = (data: any) => {
+export const greenpdfTemplate = (data: any,) => {
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -855,13 +852,11 @@ export const greenpdfTemplate = (data: any) => {
             </div>
             <div class="date-part">
                 <div class="small-label" style="margin-left: 26px;">Date :</div>
-                <div class="date-value" style="text-align: center; margin-top: 10px;">${new Date(
-                  data.createdAt,
-                ).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}</div>
+                <div class="date-value" style="text-align: center; margin-top: 10px;">${new Date(data.createdAt).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })}</div>
             </div>
         </div>
 
@@ -895,9 +890,7 @@ export const greenpdfTemplate = (data: any) => {
         <!-- Loading Rating -->
         <h3 class="section-heading">Loading Rating</h3>
         <div class="loading-rating-box">
-                   ${
-                     data.lightDuty
-                       ? `
+                   ${data.lightDuty ? `
 <div class="loading-box">
   <div class="load-left">
     <span>Light Duty</span>
@@ -906,13 +899,10 @@ export const greenpdfTemplate = (data: any) => {
 
  
 </div>
-`
-                       : ""
-                   }
+` : ""
+    }
 
-${
-  data.mediumDuty
-    ? `
+${data.mediumDuty ? `
 <div class="loading-box">
   <div class="load-left">
     <span>Medium Duty</span>
@@ -921,13 +911,10 @@ ${
 
  
 </div>
-`
-    : ""
-}
+` : ""
+    }
 
-${
-  data.heavyDuty
-    ? `
+${data.heavyDuty ? `
 <div class="loading-box">
   <div class="load-left">
     <span>Heavy Duty</span>
@@ -936,9 +923,8 @@ ${
 
    
 </div>
-`
-    : ""
-}
+` : ""
+    }
         </div>
 
         <!-- Note -->
@@ -995,7 +981,8 @@ ${
 </html>
 
 `;
-};
+}
+
 
 const checkedIcon = `
 <img
@@ -1004,7 +991,8 @@ const checkedIcon = `
   alt="checked"
 />
 `;
-export const yellowpdfTemplate = (data: any) => {
+export const yellowpdfTemplate = (data: any,) => {
+
   return `
   <!DOCTYPE html>
 <html lang="en">
@@ -1388,13 +1376,11 @@ export const yellowpdfTemplate = (data: any) => {
             </div>
             <div class="date-part" >
                 <div class="small-label" style="margin-left: 26px;">Date :</div>
-                <div class="date-value" style="text-align: center; margin-top: 10px;"> ${new Date(
-                  data.createdAt,
-                ).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}</div>
+                <div class="date-value" style="text-align: center; margin-top: 10px;"> ${new Date(data.createdAt).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })}</div>
             </div>
         </div>
 
@@ -1427,9 +1413,7 @@ export const yellowpdfTemplate = (data: any) => {
 
         <!-- Loading Schedule -->
         <h3 class="section-heading">Loading Schedule</h3>
-        ${
-          data.lightDuty
-            ? `
+        ${data.lightDuty ? `
 <div class="loading-box">
   <div class="load-left">
     <span>Light Duty</span>
@@ -1451,13 +1435,10 @@ export const yellowpdfTemplate = (data: any) => {
     </div>
   </div>
 </div>
-`
-            : ""
-        }
+` : ""
+    }
 
-${
-  data.mediumDuty
-    ? `
+${data.mediumDuty ? `
 <div class="loading-box">
   <div class="load-left">
     <span>Medium Duty</span>
@@ -1479,13 +1460,10 @@ ${
     </div>
   </div>
 </div>
-`
-    : ""
-}
+` : ""
+    }
 
-${
-  data.heavyDuty
-    ? `
+${data.heavyDuty ? `
 <div class="loading-box">
   <div class="load-left">
     <span>Heavy Duty</span>
@@ -1507,23 +1485,21 @@ ${
     </div>
   </div>
 </div>
-`
-    : ""
-}
+` : ""
+    }
 
         <!-- Check Incomplete Items + QR -->
         <div class="content-row">
    <div class="content-left">
     <h3 class="section-heading" style="margin-top: 0;">Check Incomplete Items</h3>
 
-    ${
-      data.handRail ||
+    ${data.handRail ||
       data.platform ||
       data.midRail ||
       data.ladder ||
       data.toeBoard ||
       data.note
-        ? `
+      ? `
       <div class="grid-items">
           <div class="grid-item">
               <span>Handrails</span>
@@ -1556,7 +1532,7 @@ ${
           <p class="note-text">${data.note}</p>
       </div>
       `
-        : ``
+      : ``
     }
 </div>
 
@@ -1607,4 +1583,4 @@ ${
 </html>
 
 `;
-};
+}
