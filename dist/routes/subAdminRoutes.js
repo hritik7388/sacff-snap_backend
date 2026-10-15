@@ -3,10 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // src/routes/subAdminRoutes.ts
 const express_1 = require("express");
 const subAdminController_1 = require("../controllers/subAdminController");
+const subscriptionController_1 = require("../controllers/subscriptionController");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const authMiddleware_2 = require("../middlewares/authMiddleware");
 const router = (0, express_1.Router)();
 const subAdminControllers = new subAdminController_1.subAdminController();
+const subscriptionController = new subscriptionController_1.SubscriptionController();
 /**
  * @route   POST /api/v1/subAdmin/login
  * @desc    Login subAdmin
@@ -143,4 +145,10 @@ router.delete("/deleteUserBySubAdmin", authMiddleware_2.clientAuthMiddleware, au
  * @access  Private (Authenticated Users)
  */
 router.post("/logOutCompany", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, subAdminControllers.logOutCompany.bind(subAdminControllers));
+/**
+ * @route   GET /api/v1/subAdmin/my-subscription
+ * @desc    Get company / subAdmin own subscription details (Overview, Payment details, Billing history)
+ * @access  Private (SubAdmin / Company)
+ */
+router.get("/my-subscription", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSubAdmin, subscriptionController.getSubscriptionStatus.bind(subscriptionController));
 exports.default = router;

@@ -169,4 +169,31 @@ router.put("/updateProfileImage", authMiddleware_2.clientAuthMiddleware, authMid
  * @access  Private (Authenticated Users)
  */
 router.post("/logout", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, superAdminRoutes.logOut.bind(superAdminRoutes));
+/**
+ * ─── SUBSCRIPTION MANAGEMENT ROUTES ─────────────────────────────────────────
+ */
+/**
+ * @route   GET /api/v1/superAdmin/subscriptions
+ * @desc    Get subscriptions list with filters, search, and dashboard stats
+ * @access  Private (Super Admin)
+ */
+router.get("/subscriptions", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getSubscriptions.bind(superAdminRoutes));
+/**
+ * @route   GET /api/v1/superAdmin/subscription/dashboard
+ * @desc    Get subscription dashboard statistics (Total, Active, Pending, Past due, Canceled, Expired)
+ * @access  Private (Super Admin)
+ */
+router.get("/subscription/dashboard", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getSubscriptionDashboard.bind(superAdminRoutes));
+/**
+ * @route   GET /api/v1/superAdmin/subscription/:id
+ * @desc    Get subscription details by id, uuid, or companyId
+ * @access  Private (Super Admin)
+ */
+router.get("/subscription/:id", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getSubscriptionById.bind(superAdminRoutes));
+/**
+ * @route   PATCH /api/v1/superAdmin/subscription/status
+ * @desc    Update subscription status (Administrative status preview dropdown + Done button)
+ * @access  Private (Super Admin)
+ */
+router.patch("/subscription/status", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.updateSubscriptionStatus.bind(superAdminRoutes));
 exports.default = router;

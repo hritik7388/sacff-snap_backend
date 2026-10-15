@@ -33,6 +33,25 @@ export const cancelSubscriptionSchema = z.object({
     subscriptionId: z.string().min(1, "Subscription ID is required"),
 });
 
+export const adminSubscriptionQuerySchema = z.object({
+    search: z.string().optional(),
+    status: z.string().optional(),
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(10),
+    sortBy: z.string().optional().default("createdAt"),
+    sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+});
+
+export const updateSubscriptionStatusSchema = z.object({
+    id: z.union([z.string(), z.number()]).optional(),
+    subscriptionId: z.union([z.string(), z.number()]).optional(),
+    status: z.string().min(1, "Status is required"),
+});
+
 export type CreateCheckoutSessionDTO = z.infer<typeof createCheckoutSessionSchema>;
 export type CancelSubscriptionDTO = z.infer<typeof cancelSubscriptionSchema>;
+export type AdminSubscriptionQueryDTO = z.infer<typeof adminSubscriptionQuerySchema>;
+export type UpdateSubscriptionStatusDTO = z.infer<typeof updateSubscriptionStatusSchema>;
 

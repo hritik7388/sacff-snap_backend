@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelSubscriptionSchema = exports.webhookPayloadSchema = exports.createCheckoutSessionSchema = void 0;
+exports.updateSubscriptionStatusSchema = exports.adminSubscriptionQuerySchema = exports.cancelSubscriptionSchema = exports.webhookPayloadSchema = exports.createCheckoutSessionSchema = void 0;
 // src/schemas/subscriptionSchema.ts
 const zod_1 = require("zod");
 exports.createCheckoutSessionSchema = zod_1.z.object({
@@ -30,4 +30,19 @@ exports.webhookPayloadSchema = zod_1.z.object({
 });
 exports.cancelSubscriptionSchema = zod_1.z.object({
     subscriptionId: zod_1.z.string().min(1, "Subscription ID is required"),
+});
+exports.adminSubscriptionQuerySchema = zod_1.z.object({
+    search: zod_1.z.string().optional(),
+    status: zod_1.z.string().optional(),
+    page: zod_1.z.coerce.number().int().positive().optional().default(1),
+    limit: zod_1.z.coerce.number().int().positive().max(100).optional().default(10),
+    sortBy: zod_1.z.string().optional().default("createdAt"),
+    sortOrder: zod_1.z.enum(["asc", "desc"]).optional().default("desc"),
+    startDate: zod_1.z.string().optional(),
+    endDate: zod_1.z.string().optional(),
+});
+exports.updateSubscriptionStatusSchema = zod_1.z.object({
+    id: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
+    subscriptionId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
+    status: zod_1.z.string().min(1, "Status is required"),
 });

@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "../types/index";
 import { SubscriptionServices } from "../services/subscriptionServices";
-import { createCheckoutSessionSchema } from "../schemas/subscriptionSchema";
+import { createCheckoutSessionSchema, adminSubscriptionQuerySchema, updateSubscriptionStatusSchema } from "../schemas/subscriptionSchema";
 
 const subscriptionService = new SubscriptionServices();
 
@@ -99,6 +99,67 @@ export class SubscriptionController {
             // req.body is a Buffer when express.raw() middleware is applied on this route
             const result = await subscriptionService.handleWebhook(req.body as Buffer, Array.isArray(signature) ? signature[0] : signature);
             res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * @route   GET /api/v1/subscription/admin/subscriptions
+     * @desc    Get subscriptions list with filters, search, and pagination for super admin
+     * @access  Private (Super Admin)
+     */
+    async getAdminSubscriptions(req: Request, res: Response, next: Function) {
+        try {
+            const query = adminSubscriptionQuerySchema.parse(req.query);
+            const result = await subscriptionService.getAdminSubscriptions(query);
+            res.status(result.statusCode).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * @route   GET /api/v1/subscription/admin/dashboard
+     * @desc    Get subscription dashboard statistics for super admin
+     * @access  Private (Super Admin)
+     */
+    async getAdminSubscriptionDashboard(req: Request, res: Response, next: Function) {
+        try {
+            const result = await subscriptionService.getAdminSubscriptionDashboard();
+            res.status(result.statusCode).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * @route   GET /api/v1/subscription/admin/:id
+     * @desc    Get single subscription details for super admin
+     * @access  Private (Super Admin)
+     */
+    async getAdminSubscriptionById(req: Request, res: Response, next: Function) {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const result = await subscriptionService.getAdminSubscriptionById(id);
+            res.status(result.statusCode).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * @route   PATCH /api/v1/subscription/admin/status
+     * @route   PATCH /api/v1/subscription/admin/:id/status
+     * @desc    Update subscription status for super admin (Administrative status preview)
+     * @access  Private (Super Admin)
+     */
+    async updateAdminSubscriptionStatus(req: Request, res: Response, next: Function) {
+        try {
+            const data = updateSubscriptionStatusSchema.parse(req.body);
+            const id = req.params.id || data.id || data.subscriptionId;
+            const result = await subscriptionService.updateAdminSubscriptionStatus(String(id), data.status);
+            res.status(result.statusCode).json(result);
         } catch (err) {
             next(err);
         }

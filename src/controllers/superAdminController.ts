@@ -24,7 +24,12 @@ import {
   changeQuestionnaireStatusSchema,
 } from "../schemas/superAdminSchema";
 import { AuthenticatedRequest } from "../types/index";
+import { SubscriptionServices } from "../services/subscriptionServices";
+import { adminSubscriptionQuerySchema, updateSubscriptionStatusSchema } from "../schemas/subscriptionSchema";
+
 const superAdmin = new superAdminServices();
+const subscriptionServices = new SubscriptionServices();
+
 export class superAdminController {
   async createQuestionnaire(req: Request, res: Response, next: Function) {
     try {
@@ -472,6 +477,67 @@ async updateQuestionnaire(
       const data = logout.parse(req.body);
       const result = await superAdmin.logoutUser(id, data);
       res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * @route   GET /api/v1/superAdmin/subscriptions
+   * @desc    Get subscriptions list with filters, search, and dashboard stats for super admin
+   * @access  Private (Super Admin)
+   */
+  async getSubscriptions(req: Request, res: Response, next: Function) {
+    try {
+      const query = adminSubscriptionQuerySchema.parse(req.query);
+      const result = await subscriptionServices.getAdminSubscriptions(query);
+      res.status(result.statusCode).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * @route   GET /api/v1/superAdmin/subscription/dashboard
+   * @desc    Get subscription dashboard statistics for super admin
+   * @access  Private (Super Admin)
+   */
+  async getSubscriptionDashboard(req: Request, res: Response, next: Function) {
+    try {
+      const result = await subscriptionServices.getAdminSubscriptionDashboard();
+      res.status(result.statusCode).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * @route   GET /api/v1/superAdmin/subscription/:id
+   * @desc    Get single subscription details for super admin
+   * @access  Private (Super Admin)
+   */
+  async getSubscriptionById(req: Request, res: Response, next: Function) {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const result = await subscriptionServices.getAdminSubscriptionById(id);
+      res.status(result.statusCode).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * @route   PATCH /api/v1/superAdmin/subscription/status
+   * @route   PATCH /api/v1/superAdmin/subscription/:id/status
+   * @desc    Update subscription status for super admin (Administrative status preview)
+   * @access  Private (Super Admin)
+   */
+  async updateSubscriptionStatus(req: Request, res: Response, next: Function) {
+    try {
+      const data = updateSubscriptionStatusSchema.parse(req.body);
+      const id = req.params.id || data.id || data.subscriptionId;
+      const result = await subscriptionServices.updateAdminSubscriptionStatus(String(id), data.status);
+      res.status(result.statusCode).json(result);
     } catch (err) {
       next(err);
     }
