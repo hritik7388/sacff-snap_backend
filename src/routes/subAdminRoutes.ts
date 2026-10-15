@@ -1,12 +1,14 @@
 // src/routes/subAdminRoutes.ts
 import { Router } from "express";
 import { subAdminController } from "../controllers/subAdminController";
+import { SubscriptionController } from "../controllers/subscriptionController";
 import { authMiddleware, isSubAdmin } from "../middlewares/authMiddleware";
 import { clientAuthMiddleware } from "../middlewares/authMiddleware";
 
 const router = Router();
 
 const subAdminControllers = new subAdminController();
+const subscriptionController = new SubscriptionController();
 /**
  * @route   POST /api/v1/subAdmin/login
  * @desc    Login subAdmin
@@ -172,4 +174,18 @@ router.delete("/deleteUserBySubAdmin", clientAuthMiddleware, authMiddleware, isS
  * @access  Private (Authenticated Users)
  */
 router.post("/logOutCompany", clientAuthMiddleware, authMiddleware, subAdminControllers.logOutCompany.bind(subAdminControllers));
+
+/**
+ * @route   GET /api/v1/subAdmin/my-subscription
+ * @desc    Get company / subAdmin own subscription details (Overview, Payment details, Billing history)
+ * @access  Private (SubAdmin / Company)
+ */
+router.get(
+  "/my-subscription",
+  clientAuthMiddleware,
+  authMiddleware,
+  isSubAdmin,
+  subscriptionController.getSubscriptionStatus.bind(subscriptionController)
+);
+
 export default router;

@@ -122,5 +122,74 @@ class SubscriptionController {
             }
         });
     }
+    /**
+     * @route   GET /api/v1/subscription/admin/subscriptions
+     * @desc    Get subscriptions list with filters, search, and pagination for super admin
+     * @access  Private (Super Admin)
+     */
+    getAdminSubscriptions(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const query = subscriptionSchema_1.adminSubscriptionQuerySchema.parse(req.query);
+                const result = yield subscriptionService.getAdminSubscriptions(query);
+                res.status(result.statusCode).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    /**
+     * @route   GET /api/v1/subscription/admin/dashboard
+     * @desc    Get subscription dashboard statistics for super admin
+     * @access  Private (Super Admin)
+     */
+    getAdminSubscriptionDashboard(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const result = yield subscriptionService.getAdminSubscriptionDashboard();
+                res.status(result.statusCode).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    /**
+     * @route   GET /api/v1/subscription/admin/:id
+     * @desc    Get single subscription details for super admin
+     * @access  Private (Super Admin)
+     */
+    getAdminSubscriptionById(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+                const result = yield subscriptionService.getAdminSubscriptionById(id);
+                res.status(result.statusCode).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    /**
+     * @route   PATCH /api/v1/subscription/admin/status
+     * @route   PATCH /api/v1/subscription/admin/:id/status
+     * @desc    Update subscription status for super admin (Administrative status preview)
+     * @access  Private (Super Admin)
+     */
+    updateAdminSubscriptionStatus(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = subscriptionSchema_1.updateSubscriptionStatusSchema.parse(req.body);
+                const id = req.params.id || data.id || data.subscriptionId;
+                const result = yield subscriptionService.updateAdminSubscriptionStatus(String(id), data.status);
+                res.status(result.statusCode).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
 }
 exports.SubscriptionController = SubscriptionController;

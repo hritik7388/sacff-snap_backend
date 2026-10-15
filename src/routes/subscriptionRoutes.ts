@@ -58,20 +58,9 @@ router.get(
 );
 
 /**
- * ─── AUTHENTICATED COMPANY ROUTES ───────────────────────────────────────────
+ * ─── AUTHENTICATED COMPANY (SUBADMIN) ROUTES ───────────────────────────────
  */
 
-/**
- * @route   GET /api/v1/subscription/status
- * @desc    Get current subscription status for authenticated company
- * @access  Private (COMPANY)
- */
-router.get(
-    "/status",
-    clientAuthMiddleware,
-    authMiddleware,
-    subscriptionController.getSubscriptionStatus.bind(subscriptionController)
-);
 
 /**
  * @route   POST /api/v1/subscription/cancel
@@ -86,3 +75,5 @@ router.post(
 );
 
 export default router;
+
+
