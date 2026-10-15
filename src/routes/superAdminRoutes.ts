@@ -10,6 +10,18 @@ const router = Router();
 
 
 const superAdminRoutes = new superAdminController();
+
+/**
+ * @route   GET /api/v1/superAdmin/questionnaire/dashboard
+ * @desc    Get questionnaire dashboard counts
+ * @access  SuperAdmin
+ */
+router.get(
+    "/questionnaire/dashboard",
+    clientAuthMiddleware,
+    authMiddleware,isSUperAdmin,
+    superAdminRoutes.getQuestionnaireDashboard.bind(superAdminRoutes)
+);
 /**
  * @route   POST /api/v1/superAdmin/superAdminLogin
  * @desc    Login a super admin
@@ -31,6 +43,7 @@ router.get(
     superAdminRoutes,
   ),
 );
+
 
 // Get complete quiz with questions and options
 router.get(
@@ -62,17 +75,7 @@ router.patch(
   ),
 );
 
-/**
- * @route   GET /api/v1/superAdmin/questionnaire/dashboard
- * @desc    Get questionnaire dashboard counts
- * @access  SuperAdmin
- */
-router.get(
-    "/questionnaire/dashboard",
-    clientAuthMiddleware,
-    authMiddleware,isSUperAdmin,
-    superAdminRoutes.getQuestionnaireDashboard.bind(superAdminRoutes)
-);
+
 
 /**
  * @route   GET /api/v1/superAdmin/dashboard

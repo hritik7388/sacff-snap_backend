@@ -62,7 +62,7 @@ class tradesManServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const existingTradesMan = yield prismaClient_1.default.user.findFirst({
-                    where: { email: data.email, isDeleted: false, status: "ACTIVE" }
+                    where: { email: data.email, isDeleted: false, status: "ACTIVE" },
                 });
                 if (existingTradesMan) {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.ALREADY_EXISTS, 500, "TradesMan with this email already exists");
@@ -83,8 +83,8 @@ class tradesManServices {
                 });
                 const craftData = yield prismaClient_1.default.craft.findFirst({
                     where: {
-                        name: data.craft
-                    }
+                        name: data.craft,
+                    },
                 });
                 const tradeData = yield prismaClient_1.default.tradesMan.create({
                     data: {
@@ -96,7 +96,7 @@ class tradesManServices {
                         address: data.address,
                         longitude: data.longitude,
                         latitude: data.latitude,
-                    }
+                    },
                 });
                 if (data.idProofImage) {
                     yield prismaClient_1.default.userMedia.create({
@@ -124,7 +124,7 @@ class tradesManServices {
                 };
                 return {
                     message: responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.REGISTER_SUCCESS,
-                    data: tradesManData
+                    data: tradesManData,
                 };
             }
             catch (error) {
@@ -132,7 +132,9 @@ class tradesManServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError ? error : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.REGISTER_FAILED, 500, error.message);
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.TRADESMAN.REGISTER_FAILED, 500, error.message);
             }
         });
     }
@@ -155,8 +157,7 @@ class tradesManServices {
                     throw new customError_1.CustomError("Tradesman not found", 404);
                 }
                 // ✅ STEP 2: PASSWORD CHECK
-                const isPasswordValid = user.password &&
-                    (yield bcryptjs_1.default.compare(data.password, user.password));
+                const isPasswordValid = user.password && (yield bcryptjs_1.default.compare(data.password, user.password));
                 if (!isPasswordValid) {
                     throw new customError_1.CustomError("Invalid password", 400);
                 }
@@ -326,10 +327,11 @@ class tradesManServices {
                     throw new customError_1.CustomError("TRADESMAN_NOT_FOUND", 404, "Tradesman profile not found");
                 }
                 // ✅ Media extraction
-                const idProofImage = ((_a = user.userMedias.find(m => m.mediaType === "ID_PROOF_IMAGE")) === null || _a === void 0 ? void 0 : _a.url) || null;
-                const photoImage = ((_b = user.userMedias.find(m => m.mediaType === "PHOTO_IMAGE")) === null || _b === void 0 ? void 0 : _b.url) || null;
+                const idProofImage = ((_a = user.userMedias.find((m) => m.mediaType === "ID_PROOF_IMAGE")) === null || _a === void 0 ? void 0 : _a.url) ||
+                    null;
+                const photoImage = ((_b = user.userMedias.find((m) => m.mediaType === "PHOTO_IMAGE")) === null || _b === void 0 ? void 0 : _b.url) || null;
                 // ✅ Project + Employer Mapping
-                const projectDetails = tradesman.projectContexts.map(ctx => ({
+                const projectDetails = tradesman.projectContexts.map((ctx) => ({
                     projectId: ctx.project.id,
                     projectCode: ctx.project.PJT,
                     projectName: ctx.project.projectName,
@@ -432,7 +434,7 @@ class tradesManServices {
                         tradesManId: true,
                     },
                 });
-                const assignedIds = assigned.map(a => a.tradesManId);
+                const assignedIds = assigned.map((a) => a.tradesManId);
                 if (assignedIds.length === 0) {
                     return {
                         message: "No tradesman found",
@@ -510,9 +512,7 @@ class tradesManServices {
                         mobileNumber: ((_c = tm.user) === null || _c === void 0 ? void 0 : _c.mobileNumber) || null,
                         countryCode: ((_d = tm.user) === null || _d === void 0 ? void 0 : _d.countryCode) || null,
                         user_type: ((_e = tm.user) === null || _e === void 0 ? void 0 : _e.user_type) || null,
-                        image: ((_g = (_f = tm.user) === null || _f === void 0 ? void 0 : _f.userMedias) === null || _g === void 0 ? void 0 : _g.length) > 0
-                            ? tm.user.userMedias[0].url
-                            : null,
+                        image: ((_g = (_f = tm.user) === null || _f === void 0 ? void 0 : _f.userMedias) === null || _g === void 0 ? void 0 : _g.length) > 0 ? tm.user.userMedias[0].url : null,
                     });
                 });
                 return {
@@ -566,8 +566,8 @@ class tradesManServices {
                 }
                 const craftData = yield prismaClient_1.default.craft.findFirst({
                     where: {
-                        name: data.craft
-                    }
+                        name: data.craft,
+                    },
                 });
                 const updatedTrade = yield prismaClient_1.default.tradesMan.update({
                     where: { userId: data.id },
@@ -649,7 +649,7 @@ class tradesManServices {
                         isDeleted: false,
                         user_type: "TRADESMAN",
                         isVerified: true,
-                    }
+                    },
                 });
                 if (!tradesManData) {
                     throw new customError_1.CustomError("Unauthorized", 401);
@@ -662,9 +662,9 @@ class tradesManServices {
                     },
                     include: {
                         projectManagers: {
-                            select: { id: true }
-                        }
-                    }
+                            select: { id: true },
+                        },
+                    },
                 });
                 if (!projectData) {
                     throw new customError_1.CustomError("Project not found", 404);
@@ -672,8 +672,8 @@ class tradesManServices {
                 // ✅ 3. GET TRADESMAN PROFILE
                 const existingTradesman = yield prismaClient_1.default.tradesMan.findUnique({
                     where: {
-                        userId: tradesManData.id
-                    }
+                        userId: tradesManData.id,
+                    },
                 });
                 if (!existingTradesman) {
                     throw new customError_1.CustomError("Tradesman profile not found", 404);
@@ -709,7 +709,7 @@ class tradesManServices {
                         toeBoard: false,
                         platform: false,
                         ladder: false,
-                    }
+                    },
                 });
                 yield prismaClient_1.default.tradesManOnProject.upsert({
                     where: {
@@ -753,7 +753,7 @@ class tradesManServices {
                     updatedAt: newRequest.updatedAt,
                 };
                 // ✅ 7. SEND NOTIFICATION TO PROJECT MANAGERS
-                const pmUserIds = projectData.projectManagers.map(pm => pm.id);
+                const pmUserIds = projectData.projectManagers.map((pm) => pm.id);
                 const notificationMessage = `New  Scaffold request ${newRequest.REQID} has been received from  ${tradesManData.name} for ${requestData.SCAFFID}.`;
                 if (pmUserIds.length > 0) {
                     for (const pmId of pmUserIds) {
@@ -768,8 +768,8 @@ class tradesManServices {
                                 receiverId: pmId,
                                 senderId: userId.toString(),
                                 isRead: false,
-                                notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/requestReg.png"
-                            }
+                                notificationImage: "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/requestReg.png",
+                            },
                         });
                     }
                 }
@@ -777,8 +777,8 @@ class tradesManServices {
                 const devices = yield prismaClient_1.default.device.findMany({
                     where: {
                         userId: { in: pmUserIds },
-                        deviceToken: { not: null }
-                    }
+                        deviceToken: { not: null },
+                    },
                 });
                 for (const d of devices) {
                     if (!d.deviceToken)
@@ -788,7 +788,7 @@ class tradesManServices {
                 // ✅ FINAL RESPONSE
                 return {
                     message: "Project scaffold request created successfully",
-                    data: requestData
+                    data: requestData,
                 };
             }
             catch (error) {
@@ -838,14 +838,14 @@ class tradesManServices {
                 // ANY tradesman can update (remove ownership check)
                 // 👉 if you want restriction, uncomment below:
                 /*
-                if (request.createdById !== tradesManData.id) {
-                  throw new CustomError(
-                    RESPONSE_MESSAGES.SCAFFHOLDREQUEST.INVALID_STATUS,
-                    403,
-                    "You are not authorized"
-                  );
-                }
-                */
+                      if (request.createdById !== tradesManData.id) {
+                        throw new CustomError(
+                          RESPONSE_MESSAGES.SCAFFHOLDREQUEST.INVALID_STATUS,
+                          403,
+                          "You are not authorized"
+                        );
+                      }
+                      */
                 // ✅ 3. Update Request (versioning style)
                 const updatedRequest = yield prismaClient_1.default.projectScaffholdRequest.update({
                     where: { id: request.id },
@@ -961,8 +961,8 @@ class tradesManServices {
                 const devices = yield prismaClient_1.default.device.findMany({
                     where: {
                         userId: { in: pmUserIds },
-                        deviceToken: { not: null }
-                    }
+                        deviceToken: { not: null },
+                    },
                 });
                 console.log("devices=================>>>>", devices);
                 for (const d of devices) {
@@ -1156,11 +1156,7 @@ class tradesManServices {
                     throw new customError_1.CustomError("Project not found", 404);
                 }
                 // ✅ STEP 3: MATCH CRAFT
-                const craftMatch = project.jobCrafts.find((jc) => {
-                    var _a, _b;
-                    return ((_b = (_a = jc.craft) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.toLowerCase()) ===
-                        tradesman.craft.toLowerCase();
-                });
+                const craftMatch = project.jobCrafts.find((jc) => { var _a, _b; return ((_b = (_a = jc.craft) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.toLowerCase()) === tradesman.craft.toLowerCase(); });
                 if (!craftMatch) {
                     throw new customError_1.CustomError("Craft mismatch", 400);
                 }
@@ -1202,7 +1198,7 @@ class tradesManServices {
                     }),
                 ]);
                 // ✅ STEP 6: NOTIFICATION
-                const projectManagerIds = project.projectManagers.map(pm => pm.id);
+                const projectManagerIds = project.projectManagers.map((pm) => pm.id);
                 const message = `Tradesman ${user.name} (${tradesman.craft}) joined project ${project.projectName}`;
                 for (const pmId of projectManagerIds) {
                     yield prismaClient_1.default.notification.create({

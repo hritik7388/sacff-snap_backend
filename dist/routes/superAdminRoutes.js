@@ -8,6 +8,12 @@ const authMiddleware_2 = require("../middlewares/authMiddleware");
 const router = (0, express_1.Router)();
 const superAdminRoutes = new superAdminController_1.superAdminController();
 /**
+ * @route   GET /api/v1/superAdmin/questionnaire/dashboard
+ * @desc    Get questionnaire dashboard counts
+ * @access  SuperAdmin
+ */
+router.get("/questionnaire/dashboard", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getQuestionnaireDashboard.bind(superAdminRoutes));
+/**
  * @route   POST /api/v1/superAdmin/superAdminLogin
  * @desc    Login a super admin
  * @access  Public
@@ -21,12 +27,6 @@ router.get("/questionnaire/:id", authMiddleware_2.clientAuthMiddleware, authMidd
 router.put("/questionnaire/update", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.updateQuestionnaire.bind(superAdminRoutes));
 // Change only quiz status
 router.patch("/questionnaire/status", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.changeQuestionnaireStatus.bind(superAdminRoutes));
-/**
- * @route   GET /api/v1/superAdmin/questionnaire/dashboard
- * @desc    Get questionnaire dashboard counts
- * @access  SuperAdmin
- */
-router.get("/questionnaire/dashboard", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getQuestionnaireDashboard.bind(superAdminRoutes));
 /**
  * @route   GET /api/v1/superAdmin/dashboard
  * @desc    Get super admin dashboard data
