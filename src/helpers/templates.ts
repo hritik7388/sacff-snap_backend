@@ -582,10 +582,10 @@ export const greenpdfTemplate = (data: any) => {
 
         .tag-container {
             width: 100%;
-            max-width: 480px;
+            max-width: 560px;
             background-color: #ffffff;
             border: 2px solid var(--safety-black);
-            padding: 16px 18px 18px;
+            padding: 24px 24px 18px;
 
         }
 
@@ -1235,10 +1235,10 @@ export const yellowpdfTemplate = (data: any) => {
 
         .tag-container {
             width: 100%;
-            max-width: 480px;
+            max-width: 560px;
             background-color: #ffffff;
             border: 2px solid var(--safety-black);
-            padding: 16px 18px 18px;
+            padding: 24px 24px 18px;
             /* box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); */
         }
 
