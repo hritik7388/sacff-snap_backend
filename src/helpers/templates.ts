@@ -582,10 +582,10 @@ export const greenpdfTemplate = (data: any) => {
 
         .tag-container {
             width: 100%;
-            max-width: 560px;
+            max-width: 480px;
             background-color: #ffffff;
             border: 2px solid var(--safety-black);
-            padding: 24px 24px 18px;
+            padding: 24px 18px 26px;
 
         }
 
@@ -708,7 +708,7 @@ export const greenpdfTemplate = (data: any) => {
         }
 
         .cell {
-            padding: 4px 6px;
+            padding: 10px 6px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -724,7 +724,7 @@ export const greenpdfTemplate = (data: any) => {
             font-size: 13.5px;
             font-weight: 700;
             background-color: #ffffff;
-            padding: 3px 4px;
+            padding: 8px 4px;
         }
 
         .cell-peach {
@@ -831,8 +831,8 @@ export const greenpdfTemplate = (data: any) => {
         /* Location Row */
         .location-container {
             display: flex;
-            margin-top: 6px;
-            margin-bottom: 6px;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
 
         .location-label {
@@ -900,8 +900,8 @@ export const greenpdfTemplate = (data: any) => {
         .note-box {
             border: 2px solid var(--safety-black);
             display: flex;
-            min-height: 96px;
-            margin-bottom: 6px;
+            min-height: 120px;
+            margin-bottom: 9px;
         }
 
         .note-label-cell {
@@ -1234,12 +1234,11 @@ export const yellowpdfTemplate = (data: any) => {
         }
 
         .tag-container {
-            width: 100%;
-            max-width: 560px;
+           width: 100%;
+            max-width: 488px;
             background-color: #ffffff;
             border: 2px solid var(--safety-black);
-            padding: 24px 24px 18px;
-            /* box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); */
+            padding: 24px 18px 26px;
         }
 
         /* ---------- Top Header ---------- */
@@ -1360,14 +1359,15 @@ export const yellowpdfTemplate = (data: any) => {
         .table-row:last-child {
             border-bottom: none;
         }
+            
 
         .cell {
-            padding: 4px 6px;
+            padding: 10px 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            border-right: 2px solid var(--safety-black);
+            border-right: 2px solid var(--safety-black); 
         }
 
         .cell:last-child {
@@ -1378,7 +1378,7 @@ export const yellowpdfTemplate = (data: any) => {
             font-size: 13.5px;
             font-weight: 700;
             background-color: #ffffff;
-            padding: 3px 4px;
+            padding: 1px 4px;
         }
 
         .cell-peach {
