@@ -2,10 +2,10 @@
 export const companyStatusTemplate = (
   companyName: string,
   cmpId: string,
-  isApproved: "APPROVED" | "REJECTED"
+  isApproved: "APPROVED" | "REJECTED",
 ) => {
-  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
-
+  const LOGO_URL =
+    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
 
   return `
 <html lang="en">
@@ -42,14 +42,15 @@ export const companyStatusTemplate = (
               <p style="font-size:16px;">Dear <strong>${companyName}</strong>,</p>
 
               <p style="font-size:15px;color:#444;line-height:1.6;">
-                ${isApproved === "APPROVED"
-      ? `
+                ${
+                  isApproved === "APPROVED"
+                    ? `
                   We’re pleased to inform you that your company registration has been 
                   <strong style="color:#16a34a;">APPROVED</strong> by our review team.`
-      : `
+                    : `
                   We regret to inform you that your company registration has been 
                   <strong style="color:#dc2626;">REJECTED</strong> after review.`
-    }
+                }
               </p>
 
               <h3 style="margin:20px 0 12px;color:#111827;font-size:20px;">Company Details</h3>
@@ -68,10 +69,11 @@ export const companyStatusTemplate = (
                 </span>
               </p>
 
-              ${isApproved === "APPROVED"
-      ? `<p>You can now log in and access your company dashboard.</p>`
-      : `<p>For more details or to reapply, please contact our support team.</p>`
-    }
+              ${
+                isApproved === "APPROVED"
+                  ? `<p>You can now log in and access your company dashboard.</p>`
+                  : `<p>For more details or to reapply, please contact our support team.</p>`
+              }
 
               <p style="margin-top:30px;font-size:15px;color:#111;">
                 Best regards,<br><strong>The Scaff Admin Team</strong>
@@ -97,9 +99,10 @@ export const companyAddTemplate = (
   memberName: string,
   userType: string,
   email: string,
-  tempPassword: string
+  tempPassword: string,
 ) => {
-  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+  const LOGO_URL =
+    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
 
   return `
 <html lang="en">
@@ -179,9 +182,10 @@ export const teamMemberAddTemplate = (
   userType: string,
   email: string,
   tempPassword: string,
-  cmpId: string
+  cmpId: string,
 ) => {
-  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+  const LOGO_URL =
+    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
 
   return `
 <html lang="en">
@@ -258,8 +262,8 @@ export const teamMemberAddTemplate = (
 };
 
 export const otpTemplate = (name: string, otp: string) => {
-  const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
-
+  const LOGO_URL =
+    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
 
   return `<html lang="en">
 <head>
@@ -344,7 +348,7 @@ export const newDeviceTemplate = (
   deviceName: string,
   deviceType: string,
   osVersion: string,
-  lastLogin: string
+  lastLogin: string,
 ) => {
   const LOGO_URL =
     "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
@@ -440,7 +444,7 @@ export const unusualActivityTemplate = (
   deviceName: string,
   deviceType: string,
   osVersion: string,
-  lastLogin: string
+  lastLogin: string,
 ) => {
   const LOGO_URL =
     "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
@@ -540,24 +544,23 @@ export const unusualActivityTemplate = (
 </body>
 </html>`;
 };
-export const greenpdfTemplate = (data: any,) => {
-
+export const greenpdfTemplate = (data: any) => {
   return `
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCAFFSNAPP - Released Tag</title>
+    <title>SCAFFSNAPP - Complete Scaffold Released Tag</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,700;0,800;1,700;1,800&family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --safety-black: #000;
-            --input-white: rgba(255, 255, 255, 0.4);
+            --safety-black: #000000;
+            --input-peach: #FCE4D6;
+            --brand-orange: #E85A24;
+            --brand-dark: #292929;
         }
 
         * {
@@ -567,448 +570,650 @@ export const greenpdfTemplate = (data: any,) => {
         }
 
         body {
-            font-family: 'Open Sans', sans-serif;
-            background-color: #D1D5DB;
+            font-family: 'Tinos', 'Times New Roman', Times, Georgia, serif;
+            background-color: transparent;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px 16px;
             color: var(--safety-black);
         }
 
         .tag-container {
             width: 100%;
-            max-width: 560px;
-            background-color: #fff;
-            position: relative;
-            padding: 24px 24px 18px; 
+            max-width: 480px;
+            background-color: #ffffff;
+            border: 2px solid var(--safety-black);
+            padding: 16px 18px 18px;
+
         }
 
-        /* ---------- Top header row ---------- */
+        /* ---------- Top Header ---------- */
         .top-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 14px;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 6px;
+            padding-bottom: 2px;
         }
 
-        .brand {
-            font-weight: 700;
-            font-size: 28px;
-            letter-spacing: -0.02em;
-        }
-
-        .brand-sub {
-            font-weight: 700;
-            font-size: 17px;
-            letter-spacing: 0.01em;
-            text-align: center;
-            line-height: 1.25;
-            max-width: 230px;
-        }
-
-        /* ---------- Status banner ---------- */
-        .status-banner {
-            background-color: var(--safety-black);
-            color: #fff;
+        .brand-section {
             display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .brand-logo {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 38px;
+            font-weight: 800;
+            font-style: italic;
+            line-height: 1;
+            display: flex;
+            align-items: baseline;
+            letter-spacing: -0.03em;
+        }
+
+        .brand-scaff {
+            color: var(--brand-orange);
+        }
+
+        .brand-snapp {
+            color: var(--brand-dark);
+        }
+
+        .brand-tm {
+            font-size: 11px;
+            font-style: normal;
+            font-weight: 700;
+            color: #666;
+            margin-left: 2px;
+            vertical-align: super;
+        }
+
+        .brand-underline {
+            width: 100%;
+            height: 1.5px;
+            background: linear-gradient(to right, var(--brand-orange) 50%, #888 50%);
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
+
+        .brand-motto {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: #444;
+            text-transform: uppercase;
+        }
+
+        /* Diagonal slash divider */
+        .header-divider-svg {
+            width: 48px;
+            height: 52px;
+            flex-shrink: 0;
+        }
+
+        .header-title-section {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            padding: 6px;
-            margin-bottom: 16px;
         }
 
-        .status-icon {
-            width: 30px;
-            height: 30px;
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            line-height: 1.05;
         }
 
-        .status-text {
-            font-weight: 800;
-            font-size: 30px;
+        .header-subtitle {
+            font-size: 11.5px;
+            font-weight: 700;
+            margin-top: 2px;
+            letter-spacing: 0.01em;
+        }
+
+        /* ---------- Black Banner ---------- */
+        .complete-banner {
+            background-color: var(--safety-black);
+            color: #ffffff;
+            text-align: center;
+            font-size: 21px;
+            font-weight: 700;
             letter-spacing: 0.02em;
-        }
-
-        /* ---------- ID + Date box ---------- */
-        .id-date-box {
-            display: flex;
-            border: 2px solid var(--safety-black);
-            margin-bottom: 18px;
-        }
-
-        .id-part {
-            flex: 1.6;
-            padding: 10px 10px 0px 10px;
-            border-right: 2px solid var(--safety-black);
-        }
-
-        .date-part {
-            flex: 1;
-            padding: 10px 10px 0px 10px;
-        }
-
-        .small-label {
-           font-size: 16px;
-            font-weight: 500;
-            text-transform: uppercase;
+            padding: 3px 8px;
             margin-bottom: 2px;
         }
 
-        .big-value {
-            font-weight: 700;
-            font-size: 24px;
-        }
-
-        .date-value {
-            font-weight: 700;
-            font-size: 20px;
-        }
-
-        /* ---------- Fields ---------- */
-        .field {
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 16px;
-        }
-
-        .field-label {
-            font-size: 14px;
-            font-weight: 500;
-            white-space: nowrap;
-            width: 110px;
-            flex-shrink: 0;
-            margin-right: 10px;
-            padding-bottom: 2px;
-        }
-
-        .field-value {
-            flex: 1;
-            border-bottom: 1.5px solid var(--safety-black);
-            font-weight: 700;
-            font-size: 18px;
-            line-height: 1.2;
-            padding-bottom: 2px;
-        }
-
-        .flex-row {
-            display: flex;
-            gap: 24px;
-        }
-
-        .flex-1 {
-            flex: 1;
-        }
-
-        /* ---------- Section heading (plain bold) ---------- */
-        .section-heading {
-            font-weight: 700;
-            font-size: 16px;
-            margin: 6px 0 10px;
-        }
-
-        /* ---------- Loading Rating box ---------- */
-        .loading-rating-box {
+        /* ---------- Table Structure ---------- */
+        .scaffold-table {
             border: 2px solid var(--safety-black);
-            padding: 6px 16px;
-            font-size: 19px;
-            font-weight: 600;
-            margin-bottom: 18px;
-        }
-
-        .loading-rating-box strong {
-            font-weight: 800;
-        }
-
-        /* ---------- Note ---------- */
-        .note-text {
-            font-weight: 700;
-            font-size: 16px;
-            line-height: 1.4;
-            margin-bottom: 22px;
-        }
-
-        /* ---------- Footer (contacts + QR) ---------- */
-        .footer {
             display: flex;
-            /* border-top: 1.5px solid var(--safety-black); */
-            padding-top: 16px;
+            flex-direction: column;
+        }
+
+        .table-row {
+            display: flex;
+            border-bottom: 2px solid var(--safety-black);
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .cell {
+            padding: 4px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-right: 2px solid var(--safety-black);
+        }
+
+        .cell:last-child {
+            border-right: none;
+        }
+
+        .cell-header {
+            font-size: 13.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            padding: 3px 4px;
+        }
+
+        .cell-peach {
+            background-color: var(--input-peach);
+            font-weight: 700;
+        }
+
+        .cell-white {
+            background-color: #ffffff;
+            font-weight: 700;
+        }
+
+        .col-id {
+            flex: 1.25;
+        }
+
+        .col-date {
+            flex: 1.05;
+        }
+
+        .col-load {
+            flex: 1.15;
+            line-height: 1.2;
+        }
+
+        .val-id {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .val-date {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .val-load {
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        /* Project row */
+        .project-label {
+            width: 140px;
+            flex-shrink: 0;
+            font-size: 14.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            justify-content: center;
+        }
+
+        .project-val {
+            flex: 1;
+            font-size: 17px;
+            font-weight: 700;
+            background-color: var(--input-peach);
+            justify-content: center;
+        }
+
+        /* Company row */
+        .company-label {
+            width: 140px;
+            flex-shrink: 0;
+            font-size: 14.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            justify-content: center;
+        }
+
+        .company-val {
+            flex: 1.35;
+            font-size: 16px;
+            font-weight: 700;
+            background-color: var(--input-peach);
+            justify-content: center;
+        }
+
+        .proj-no-header {
+            width: 58px;
+            flex-shrink: 0;
+            font-size: 10.5px;
+            font-weight: 700;
+            line-height: 1.15;
+            background-color: #ffffff;
+            border-right: 1.5px solid var(--safety-black);
+            justify-content: center;
+            flex-direction: column;
+            padding: 2px 3px;
+        }
+
+        .proj-no-val {
+            width: 78px;
+            flex-shrink: 0;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.15;
+            background-color: #ffffff;
+            justify-content: center;
+            flex-direction: column;
+            padding: 2px 3px;
+            border-right: none;
+        }
+
+        /* Location Row */
+        .location-container {
+            display: flex;
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+
+        .location-label {
+            border: 2px solid var(--safety-black);
+            padding: 2px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            background-color: #ffffff;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 95px;
+        }
+
+        .location-val {
+            flex: 1;
+            background-color: var(--input-peach);
+            padding: 3px 10px;
+            font-size: 14.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* Heavy separator bar */
+        .heavy-bar {
+            height: 5px;
+            background-color: var(--safety-black);
+            margin: 6px 0;
+        }
+
+        /* Safety checklist */
+        .checklist-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2px 4px;
+            margin-bottom: 6px;
+        }
+
+        .checklist-title {
+            font-size: 15.5px;
+            font-weight: 700;
+        }
+
+        .checklist-label {
+            font-size: 14.5px;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        .checklist-val-box {
+            background-color: var(--input-peach);
+            padding: 2px 18px;
+            font-size: 15px;
+            font-weight: 700;
+            margin-left: 10px;
+            text-align: center;
+        }
+
+        /* Note box */
+        .note-box {
+            border: 2px solid var(--safety-black);
+            display: flex;
+            min-height: 96px;
+            margin-bottom: 6px;
+        }
+
+        .note-label-cell {
+            padding: 6px 8px;
+            font-size: 15px;
+            font-weight: 700;
+            background-color: #ffffff;
+            border-right: 2px solid var(--safety-black);
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        .note-content-cell {
+            flex: 1;
+            background-color: var(--input-peach);
+            padding: 6px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            text-align: center;
+        }
+
+        .note-content-text {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        /* Heavy separator bar below note */
+        .heavy-bar-footer {
+            height: 6px;
+            background-color: var(--safety-black);
+            margin: 6px 0 10px 0;
+        }
+
+        /* Footer section */
+        .footer-section {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
         }
 
         .footer-left {
-            flex: 1.3;
+            flex: 1.15;
             display: flex;
             flex-direction: column;
-            /* justify-content: center; */
-            gap: 20px;
-            padding-right: 20px;
-            border-right: 1.5px solid var(--safety-black);
         }
 
-        .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .icon-circle {
-            background-color: var(--safety-black);
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .icon-circle svg {
-            width: 18px;
-            height: 18px;
-            stroke: #fff;
-        }
-
-        .contact-label {
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .contact-value {
+        .contact-details-heading {
+            text-align: center;
+            font-size: 15px;
             font-weight: 700;
-            font-size: 17px;
+            margin-bottom: 3px;
+        }
+
+        .contact-box {
+            border: 2px solid var(--safety-black);
+            background-color: #ffffff;
+        }
+
+        .contact-row-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 6px 1px 6px;
+            text-align: left;
+        }
+
+        .contact-row-val {
+            background-color: var(--input-peach);
+            border-top: 1.5px solid var(--safety-black);
+            border-bottom: 1.5px solid var(--safety-black);
+            font-size: 15px;
+            font-weight: 700;
+            text-align: center;
+            padding: 3px 6px;
+        }
+
+        .contact-channel-space {
+            height: 14px;
+            background-color: #ffffff;
+        }
+
+        .contact-osha-text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 7.5px;
+            font-weight: 600;
+            padding: 2px 6px 3px 6px;
+            border-top: 1px solid var(--safety-black);
+            color: #111;
+            line-height: 1.1;
+        }
+
+        .footer-website-link {
+            font-size: 11px;
+            color: #0b57d0;
+            text-decoration: underline;
+            margin-top: 5px;
+            display: inline-block;
         }
 
         .footer-right {
-            flex: 1;
+            flex: 0.95;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding-left: 20px;
+            padding-left: 4px;
         }
 
-        .qr-code {
-            width: 100%;
-            max-width: 160px;
+        .qr-image-wrapper {
+            width: 148px;
+            height: 148px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .qr-code img {
+        .qr-image {
             width: 100%;
+            height: 100%;
             display: block;
         }
 
-        .qr-text {
-            font-size: 12px;
-            font-weight: 500;
+        .qr-subtext {
+            font-size: 13.5px;
+            font-weight: 700;
             text-align: center;
-            margin-top: 10px;
-            line-height: 1.3;
+            margin-top: 4px;
         }
 
-        .note-row {
-            display: flex;
-            gap: 8px;
-            font-size: 15px;
-            line-height: 1.35;
-        }
-        .note-tag {
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .note-text {
-            font-weight: 700;
+        @media print {
+            body {
+                background: none !important;
+                padding: 0 !important;
+            }
+            .tag-container {
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <div class="tag-container" id="tag">
+    <div class="tag-container" id="scaffold-tag">
 
-        <!-- Top header -->
+        <!-- Top Header -->
         <div class="top-header">
-            <h1 class="brand">SCAFFSNAPP</h1>
-            <span class="brand-sub">SCAFFOLD RELEASED FOR ACCESS</span>
-        </div>
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <span class="brand-scaff">Scaff</span><span class="brand-snapp">Snapp</span><span class="brand-tm">&#8482;</span>
+                </div>
+                <div class="brand-underline"></div>
+                <div class="brand-motto">NUMQUAM IMPARATUS</div>
+            </div>
 
-        <!-- Status banner -->
-        <div class="status-banner">
-            <svg class="status-icon" viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" fill="#fff" stroke="#fff" />
-                <path d="m8.5 12.5 2.5 2.5 5-5.5" stroke="#000" fill="none" />
+            <!-- Angled diagonal divider slash -->
+            <svg class="header-divider-svg" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="8" y1="54" x2="40" y2="4" stroke="#000000" stroke-width="2.5" stroke-linecap="round" />
             </svg>
-            <span class="status-text">RELEASED</span>
-        </div>
 
-        <!-- ID + Date -->
-        <div class="id-date-box">
-            <div class="id-part">
-                <div class="small-label">Scaffold ID :</div>
-                <div class="big-value">${data.SCAFFID}</div>
-            </div>
-            <div class="date-part">
-                <div class="small-label" style="margin-left: 26px;">Date :</div>
-                <div class="date-value" style="text-align: center; margin-top: 10px;">${new Date(data.createdAt).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })}</div>
+            <div class="header-title-section">
+                <div class="header-title">SCAFFOLD</div>
+                <div class="header-title">RELEASED</div>
+                <div class="header-subtitle">Ready For Use</div>
             </div>
         </div>
 
-        <!-- Fields -->
-        <div class="field">
-            <span class="field-label">Project Name:</span>
-            <div class="field-value">${data.projectName}</div>
+        <!-- Black Banner -->
+        <div class="complete-banner">
+            Complete Scaffold
         </div>
 
-        <div class="field">
-            <span class="field-label">Company Name:</span>
-            <div class="field-value">${data.companyName}</div>
-        </div>
-
-        <div class="flex-row">
-            <div class="field flex-1">
-                <span class="field-label">Company ID:</span>
-                <div class="field-value">${data.CMPID}</div>
+        <!-- Scaffold ID, Date, Load Rating Table -->
+        <div class="scaffold-table">
+            <div class="table-row">
+                <div class="cell cell-header col-id">Scaffold ID</div>
+                <div class="cell cell-header col-date">Date</div>
+                <div class="cell cell-header col-load">Load Rating</div>
             </div>
-            <div class="field flex-1">
-                <span class="field-label"style="margin-right: 0; width: 88px;">Project ID:</span>
-                <div class="field-value">${data.PJT}</div>
-            </div>
-        </div>
+            <div class="table-row">
+                <div class="cell cell-peach col-id val-id">${data.SCAFFID}</div>
+                <div class="cell cell-peach col-date val-date">${new Date(
+                  data.createdAt,
+                ).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}</div>
+                <div class="cell cell-peach col-load val-load">
+    ${data.lightDuty ? `
+        <div>Light Duty</div>
+        <div>25 lbs. per sq.ft.</div>
+    ` : ""}
 
-        <div class="field">
-            <span class="field-label">Location:</span>
-            <div class="field-value">${data.address}</div>
-        </div>
+    ${data.mediumDuty ? `
+        <div>Medium Duty</div>
+        <div>50 lbs. per sq.ft.</div>
+    ` : ""}
 
-        <!-- Loading Rating -->
-        <h3 class="section-heading">Loading Rating</h3>
-        <div class="loading-rating-box">
-                   ${data.lightDuty ? `
-<div class="loading-box">
-  <div class="load-left">
-    <span>Light Duty</span>
-    <span style="font-size:20px;font-weight:650;">(25 LBS SQ FT)</span>
-  </div>
-
- 
+    ${data.heavyDuty ? `
+        <div>Heavy Duty</div>
+        <div>75 lbs. per sq.ft.</div>
+    ` : ""}
 </div>
-` : ""
-    }
-
-${data.mediumDuty ? `
-<div class="loading-box">
-  <div class="load-left">
-    <span>Medium Duty</span>
-    <span style="font-size:20px;font-weight:650;">(50 LBS SQ FT)</span>
-  </div>
-
- 
-</div>
-` : ""
-    }
-
-${data.heavyDuty ? `
-<div class="loading-box">
-  <div class="load-left">
-    <span>Heavy Duty</span>
-    <span style="font-size:20px;font-weight:650;">(75 LBS SQ FT)</span>
-  </div>
-
-   
-</div>
-` : ""
-    }
-        </div>
-
-        <!-- Note -->
-                <div class="note-row">
-                    <span class="note-tag">Note:</span>
-                    <p class="note-text">${data.note}.</p>
+            </div>
+            <div class="table-row">
+                <div class="cell cell-white project-label">Project Name</div>
+                <div class="cell cell-peach project-val">${data.projectName}</div>
+            </div>
+            <div class="table-row">
+                <div class="cell cell-white company-label">Company Name</div>
+                <div class="cell cell-peach company-val">${data.companyName}</div>
+                <div class="cell proj-no-header">
+                    <div>Project</div>
+                    <div>No.</div>
                 </div>
+                <div class="cell proj-no-val"> 
+                    <div>${data.PJT}</div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Footer: contacts + QR -->
-        <div class="footer">
+        <!-- Location Row -->
+        <div class="location-container">
+            <div class="location-label">Location</div>
+            <div class="location-val">${data.address}</div>
+        </div>
+
+        <!-- Heavy bar -->
+        <div class="heavy-bar"></div>
+
+        <!-- Safety Checklist -->
+        <div class="checklist-row">
+            <span class="checklist-title">Safety Checklist</span>
+            <span class="checklist-label">Fall Protection Required</span>
+             <span class="checklist-val-box">
+        ${data.fallProtection ? "Yes" : "No"}
+    </span>
+        </div>
+
+        <!-- Note Box -->
+        <div class="note-box">
+            <div class="note-label-cell">Note:</div>
+            <div class="note-content-cell">
+                <p class="note-content-text">${data.note}</p>
+            </div>
+        </div>
+
+        <!-- Heavy bar above footer -->
+        <div class="heavy-bar-footer"></div>
+
+        <!-- Footer: Contacts + QR -->
+        <div class="footer-section">
             <div class="footer-left">
-                <div class="contact-item">
-                    <div class="icon-circle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="contact-label">Contact Person Name</div>
-                        <div class="contact-value">${data.clientName}</div>
-                    </div>
+                <div class="contact-details-heading">Contact Details</div>
+                <div class="contact-box">
+                    <div class="contact-row-label">Competent Person</div>
+                    <div class="contact-row-val">${data.clientName}</div>
+
+                    <div class="contact-row-label">PHONE</div>
+                    <div class="contact-row-val">${data.clientMobile}</div>
+
+                    <div class="contact-row-label">Radio Channel</div>
+                    <div class="contact-channel-space"></div>
+
+                    <div class="contact-osha-text">Compliant with OSHA 29 CFR 1926.451 & ANSI A10.8.</div>
                 </div>
-                <div class="contact-item">
-                    <div class="icon-circle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path
-                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="contact-label">Mobile Number</div>
-                        <div class="contact-value">${data.clientMobile}</div>
-                    </div>
-                </div>
+                <a href="https://www.scaffsnapp.com" target="_blank" rel="noopener noreferrer" class="footer-website-link">www.scaffsnapp.com</a>
             </div>
 
             <div class="footer-right">
-                   <div class="qr-code">
-                 <img src="${data.qrCode}" 
-                        alt="QR Code">
-          </div>
-                <div class="qr-text">
-                    Scan the QR code for more details<br>and updates.
+                <div class="qr-image-wrapper">
+                    <!-- Standard high-resolution QR code representation for the scaffold ID record -->
+                    <img class="qr-image" src="${data.qrCode}" alt="QR Code for SCF-BR549">
                 </div>
+                <div class="qr-subtext">Scan for full record</div>
             </div>
         </div>
 
     </div>
-</body>
 
+</body>
 </html>
 
 `;
-}
-
+};
 
 const checkedIcon = `
 <img
   src="https://img.magnific.com/premium-vector/checkbox-icon-set-check-box-tick-mark-vector-symbol-black-filled-outlined-style-square-bullet-approved-mark-sign_268104-1403.jpg?semt=ais_hybrid&w=740&q=80"
-  style="width:45px;height:45px;object-fit:contain"
+  style="width:25px;height:25px;object-fit:contain"
   alt="checked"
 />
 `;
-export const yellowpdfTemplate = (data: any,) => {
-
-  return `
-  <!DOCTYPE html>
+export const yellowpdfTemplate = (data: any) => {
+  return `<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCAFFSNAPP - Incomplete Scaffold Tag</title>
+    <title>SCAFFSNAPP - Caution Incomplete Scaffold Tag</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,700;0,800;1,700;1,800&family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --safety-black: #000;
-            --input-white: rgba(255, 255, 255, 0.4);
+            --safety-black: #000000;
+            --input-peach: #FCE4D6;
+            --brand-orange: #E85A24;
+            --brand-dark: #292929;
         }
 
         * {
@@ -1018,569 +1223,727 @@ export const yellowpdfTemplate = (data: any,) => {
         }
 
         body {
-            font-family: 'Open Sans', sans-serif;
-            background-color: #D1D5DB;
+            font-family: 'Tinos', 'Times New Roman', Times, Georgia, serif;
+            background-color: transparent;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px 16px;
             color: var(--safety-black);
         }
 
         .tag-container {
             width: 100%;
-            max-width: 570px;
-            background-color: #fff;
-            position: relative;
-            padding: 24px 24px 18px;  
+            max-width: 480px;
+            background-color: #ffffff;
+            border: 2px solid var(--safety-black);
+            padding: 16px 18px 18px;
+            /* box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); */
         }
 
-        /* ---------- Top header row ---------- */
+        /* ---------- Top Header ---------- */
         .top-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 14px;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 6px;
+            padding-bottom: 2px;
         }
 
-        .brand {
-            font-weight: 700;
-            font-size: 28px;
-            letter-spacing: -0.02em;
-        }
-
-        .brand-sub {
-            font-weight: 700;
-            font-size: 20px;
-            /* letter-spacing: 0.01em; */
-        }
-
-        /* ---------- Caution banner ---------- */
-        .caution-banner {
-            background-color: var(--safety-black);
-            color: #fff;
+        .brand-section {
             display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .brand-logo {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 38px;
+            font-weight: 800;
+            font-style: italic;
+            line-height: 1;
+            display: flex;
+            align-items: baseline;
+            letter-spacing: -0.03em;
+        }
+
+        .brand-scaff {
+            color: var(--brand-orange);
+        }
+
+        .brand-snapp {
+            color: var(--brand-dark);
+        }
+
+        .brand-tm {
+            font-size: 11px;
+            font-style: normal;
+            font-weight: 700;
+            color: #666;
+            margin-left: 2px;
+            vertical-align: super;
+        }
+
+        .brand-underline {
+            width: 100%;
+            height: 1.5px;
+            background: linear-gradient(to right, var(--brand-orange) 50%, #888 50%);
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
+
+        .brand-motto {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: #444;
+            text-transform: uppercase;
+        }
+
+        /* Diagonal slash divider */
+        .header-divider-svg {
+            width: 48px;
+            height: 52px;
+            flex-shrink: 0;
+        }
+
+        .header-title-section {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 6px;
-            margin-bottom: 16px;
         }
 
-        .caution-icon {
-            width: 30px;
-            height: 30px;
-            stroke: #fff;
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            line-height: 1.05;
         }
 
-        .caution-text {
-            font-weight: 800;
-            font-size: 30px;
+        .header-subtitle {
+            font-size: 10.5px;
+            font-weight: 700;
+            margin-top: 2px;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+        /* ---------- Caution Banner ---------- */
+        .caution-banner {
+            background-color: var(--safety-black);
+            color: #ffffff;
+            text-align: center;
+            font-size: 21px;
+            font-weight: 700;
             letter-spacing: 0.02em;
-        }
-
-        /* ---------- ID + Date box ---------- */
-        .id-date-box {
-            display: flex;
-            border: 2px solid var(--safety-black);
-            margin-bottom: 18px;
-        }
-
-        .id-part {
-            flex: 1.6;
-            padding: 10px 10px 0px 10px;
-            border-right: 2px solid var(--safety-black);
-        }
-
-        .date-part {
-            flex: 1;
-            padding: 10px 10px 0px 10px;
-
-        }
-
-        .small-label {
-            font-size: 16px;
-            font-weight: 500;
-            text-transform: uppercase;
+            padding: 3px 8px;
             margin-bottom: 2px;
         }
 
-        .big-value {
-            font-weight: 700;
-            font-size: 28px;
-        }
-
-        .date-value {
-            font-weight: 700;
-            font-size: 20px;
-        }
-
-        /* ---------- Fields ---------- */
-        .field {
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 16px;
-        }
-
-        .field-label {
-            font-size: 14px;
-            font-weight: 500;
-            white-space: nowrap;
-            width: 110px;
-            flex-shrink: 0;
-            margin-right: 10px;
-            padding-bottom: 2px;
-        }
-
-        .field-value {
-            flex: 1;
-            border-bottom: 1.5px solid var(--safety-black);
-            font-weight: 700;
-            font-size: 18px;
-            line-height: 1.2;
-            padding-bottom: 2px;
-        }
-
-        .flex-row {
-            display: flex;
-            gap: 24px;
-        }
-
-        .flex-1 {
-            flex: 1;
-        }
-
-        /* ---------- Section heading (plain bold) ---------- */
-        .section-heading {
-            font-weight: 700;
-            font-size: 16px;
-            margin: 6px 0 10px;
-        }
-
-        /* ---------- Loading Schedule box ---------- */
-        .loading-box {
-            display: flex;
+        /* ---------- Table Structure ---------- */
+        .scaffold-table {
             border: 2px solid var(--safety-black);
-            margin-bottom: 22px;
+            display: flex;
+            flex-direction: column;
         }
 
-        .load-left {
-            flex: 0.6;
+        .table-row {
+            display: flex;
+            border-bottom: 2px solid var(--safety-black);
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .cell {
+            padding: 4px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-right: 2px solid var(--safety-black);
+        }
+
+        .cell:last-child {
+            border-right: none;
+        }
+
+        .cell-header {
+            font-size: 13.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            padding: 3px 4px;
+        }
+
+        .cell-peach {
+            background-color: var(--input-peach);
+            font-weight: 700;
+        }
+
+        .cell-white {
+            background-color: #ffffff;
+            font-weight: 700;
+        }
+
+        .col-id {
+            flex: 1.25;
+        }
+
+        .col-date {
+            flex: 1.05;
+        }
+
+        .col-load {
+            flex: 1.15;
+            line-height: 1.2;
+        }
+
+        .val-id {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .val-date {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .val-load {
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        /* Project row */
+        .project-label {
+            width: 140px;
+            flex-shrink: 0;
+            font-size: 14.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            justify-content: center;
+        }
+
+        .project-val {
+            flex: 1;
+            font-size: 17px;
+            font-weight: 700;
+            background-color: var(--input-peach);
+            justify-content: center;
+        }
+
+        /* Company row */
+        .company-label {
+            width: 140px;
+            flex-shrink: 0;
+            font-size: 14.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            justify-content: center;
+        }
+
+        .company-val {
+            flex: 1.35;
+            font-size: 16px;
+            font-weight: 700;
+            background-color: var(--input-peach);
+            justify-content: center;
+        }
+
+        .proj-no-header {
+            width: 58px;
+            flex-shrink: 0;
+            font-size: 10.5px;
+            font-weight: 700;
+            line-height: 1.15;
+            background-color: #ffffff;
+            border-right: 1.5px solid var(--safety-black);
+            justify-content: center;
+            flex-direction: column;
+            padding: 2px 3px;
+        }
+
+        .proj-no-val {
+            width: 78px;
+            flex-shrink: 0;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.15;
+            background-color: #ffffff;
+            justify-content: center;
+            flex-direction: column;
+            padding: 2px 3px;
+            border-right: none;
+        }
+
+        /* Location Row */
+        .location-container {
+            display: flex;
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+
+        .location-label {
+            border: 2px solid var(--safety-black);
+            padding: 2px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            background-color: #ffffff;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 95px;
+        }
+
+        .location-val {
+            flex: 1;
+            background-color: var(--input-peach);
+            padding: 3px 10px;
+            font-size: 14.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* Heavy separator bar */
+        .heavy-bar {
+            height: 5px;
+            background-color: var(--safety-black);
+            margin: 6px 0;
+        }
+
+        /* Safety checklist */
+        .checklist-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2px 4px;
+            margin-bottom: 6px;
+        }
+
+        .checklist-title {
+            font-size: 15.5px;
+            font-weight: 700;
+        }
+
+        .checklist-label {
+            font-size: 14.5px;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        .checklist-val-box {
+            background-color: var(--input-peach);
+            padding: 2px 18px;
+            font-size: 15px;
+            font-weight: 700;
+            margin-left: 10px;
+            text-align: center;
+            min-width: 44px;
+        }
+
+        /* Incomplete Items & Note Area Side by Side */
+        .incomplete-note-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            margin-bottom: 6px;
+        }
+
+        .incomplete-items-col {
+            flex: 0.95;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .incomplete-heading {
+            font-size: 14.5px;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .incomplete-items-box {
+            background-color: var(--input-peach);
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .incomplete-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .black-checkbox {
+            width: 17px;
+            height: 17px;
+            background-color: var(--safety-black);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .black-checkbox svg {
+            width: 13px;
+            height: 13px;
+            stroke: #ffffff;
+            stroke-width: 3;
+            fill: none;
+        }
+
+        .note-box {
+            flex: 1.05;
+            border: 2px solid var(--safety-black);
+            display: flex;
+            min-height: 125px;
+        }
+
+        .note-label-cell {
+            padding: 6px 6px;
+            font-size: 14.5px;
+            font-weight: 700;
+            background-color: #ffffff;
+            border-right: 2px solid var(--safety-black);
+            width: 50px;
+            flex-shrink: 0;
+        }
+
+        .note-content-cell {
+            flex: 1;
+            background-color: var(--input-peach);
+            padding: 10px 8px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
             text-align: center;
-            padding: 5px 12px;
-            border-right: 2px solid var(--safety-black);
-            font-size: 16px;
-            line-height: 1.4;
         }
 
-        .load-left strong {
-            font-weight: 800;
-        }
-
-        .load-right {
-            flex: 1.3;
-            display: flex;
-            /* align-items: center; */
-            gap: 18px;
-            padding: 5px 16px;
-        }
-
-        .fpr-title {
-            font-weight: 500;
-            font-size: 16px;
-        }
-
-        .fpr-options {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .fpr-option {
-            display: flex;
-            align-items: center;
-            gap: 16px;
+        .note-content-text {
+            font-size: 14.5px;
             font-weight: 700;
-            font-size: 16px;
-        }
-
-        .fpr-option .lbl {
-            width: 34px;
-        }
-
-        /* ---------- Checkboxes ---------- */
-        .check-box {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--safety-black);
-            background-color: var(--input-white);
-            flex-shrink: 0;
-        }
-
-        /* ---------- Check incomplete + QR ---------- */
-        .content-row {
-            display: flex;
-            gap: 12px;
-        }
-
-        .content-left {
-            flex: 1.5;
-        }
-
-        .grid-items {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 14px 20px;
-            margin-bottom: 16px;
-        }
-
-        .grid-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .grid-item span {
-            min-width: 90px;
-        }
-
-        .note-row {
-            display: flex;
-            gap: 8px;
-            font-size: 15px;
             line-height: 1.35;
         }
 
-        .note-tag {
-            font-weight: 700;
-            white-space: nowrap;
+        /* Heavy separator bar below note */
+        .heavy-bar-footer {
+            height: 6px;
+            background-color: var(--safety-black);
+            margin: 6px 0 10px 0;
         }
 
-        .note-text {
-            font-weight: 700;
+        /* Footer section */
+        .footer-section {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
         }
 
-        /* ---------- QR ---------- */
-        .qr-section {
-            flex: 1;
+        .footer-left {
+            flex: 1.15;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .contact-details-heading {
+            text-align: center;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .contact-box {
+            border: 2px solid var(--safety-black);
+            background-color: #ffffff;
+        }
+
+        .contact-row-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 6px 1px 6px;
+            text-align: left;
+        }
+
+        .contact-row-val {
+            background-color: var(--input-peach);
+            border-top: 1.5px solid var(--safety-black);
+            border-bottom: 1.5px solid var(--safety-black);
+            font-size: 15px;
+            font-weight: 700;
+            text-align: center;
+            padding: 3px 6px;
+        }
+
+        .contact-channel-space {
+            height: 14px;
+            background-color: #ffffff;
+        }
+
+        .contact-osha-text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 7.5px;
+            font-weight: 600;
+            padding: 2px 6px 3px 6px;
+            border-top: 1px solid var(--safety-black);
+            color: #111;
+            line-height: 1.1;
+        }
+
+        .footer-website-link {
+            font-size: 11px;
+            color: #0b57d0;
+            text-decoration: underline;
+            margin-top: 5px;
+            display: inline-block;
+        }
+
+        .footer-right {
+            flex: 0.95;
             display: flex;
             flex-direction: column;
             align-items: center;
-            border-left: 1.5px solid var(--safety-black);
-            padding-left: 20px;
+            justify-content: center;
+            padding-left: 4px;
         }
 
-        .qr-code {
-            width: 100%;
-            max-width: 180px;
+        .qr-image-wrapper {
+            width: 148px;
+            height: 148px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .qr-code img {
+        .qr-image {
             width: 100%;
+            height: 100%;
             display: block;
         }
 
-        .qr-text {
-            font-size: 13px;
-            font-weight: 500;
-            text-align: center;
-            margin-top: 10px;
-            line-height: 1.3;
-        }
-
-        /* ---------- Footer ---------- */
-        .footer {
-            border-top: 1.5px solid var(--safety-black);
-            border-bottom: 1.5px solid var(--safety-black);
-            margin-top: 18px;
-            padding: 14px 0;
-            display: flex;
-            justify-content: space-between;
-            gap: 0;
-        }
-
-        .contact-item {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        .contact-item:first-child {
-            border-right: 1.5px solid var(--safety-black);
-        }
-
-        .icon-circle {
-            background-color: var(--safety-black);
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .icon-circle svg {
-            width: 18px;
-            height: 18px;
-            stroke: #fff;
-        }
-
-        .contact-label {
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .contact-value {
+        .qr-subtext {
+            font-size: 13.5px;
             font-weight: 700;
-            font-size: 15px;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        @media print {
+            body {
+                background: none !important;
+                padding: 0 !important;
+            }
+            .tag-container {
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <div class="tag-container" id="tag">
+    <div class="tag-container" id="scaffold-tag">
 
-        <!-- Top header -->
+        <!-- Top Header -->
         <div class="top-header">
-            <h1 class="brand">SCAFFSNAPP</h1>
-            <span class="brand-sub">INCOMPLETE SCAFFOLD</span>
-        </div>
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <span class="brand-scaff">Scaff</span><span class="brand-snapp">Snapp</span><span class="brand-tm">&#8482;</span>
+                </div>
+                <div class="brand-underline"></div>
+                <div class="brand-motto">NUMQUAM IMPARATUS</div>
+            </div>
 
-        <!-- Caution banner -->
-        <div class="caution-banner">
-            <svg class="caution-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                <path d="M12 9v4" />
-                <path d="M12 17h.01" />
+            <!-- Angled diagonal divider slash -->
+            <svg class="header-divider-svg" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="8" y1="54" x2="40" y2="4" stroke="#000000" stroke-width="2.5" stroke-linecap="round" />
             </svg>
-            <span class="caution-text">CAUTION</span>
-        </div>
 
-        <!-- ID + Date -->
-        <div class="id-date-box">
-            <div class="id-part">
-                <div class="small-label">Scaffold ID :</div>
-                <div class="big-value">${data.SCAFFID}</div>
-            </div>
-            <div class="date-part" >
-                <div class="small-label" style="margin-left: 26px;">Date :</div>
-                <div class="date-value" style="text-align: center; margin-top: 10px;"> ${new Date(data.createdAt).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })}</div>
+            <div class="header-title-section">
+                <div class="header-title">INCOMPLETE</div>
+                <div class="header-title">SCAFFOLD</div>
+                <div class="header-subtitle">Authorized Personnel Only</div>
             </div>
         </div>
 
-        <!-- Fields -->
-        <div class="field">
-            <span class="field-label">Project Name:</span>
-            <div class="field-value">${data.projectName}</div>
+        <!-- Caution Banner -->
+        <div class="caution-banner">
+            Caution Incomplete Scaffold
         </div>
 
-        <div class="field">
-            <span class="field-label">Company Name:</span>
-            <div class="field-value">${data.companyName}</div>
-        </div>
-
-        <div class="flex-row">
-            <div class="field flex-1">
-                <span class="field-label">Company ID:</span>
-                <div class="field-value">${data.CMPID}</div>
+        <!-- Scaffold ID, Date, Load Rating Table -->
+        <div class="scaffold-table">
+            <div class="table-row">
+                <div class="cell cell-header col-id">Scaffold ID</div>
+                <div class="cell cell-header col-date">Date</div>
+                <div class="cell cell-header col-load">Load Rating</div>
             </div>
-            <div class="field flex-1">
-                <span class="field-label"style="margin-right: 0; width: 88px;">Project ID:</span>
-                <div class="field-value" >${data.PJT}</div>
-            </div>
-        </div>
+            <div class="table-row">
+                <div class="cell cell-peach col-id val-id">${data.SCAFFID}</div>
+                <div class="cell cell-peach col-date val-date">${new Date(
+                  data.createdAt,
+                ).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}</div>
+              <div class="cell cell-peach col-load val-load">
+    ${data.lightDuty ? `
+        <div>Light Duty</div>
+        <div>25 lbs. per sq.ft.</div>
+    ` : ""}
 
-        <div class="field">
-            <span class="field-label">Location:</span>
-            <div class="field-value">${data.address}</div>
-        </div>
+    ${data.mediumDuty ? `
+        <div>Medium Duty</div>
+        <div>50 lbs. per sq.ft.</div>
+    ` : ""}
 
-        <!-- Loading Schedule -->
-        <h3 class="section-heading">Loading Schedule</h3>
-        ${data.lightDuty ? `
-<div class="loading-box">
-  <div class="load-left">
-    <span>Light Duty</span>
-    <span style="font-size:20px;font-weight:650;">(25 LBS SQ FT)</span>
-  </div>
-
-  <div class="load-right">
-    <div class="fpr-title">Fall Protection Required:</div>
-    <div class="fpr-options">
-      <div class="fpr-option">
-        <span class="lbl">YES</span>
-        ${data.fallProtection ? checkedIcon : `<div class="check-box"></div>`}
-      </div>
-
-      <div class="fpr-option">
-        <span class="lbl">NO</span>
-        ${!data.fallProtection ? checkedIcon : `<div class="check-box"></div>`}
-      </div>
-    </div>
-  </div>
+    ${data.heavyDuty ? `
+        <div>Heavy Duty</div>
+        <div>75 lbs. per sq.ft.</div>
+    ` : ""}
 </div>
-` : ""
-    }
-
-${data.mediumDuty ? `
-<div class="loading-box">
-  <div class="load-left">
-    <span>Medium Duty</span>
-    <span style="font-size:20px;font-weight:650;">(50 LBS SQ FT)</span>
-  </div>
-
-  <div class="load-right">
-    <div class="fpr-title">Fall Protection Required:</div>
-    <div class="fpr-options">
-      <div class="fpr-option">
-        <span class="lbl">YES</span>
-        ${data.fallProtection ? checkedIcon : `<div class="check-box"></div>`}
-      </div>
-
-      <div class="fpr-option">
-        <span class="lbl">NO</span>
-        ${!data.fallProtection ? checkedIcon : `<div class="check-box"></div>`}
-      </div>
-    </div>
-  </div>
-</div>
-` : ""
-    }
-
-${data.heavyDuty ? `
-<div class="loading-box">
-  <div class="load-left">
-    <span>Heavy Duty</span>
-    <span style="font-size:20px;font-weight:650;">(75 LBS SQ FT)</span>
-  </div>
-
-  <div class="load-right">
-    <div class="fpr-title">Fall Protection Required:</div>
-    <div class="fpr-options">
-      <div class="fpr-option">
-        <span class="lbl">YES</span>
-        ${data.fallProtection ? checkedIcon : `<div class="check-box"></div>`}
-      </div>
-
-      <div class="fpr-option">
-        <span class="lbl">NO</span>
-        ${!data.fallProtection ? checkedIcon : `<div class="check-box"></div>`}
-      </div>
-    </div>
-  </div>
-</div>
-` : ""
-    }
-
-        <!-- Check Incomplete Items + QR -->
-        <div class="content-row">
-   <div class="content-left">
-    <h3 class="section-heading" style="margin-top: 0;">Check Incomplete Items</h3>
-
-    ${data.handRail ||
-      data.platform ||
-      data.midRail ||
-      data.ladder ||
-      data.toeBoard ||
-      data.note
-      ? `
-      <div class="grid-items">
-          <div class="grid-item">
-              <span>Handrails</span>
-              ${data.handRail ? checkedIcon : `<div class="check-box"></div>`}
-          </div>
-
-          <div class="grid-item">
-              <span>Platform</span>
-              ${data.platform ? checkedIcon : `<div class="check-box"></div>`}
-          </div>
-
-          <div class="grid-item">
-              <span>Mid Rails</span>
-              ${data.midRail ? checkedIcon : `<div class="check-box"></div>`}
-          </div>
-
-          <div class="grid-item">
-              <span>Ladder</span>
-              ${data.ladder ? checkedIcon : `<div class="check-box"></div>`}
-          </div>
-
-          <div class="grid-item">
-              <span>Toe Boards</span>
-              ${data.toeBoard ? checkedIcon : `<div class="check-box"></div>`}
-          </div>
-      </div>
-
-      <div class="note-row">
-          <span class="note-tag">Note:</span>
-          <p class="note-text">${data.note}</p>
-      </div>
-      `
-      : ``
-    }
-</div>
-
-            <div class="qr-section">
-                <div class="qr-code">
-                 <img src="${data.qrCode}" 
-                        alt="QR Code">
-          </div>
-                <div class="qr-text">
-                    Scan the QR code for more<br>details and updates.
+            </div>
+            <div class="table-row">
+                <div class="cell cell-white project-label">Project Name</div>
+                <div class="cell cell-peach project-val">${data.projectName}</div>
+            </div>
+            <div class="table-row">
+                <div class="cell cell-white company-label">Company Name</div>
+                <div class="cell cell-peach company-val">${data.companyName}</div>
+                <div class="cell proj-no-header">
+                    <div>Project</div>
+                    <div>No.</div>
+                </div>
+                <div class="cell proj-no-val"> 
+                    <div>${data.PJT}</div>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <div class="contact-item">
-                <div class="icon-circle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                    </svg>
+        <!-- Location Row -->
+        <div class="location-container">
+            <div class="location-label">Location</div>
+            <div class="location-val">${data.address}</div>
+        </div>
+
+        <!-- Heavy bar -->
+        <div class="heavy-bar"></div>
+
+        <!-- Safety Checklist -->
+        <div class="checklist-row">
+            <span class="checklist-title">Safety Checklist</span>
+            <span class="checklist-label">Fall Protection Required</span>
+              <span class="checklist-val-box">
+        ${data.fallProtection ? "Yes" : "No"}
+    </span>
+        </div>
+
+        <!-- Incomplete Items & Note Area Side by Side -->
+        <div class="incomplete-note-row">
+            <!-- Left: Incomplete Items list with checkboxes -->
+            <div class="incomplete-items-col">
+                <div class="incomplete-heading">Incomplete Items</div>
+              <div class="incomplete-items-box">
+
+            <div class="incomplete-item">
+                <div class="black-checkbox">
+                    ${data.handRail ? checkedIcon : ""}
                 </div>
-                <div>
-                    <div class="contact-label">Contact Person Name</div>
-                    <div class="contact-value">${data.clientName}</div>
+                <span>Hand Rails</span>
+            </div>
+
+            <div class="incomplete-item">
+                <div class="black-checkbox">
+                    ${data.midRail ? checkedIcon : ""}
+                </div>
+                <span>Mid Rails</span>
+            </div>
+
+            <div class="incomplete-item">
+                <div class="black-checkbox">
+                    ${data.platform ? checkedIcon : ""}
+                </div>
+                <span>Decking</span>
+            </div>
+
+            <div class="incomplete-item">
+                <div class="black-checkbox">
+                    ${data.ladder ? checkedIcon : ""}
+                </div>
+                <span>Ladder</span>
+            </div>
+
+            <div class="incomplete-item">
+                <div class="black-checkbox">
+                    ${data.toeBoard ? checkedIcon : ""}
+                </div>
+                <span>Other head knockers</span>
+            </div>
+
+        </div>
+            </div>
+
+            <!-- Right: Note Box -->
+            <div class="note-box">
+                <div class="note-label-cell">Note</div>
+                <div class="note-content-cell">
+                    <p class="note-content-text">${data.note}</p>
                 </div>
             </div>
-            <div class="contact-item">
-                <div class="icon-circle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path
-                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
+        </div>
+
+        <!-- Heavy bar above footer -->
+        <div class="heavy-bar-footer"></div>
+
+        <!-- Footer: Contacts + QR -->
+        <div class="footer-section">
+            <div class="footer-left">
+                <div class="contact-details-heading">Contact Details</div>
+                <div class="contact-box">
+                    <div class="contact-row-label">Competent Person</div>
+                    <div class="contact-row-val">${data.clientName}</div>
+
+                    <div class="contact-row-label">PHONE</div>
+                    <div class="contact-row-val">${data.clientMobile}</div>
+
+                    <div class="contact-row-label">Radio Channel</div>
+                    <div class="contact-channel-space"></div>
+
+                    <div class="contact-osha-text">Compliant with OSHA 29 CFR 1926.451 & ANSI A10.8.</div>
                 </div>
-                <div>
-                    <div class="contact-label">Mobile Number</div>
-                    <div class="contact-value">${data.clientMobile}</div>
+                <a href="https://www.scaffsnapp.com" target="_blank" rel="noopener noreferrer" class="footer-website-link">www.scaffsnapp.com</a>
+            </div>
+
+            <div class="footer-right">
+                <div class="qr-image-wrapper">
+                    <!-- High-resolution QR code for SCF-BR549 record -->
+                    <img class="qr-image" src="${data.qrCode}" alt="QR Code for SCF-BR549">
                 </div>
+                <div class="qr-subtext">Scan for full record</div>
             </div>
         </div>
 
     </div>
+
 </body>
-
 </html>
-
 `;
-}
+};
