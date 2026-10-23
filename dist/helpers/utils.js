@@ -310,8 +310,10 @@ exports.qrCodeGenerator = qrCodeGenerator;
 //   }
 // };
 const sharp_1 = __importDefault(require("sharp"));
+const templates_1 = require("./templates");
 const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
+    let browser;
     try {
         const tag = (_a = scaffholdDetails.tag) === null || _a === void 0 ? void 0 : _a.toUpperCase();
         if (!tag || tag === "RED") {
@@ -332,91 +334,90 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
         // HTML TEMPLATE
         // ======================================================
         let html;
-        // if (tag === "GREEN") {
-        //   html = greenpdfTemplate({
-        //     ...scaffholdDetails,
-        //     qrCode: qrResult.qrCode,
-        //   });
-        // } else {
-        //   html = yellowpdfTemplate({
-        //     ...scaffholdDetails,
-        //     qrCode: qrResult.qrCode,
-        //   });
-        // }
+        if (tag === "GREEN") {
+            html = (0, templates_1.greenpdfTemplate)(Object.assign(Object.assign({}, scaffholdDetails), { qrCode: qrResult.qrCode }));
+        }
+        else {
+            html = (0, templates_1.yellowpdfTemplate)(Object.assign(Object.assign({}, scaffholdDetails), { qrCode: qrResult.qrCode }));
+        }
         // ======================================================
-        // PUPPETEER — render normally, no scaling/clipping tricks
+        // PUPPETEER
         // ======================================================
-        const RENDER_WIDTH = 610; // matches your template's design width
-        const browser = yield puppeteer_1.default.launch({
+        const RENDER_WIDTH = 610;
+        browser = yield puppeteer_1.default.launch({
             headless: true,
             args: ["--no-sandbox", "--disable-setuid-sandbox"],
         });
         const page = yield browser.newPage();
-        // Give it plenty of height room; the element screenshot
-        // below only captures the actual rendered content, so a
-        // generous viewport height here is harmless.
         yield page.setViewport({
             width: RENDER_WIDTH,
             height: 1200,
             deviceScaleFactor: 3,
         });
-        // await page.setContent(html, {
-        //   waitUntil: "networkidle0",
-        // });
-        // Screenshot ONLY the #tag element, exactly as it renders.
-        // No transform, no clip guessing — this always matches the
-        // element's true size, so no black bars / cut-off content.
-        const tagElement = yield page.$("#tag");
+        // Render HTML before locating #tag
+        yield page.setContent(html, {
+            waitUntil: "networkidle0",
+        });
+        // Wait for the tag element to exist
+        yield page.waitForSelector("#scaffold-tag", {
+            timeout: 10000,
+        });
+        const tagElement = yield page.$("#scaffold-tag");
         if (!tagElement) {
-            throw new Error("Could not find #tag element to screenshot");
+            throw new Error("Could not find #tag element to screenshot. Check the HTML template for id='tag'.");
         }
+        // Screenshot only the tag element
         const rawBuffer = (yield tagElement.screenshot({
             type: "png",
         }));
+        // Close browser after screenshot
         yield browser.close();
+        browser = null;
         // ======================================================
-        // NORMALIZE ASPECT RATIO (post-process, not DOM-based)
+        // NORMALIZE ASPECT RATIO
+        // Label ratio: 4in x 6in = 2/3
         // ======================================================
-        // Physical label is 4in x 6in => width/height ratio = 2/3.
-        // We pad the rendered image (white background) onto a
-        // canvas of that ratio so every tag color produces an
-        // image with the SAME aspect ratio for printing — without
-        // ever touching the page layout.
-        const LABEL_ASPECT_RATIO = 4 / 6; // width / height
+        const LABEL_ASPECT_RATIO = 4 / 6;
         const meta = yield (0, sharp_1.default)(rawBuffer).metadata();
+        if (!meta.width || !meta.height) {
+            throw new Error("Unable to read generated image dimensions");
+        }
         const contentWidth = meta.width;
         const contentHeight = meta.height;
-        // Decide target canvas: keep the rendered width, extend
-        // height (or vice versa) to hit the label ratio, whichever
-        // requires only ADDING space (never cropping content).
         let canvasWidth;
         let canvasHeight;
         const contentRatio = contentWidth / contentHeight;
         if (contentRatio > LABEL_ASPECT_RATIO) {
-            // Content is "wider" than the label ratio -> keep width,
-            // grow height to fit the ratio.
+            // Keep width and extend height
             canvasWidth = contentWidth;
             canvasHeight = Math.round(contentWidth / LABEL_ASPECT_RATIO);
         }
         else {
-            // Content is "taller/narrower" than the label ratio -> keep
-            // height, grow width to fit the ratio.
+            // Keep height and extend width
             canvasHeight = contentHeight;
             canvasWidth = Math.round(contentHeight * LABEL_ASPECT_RATIO);
         }
+        // ======================================================
+        // FINAL IMAGE
+        // ======================================================
         const finalBuffer = yield (0, sharp_1.default)({
             create: {
                 width: canvasWidth,
                 height: canvasHeight,
                 channels: 4,
-                background: { r: 255, g: 255, b: 255, alpha: 1 },
+                background: {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    alpha: 1,
+                },
             },
         })
             .composite([
             {
                 input: rawBuffer,
                 top: 0,
-                left: 0, // top-left aligned; change to center if preferred
+                left: 0,
             },
         ])
             .png()
@@ -426,6 +427,14 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
     catch (err) {
         console.error("❌ IMAGE GEN ERR:", err);
         throw err;
+    }
+    finally {
+        // Ensure browser is closed if an error occurs
+        if (browser) {
+            yield browser.close().catch((closeError) => {
+                console.error("❌ Puppeteer browser close error:", closeError);
+            });
+        }
     }
 });
 exports.imageGenerator = imageGenerator;

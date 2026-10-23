@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.searchFilter = exports.scaffHoldDetailsById = exports.getrequestSacffHold = exports.requestSacffHold = exports.searchScaffHold = exports.deleteRequest = exports.GetTradesManDetailsSchema = exports.jobApplicationSchema = exports.updateScaffOldSRequestchema = exports.requestScaffOldSchema = exports.seacrchJobSchema = exports.joinCraftTradesManSchema = exports.tradesManCraftSchema = exports.tradesManLoginSchema = exports.updateProfileSchema = exports.tradesManRegisterSchema = void 0;
+exports.submitAnswerSchema = exports.getCurrentQuestionSchema = exports.videoProgressSchema = exports.startQuizSchema = exports.getQuestionnaireByIdSchema = exports.searchFilter = exports.scaffHoldDetailsById = exports.getrequestSacffHold = exports.requestSacffHold = exports.searchScaffHold = exports.deleteRequest = exports.GetTradesManDetailsSchema = exports.jobApplicationSchema = exports.updateScaffOldSRequestchema = exports.requestScaffOldSchema = exports.seacrchJobSchema = exports.joinCraftTradesManSchema = exports.tradesManCraftSchema = exports.tradesManLoginSchema = exports.getAllQuestionnairesForTradesmanSchema = exports.updateProfileSchema = exports.tradesManRegisterSchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 const emptyToUndefined = zod_1.default.string().transform((val) => (val.trim() === "" ? undefined : val));
 exports.tradesManRegisterSchema = zod_1.default.object({
@@ -37,6 +37,22 @@ exports.updateProfileSchema = zod_1.default.object({
     latitude: zod_1.default.number().optional(),
     longitude: zod_1.default.number().optional(),
     photoImage: zod_1.default.string().optional(),
+});
+exports.getAllQuestionnairesForTradesmanSchema = zod_1.default.object({
+    filter: zod_1.default
+        .enum(["ALL", "INCOMPLETE", "COMPLETED"])
+        .default("ALL"),
+    page: zod_1.default.coerce
+        .number()
+        .int("Page must be an integer")
+        .min(1, "Page must be at least 1")
+        .default(1),
+    limit: zod_1.default.coerce
+        .number()
+        .int("Limit must be an integer")
+        .min(1, "Limit must be at least 1")
+        .max(100, "Limit cannot exceed 100")
+        .default(10),
 });
 exports.tradesManLoginSchema = zod_1.default.object({
     PJT: zod_1.default
@@ -135,4 +151,23 @@ exports.searchFilter = zod_1.default.object({
         zod_1.default.array(zod_1.default.enum(["LOW", "MEDIUM", "HIGH"]))
     ])
         .optional().or(zod_1.default.literal("")),
+});
+exports.getQuestionnaireByIdSchema = zod_1.default.object({
+    id: zod_1.default.coerce
+        .bigint()
+        .positive("Questionnaire ID must be a positive number"),
+});
+exports.startQuizSchema = exports.getQuestionnaireByIdSchema;
+exports.videoProgressSchema = zod_1.default.object({
+    watchedPercent: zod_1.default.number().int().min(0).max(100),
+});
+exports.getCurrentQuestionSchema = zod_1.default.object({
+    attemptId: zod_1.default.coerce.bigint().positive(),
+});
+exports.submitAnswerSchema = zod_1.default.object({
+    selectedOptionId: zod_1.default
+        .union([zod_1.default.string(), zod_1.default.number()])
+        .transform((value) => BigInt(value))
+        .optional()
+        .nullable(),
 });

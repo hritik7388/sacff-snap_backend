@@ -14,6 +14,75 @@ const tradesManRoutes=new tradesManController();
  */
 router.post("/register",clientAuthMiddleware, tradesManRoutes.tradesManRegister.bind(tradesManRoutes));
 /**
+ * @route   GET /api/v1/tradesMan/questionnaires
+ * @desc    Get all questionnaires for TradesMan
+ * @access  Private (TradesMan)
+ */
+router.get(
+  "/questionnaires",
+  authMiddleware,isTradesMan,
+  clientAuthMiddleware,
+  
+  tradesManRoutes.getAllQuestionnairesForTradesman.bind(
+    tradesManRoutes,
+  ),
+);
+router.get(
+  "/questionnaires/:id",
+  clientAuthMiddleware,
+  tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes),
+);
+
+// Save video watch progress
+router.post(
+  "/questionnaires/:id/video-progress",
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.saveVideoProgress.bind(tradesManRoutes),
+);
+
+// Start or resume quiz
+router.post(
+  "/questionnaires/:id/start",
+
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.startQuiz.bind(tradesManRoutes),
+);
+
+// Get current question for an attempt
+router.get(
+  "/attempts/:attemptId/current-question",
+
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.getCurrentQuestion.bind(tradesManRoutes),
+);
+
+// Submit answer
+router.post(
+  "/attempts/:attemptId/answer",
+
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.submitAnswer.bind(tradesManRoutes),
+);
+
+// Get Tradesman's certificates
+router.get(
+  "/certificates",
+
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.getCertificates.bind(tradesManRoutes),
+);
+
+/**
  * @route   POST /api/v1/tradesMan/tradesManLogin
  * @desc    login TradesMan
  * @access  Public
@@ -27,6 +96,9 @@ router.post("/login",clientAuthMiddleware, tradesManRoutes.tradesManLogin.bind(t
  * @access  Public
  */
 router.get("/getTradesManDetails",clientAuthMiddleware, authMiddleware,tradesManRoutes.getTradesManDetails.bind(tradesManRoutes));
+
+
+
 
 /**
  * @route   GET /api/v1/tradesMan/getCraftList

@@ -2,8 +2,9 @@
 import { Response } from "express";
 import { Request } from "express";
 import { tradesManServices } from "../services/tradesManServices";
-import { tradesManRegisterSchema, tradesManLoginSchema, tradesManCraftSchema, updateProfileSchema, seacrchJobSchema, requestScaffOldSchema, updateScaffOldSRequestchema, jobApplicationSchema, searchScaffHold, deleteRequest, requestSacffHold, GetTradesManDetailsSchema, scaffHoldDetailsById, getrequestSacffHold, searchFilter, } from "../schemas/tradesManSchema";
+import { tradesManRegisterSchema, tradesManLoginSchema, tradesManCraftSchema, updateProfileSchema, seacrchJobSchema, requestScaffOldSchema, updateScaffOldSRequestchema, jobApplicationSchema, searchScaffHold, deleteRequest, requestSacffHold, GetTradesManDetailsSchema, scaffHoldDetailsById, getrequestSacffHold, searchFilter, getAllQuestionnairesForTradesmanSchema, getQuestionnaireByIdSchema, getCurrentQuestionSchema, startQuizSchema, videoProgressSchema, submitAnswerSchema, } from "../schemas/tradesManSchema";
 import { AuthenticatedRequest } from "../types/index";
+import prisma from "../config/prismaClient";
 const tradesMan = new tradesManServices();
 
 export class tradesManController {
@@ -37,6 +38,247 @@ export class tradesManController {
       next(err);
     }
   }
+
+async getAllQuestionnairesForTradesman(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const query = getAllQuestionnairesForTradesmanSchema.parse(
+      req.query,
+    );
+
+    // Get the actual TradesMan profile ID using the authenticated user ID.
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      return res.status(404).json({
+        success: false,
+        message: "Tradesman profile not found",
+      });
+    }
+
+    const result =
+      await tradesMan.getAllQuestionnairesForTradesmanServices(
+        tradesman.id,
+        query.filter,
+        query.page,
+        query.limit,
+      );
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("GET QUESTIONNAIRES ERROR:", err);
+    next(err);
+  }
+}
+
+async getQuestionnaireByIdForTradesman(
+  req: Request,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const { id } = getQuestionnaireByIdSchema.parse(req.params);
+
+    const result =
+      await tradesMan.getQuestionnaireByIdForTradesmanServices(id);
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async saveVideoProgress(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const userId = req.user?.id;
+
+    const { id } = getQuestionnaireByIdSchema.parse(req.params);
+    const { watchedPercent } = videoProgressSchema.parse(req.body);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      return res.status(404).json({
+        success: false,
+        message: "Tradesman profile not found",
+      });
+    }
+
+    // Correct order: tradesmanId, questionnaireId, watchedPercent
+    const result = await tradesMan.saveVideoProgressService(
+      tradesman.id,
+      BigInt(id),
+      watchedPercent,
+    );
+
+    return res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+  // 2. Start Quiz
+  async startQuiz(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const { id } = startQuizSchema.parse(req.params);
+      const tradesmanId = req.user?.id;
+
+      if (!tradesmanId) {
+        return res.status(401).json({
+          success: false,
+          message: "Tradesman authentication required",
+        });
+      }
+
+      const result = await tradesMan.startQuizService(
+        BigInt(id),
+        BigInt(tradesmanId),
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // 3. Get Current Question
+  async getCurrentQuestion(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const { attemptId } = getCurrentQuestionSchema.parse(req.params);
+      const tradesmanId = req.user?.id;
+
+      if (!tradesmanId) {
+        return res.status(401).json({
+          success: false,
+          message: "Tradesman authentication required",
+        });
+      }
+
+      const result = await tradesMan.getCurrentQuestionService(
+        BigInt(attemptId),
+        BigInt(tradesmanId),
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // 4. Submit Answer
+  async submitAnswer(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const { attemptId } = getCurrentQuestionSchema.parse(req.params);
+      const { selectedOptionId } = submitAnswerSchema.parse(req.body);
+      const tradesmanId = req.user?.id;
+
+      if (!tradesmanId) {
+        return res.status(401).json({
+          success: false,
+          message: "Tradesman authentication required",
+        });
+      }
+
+      const result = await tradesMan.submitAnswerService(
+        BigInt(attemptId),
+        BigInt(tradesmanId),
+        selectedOptionId == null ? null : BigInt(selectedOptionId),
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // 5. Get Certificates
+  async getCertificates(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const tradesmanId = req.user?.id;
+
+      if (!tradesmanId) {
+        return res.status(401).json({
+          success: false,
+          message: "Tradesman authentication required",
+        });
+      }
+
+      const result = await tradesMan.getCertificatesService(
+        BigInt(tradesmanId),
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getTradesManDetails(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
       const id = req.user!.id;

@@ -33,6 +33,7 @@ const uuid_1 = require("uuid");
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
 const dotenv_1 = __importDefault(require("dotenv"));
+const client_1 = require("@prisma/client");
 dotenv_1.default.config();
 class superAdminServices {
     createQuestionnaireServices(data, superAdminId) {
@@ -89,6 +90,59 @@ class superAdminServices {
                         },
                     },
                 });
+                const tradesmen = yield prismaClient_1.default.user.findMany({
+                    where: {
+                        user_type: "TRADESMAN",
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                if (tradesmen.length > 0) {
+                    const notificationTitle = "New Questionnaire Available";
+                    const notificationMessage = `A new questionnaire "${questionnaire.testName}" has been created.`;
+                    const notificationImage = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/training.png";
+                    // Save notification for every tradesman
+                    yield prismaClient_1.default.notification.createMany({
+                        data: tradesmen.map((tradesman) => ({
+                            uuid: (0, uuid_1.v4)(),
+                            title: notificationTitle,
+                            message: notificationMessage,
+                            type: client_1.NotificationType.QUESTIONNAIRE_CREATED,
+                            role: "TRADESMAN",
+                            receiverId: tradesman.id,
+                            senderId: superAdmin.id.toString(),
+                            isRead: false,
+                            notificationImage: notificationImage,
+                        })),
+                    });
+                    // Fetch all tradesmen's registered device tokens
+                    const devices = yield prismaClient_1.default.device.findMany({
+                        where: {
+                            userId: {
+                                in: tradesmen.map((tradesman) => tradesman.id),
+                            },
+                            user_type: "TRADESMAN",
+                            deviceToken: {
+                                not: null,
+                            },
+                        },
+                        select: {
+                            deviceToken: true,
+                        },
+                    });
+                    // Send push notifications
+                    const pushResults = yield Promise.allSettled(devices.map((device) => device.deviceToken
+                        ? (0, utils_1.pushNotificationDelhi)(device.deviceToken, notificationTitle, notificationMessage)
+                        : Promise.resolve()));
+                    const failedPushes = pushResults.filter((result) => result.status === "rejected").length;
+                    if (failedPushes > 0) {
+                        console.error(`${failedPushes} questionnaire push notifications failed`);
+                    }
+                }
                 return {
                     status: 201,
                     message: "Questionnaire created successfully",
@@ -230,18 +284,22 @@ class superAdminServices {
                     }),
                 ]);
                 const totalPages = Math.ceil(totalCount / limit);
-                const responseData = questionnaires.map((quiz) => ({
-                    id: quiz.id.toString(),
-                    uuid: quiz.uuid,
-                    testName: quiz.testName,
-                    description: quiz.description,
-                    videoUrl: quiz.videoUrl,
-                    certificateTemplateUrl: quiz.certificateTemplateUrl,
-                    status: quiz.status,
-                    createdById: quiz.createdById.toString(),
-                    totalQuestions: quiz._count.questions,
-                    createdAt: quiz.createdAt,
-                    updatedAt: quiz.updatedAt,
+                const responseData = questionnaires.map((quiz) => __awaiter(this, void 0, void 0, function* () {
+                    return ({
+                        id: quiz.id.toString(),
+                        uuid: quiz.uuid,
+                        testName: quiz.testName,
+                        description: quiz.description,
+                        videoUrl: quiz.videoUrl
+                            ? yield (0, utils_1.generateReadUrl)(quiz.videoUrl)
+                            : null,
+                        certificateTemplateUrl: quiz.certificateTemplateUrl,
+                        status: quiz.status,
+                        createdById: quiz.createdById.toString(),
+                        totalQuestions: quiz._count.questions,
+                        createdAt: quiz.createdAt,
+                        updatedAt: quiz.updatedAt,
+                    });
                 }));
                 return {
                     message: "Questionnaires fetched successfully",
@@ -288,9 +346,12 @@ class superAdminServices {
                 if (!quiz) {
                     throw new customError_1.CustomError("Questionnaire not found", 404, "Not found");
                 }
+                const videoReadUrl = quiz.videoUrl
+                    ? yield (0, utils_1.generateReadUrl)(quiz.videoUrl)
+                    : null;
                 return {
                     message: "Questionnaire fetched successfully",
-                    data: Object.assign(Object.assign({}, quiz), { id: quiz.id.toString(), createdById: quiz.createdById.toString(), questions: quiz.questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))) }),
+                    data: Object.assign(Object.assign({}, quiz), { id: quiz.id.toString(), createdById: quiz.createdById.toString(), videoKey: quiz.videoUrl, videoUrl: videoReadUrl, questions: quiz.questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))) }),
                 };
             }
             catch (error) {

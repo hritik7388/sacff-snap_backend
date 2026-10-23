@@ -14,6 +14,23 @@ const tradesManRoutes = new tradesManController_1.tradesManController();
  */
 router.post("/register", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.tradesManRegister.bind(tradesManRoutes));
 /**
+ * @route   GET /api/v1/tradesMan/questionnaires
+ * @desc    Get all questionnaires for TradesMan
+ * @access  Private (TradesMan)
+ */
+router.get("/questionnaires", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getAllQuestionnairesForTradesman.bind(tradesManRoutes));
+router.get("/questionnaires/:id", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes));
+// Save video watch progress
+router.post("/questionnaires/:id/video-progress", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.saveVideoProgress.bind(tradesManRoutes));
+// Start or resume quiz
+router.post("/questionnaires/:id/start", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.startQuiz.bind(tradesManRoutes));
+// Get current question for an attempt
+router.get("/attempts/:attemptId/current-question", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCurrentQuestion.bind(tradesManRoutes));
+// Submit answer
+router.post("/attempts/:attemptId/answer", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.submitAnswer.bind(tradesManRoutes));
+// Get Tradesman's certificates
+router.get("/certificates", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCertificates.bind(tradesManRoutes));
+/**
  * @route   POST /api/v1/tradesMan/tradesManLogin
  * @desc    login TradesMan
  * @access  Public

@@ -38,7 +38,7 @@ import {
   UpdateQuestionnaireDTO,
 } from "../schemas/superAdminSchema";
 import { now } from "moment";
-import { NotificationRole, Prisma, QuestionnaireStatus } from "@prisma/client";
+import { NotificationRole, NotificationType, Prisma, QuestionnaireStatus } from "@prisma/client";
 
 dotenv.config();
 
@@ -108,6 +108,83 @@ export class superAdminServices {
         },
       });
 
+        const tradesmen = await prisma.user.findMany({
+      where: {
+        user_type: "TRADESMAN",
+        status: "ACTIVE",
+        isDeleted: false,
+        isVerified: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (tradesmen.length > 0) {
+      const notificationTitle = "New Questionnaire Available";
+
+      const notificationMessage =
+        `A new questionnaire "${questionnaire.testName}" has been created.`;
+        const notificationImage =
+  "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/training.png";
+
+
+      // Save notification for every tradesman
+      await prisma.notification.createMany({
+        data: tradesmen.map((tradesman) => ({
+          uuid: uuidv4(),
+          title: notificationTitle,
+          message: notificationMessage,
+          type: NotificationType.QUESTIONNAIRE_CREATED,
+          role: "TRADESMAN" as const,
+          receiverId: tradesman.id,
+          senderId: superAdmin.id.toString(),
+          isRead: false,
+          notificationImage: notificationImage,
+        })),
+      });
+
+      // Fetch all tradesmen's registered device tokens
+      const devices = await prisma.device.findMany({
+        where: {
+          userId: {
+            in: tradesmen.map((tradesman) => tradesman.id),
+          },
+          user_type: "TRADESMAN",
+          deviceToken: {
+            not: null,
+          },
+        },
+        select: {
+          deviceToken: true,
+        },
+      });
+
+      // Send push notifications
+      const pushResults = await Promise.allSettled(
+        devices.map((device) =>
+          device.deviceToken
+            ? pushNotificationDelhi(
+                device.deviceToken,
+                notificationTitle,
+                notificationMessage,
+              )
+            : Promise.resolve(),
+        ),
+      );
+
+      const failedPushes = pushResults.filter(
+        (result) => result.status === "rejected",
+      ).length;
+
+      if (failedPushes > 0) {
+        console.error(
+          `${failedPushes} questionnaire push notifications failed`,
+        );
+      }
+    }
+
+
       return {
         status: 201,
         message: "Questionnaire created successfully",
@@ -140,6 +217,8 @@ export class superAdminServices {
           where: { status: "SUSPENDED" },
         }),
       ]);
+
+
 
       return {
         status: 200,
@@ -294,12 +373,14 @@ export class superAdminServices {
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      const responseData = questionnaires.map((quiz) => ({
+      const responseData = questionnaires.map(async (quiz) => ({
         id: quiz.id.toString(),
         uuid: quiz.uuid,
         testName: quiz.testName,
         description: quiz.description,
-        videoUrl: quiz.videoUrl,
+         videoUrl: quiz.videoUrl
+      ? await generateReadUrl(quiz.videoUrl)
+      : null,
         certificateTemplateUrl: quiz.certificateTemplateUrl,
         status: quiz.status,
         createdById: quiz.createdById.toString(),
@@ -360,24 +441,32 @@ export class superAdminServices {
         throw new CustomError("Questionnaire not found", 404, "Not found");
       }
 
-      return {
-        message: "Questionnaire fetched successfully",
-        data: {
-          ...quiz,
-          id: quiz.id.toString(),
-          createdById: quiz.createdById.toString(),
-          questions: quiz.questions.map((question) => ({
-            ...question,
-            id: question.id.toString(),
-            questionnaireId: question.questionnaireId.toString(),
-            options: question.options.map((option) => ({
-              ...option,
-              id: option.id.toString(),
-              questionId: option.questionId.toString(),
-            })),
-          })),
-        },
-      };
+      const videoReadUrl = quiz.videoUrl
+  ? await generateReadUrl(quiz.videoUrl)
+  : null;
+
+    return {
+  message: "Questionnaire fetched successfully",
+  data: {
+    ...quiz,
+    id: quiz.id.toString(),
+    createdById: quiz.createdById.toString(),
+
+    videoKey: quiz.videoUrl,
+    videoUrl: videoReadUrl,
+
+    questions: quiz.questions.map((question) => ({
+      ...question,
+      id: question.id.toString(),
+      questionnaireId: question.questionnaireId.toString(),
+      options: question.options.map((option) => ({
+        ...option,
+        id: option.id.toString(),
+        questionId: option.questionId.toString(),
+      })),
+    })),
+  },
+};
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
 

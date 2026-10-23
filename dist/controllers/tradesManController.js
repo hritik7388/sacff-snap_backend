@@ -8,10 +8,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tradesManController = void 0;
 const tradesManServices_1 = require("../services/tradesManServices");
 const tradesManSchema_1 = require("../schemas/tradesManSchema");
+const prismaClient_1 = __importDefault(require("../config/prismaClient"));
 const tradesMan = new tradesManServices_1.tradesManServices();
 class tradesManController {
     dashboard(req, res, next) {
@@ -44,6 +48,174 @@ class tradesManController {
                 const data = tradesManSchema_1.tradesManLoginSchema.parse(req.body);
                 const user = yield tradesMan.tradesmanloginServices(data);
                 res.status(200).json(user);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    getAllQuestionnairesForTradesman(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!userId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Unauthorized",
+                    });
+                }
+                const query = tradesManSchema_1.getAllQuestionnairesForTradesmanSchema.parse(req.query);
+                // Get the actual TradesMan profile ID using the authenticated user ID.
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: {
+                        userId: BigInt(userId),
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                if (!tradesman) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Tradesman profile not found",
+                    });
+                }
+                const result = yield tradesMan.getAllQuestionnairesForTradesmanServices(tradesman.id, query.filter, query.page, query.limit);
+                return res.status(200).json(result);
+            }
+            catch (err) {
+                console.error("GET QUESTIONNAIRES ERROR:", err);
+                next(err);
+            }
+        });
+    }
+    getQuestionnaireByIdForTradesman(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { id } = tradesManSchema_1.getQuestionnaireByIdSchema.parse(req.params);
+                const result = yield tradesMan.getQuestionnaireByIdForTradesmanServices(id);
+                res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    saveVideoProgress(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                const { id } = tradesManSchema_1.getQuestionnaireByIdSchema.parse(req.params);
+                const { watchedPercent } = tradesManSchema_1.videoProgressSchema.parse(req.body);
+                if (!userId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Unauthorized",
+                    });
+                }
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: {
+                        userId: BigInt(userId),
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                if (!tradesman) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Tradesman profile not found",
+                    });
+                }
+                // Correct order: tradesmanId, questionnaireId, watchedPercent
+                const result = yield tradesMan.saveVideoProgressService(tradesman.id, BigInt(id), watchedPercent);
+                return res.status(200).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // 2. Start Quiz
+    startQuiz(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const { id } = tradesManSchema_1.startQuizSchema.parse(req.params);
+                const tradesmanId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!tradesmanId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Tradesman authentication required",
+                    });
+                }
+                const result = yield tradesMan.startQuizService(BigInt(id), BigInt(tradesmanId));
+                return res.status(200).json(Object.assign({ success: true }, result));
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // 3. Get Current Question
+    getCurrentQuestion(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const { attemptId } = tradesManSchema_1.getCurrentQuestionSchema.parse(req.params);
+                const tradesmanId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!tradesmanId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Tradesman authentication required",
+                    });
+                }
+                const result = yield tradesMan.getCurrentQuestionService(BigInt(attemptId), BigInt(tradesmanId));
+                return res.status(200).json(Object.assign({ success: true }, result));
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // 4. Submit Answer
+    submitAnswer(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const { attemptId } = tradesManSchema_1.getCurrentQuestionSchema.parse(req.params);
+                const { selectedOptionId } = tradesManSchema_1.submitAnswerSchema.parse(req.body);
+                const tradesmanId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!tradesmanId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Tradesman authentication required",
+                    });
+                }
+                const result = yield tradesMan.submitAnswerService(BigInt(attemptId), BigInt(tradesmanId), selectedOptionId == null ? null : BigInt(selectedOptionId));
+                return res.status(200).json(Object.assign({ success: true }, result));
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // 5. Get Certificates
+    getCertificates(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const tradesmanId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!tradesmanId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Tradesman authentication required",
+                    });
+                }
+                const result = yield tradesMan.getCertificatesService(BigInt(tradesmanId));
+                return res.status(200).json(Object.assign({ success: true }, result));
             }
             catch (err) {
                 next(err);

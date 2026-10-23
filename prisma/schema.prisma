@@ -9,6 +9,7 @@ datasource db {
 
 enum QuestionnaireStatus {
   ACTIVE
+  INCOMPLETE
   INACTIVE
   SUSPENDED
 }
@@ -34,6 +35,8 @@ model Questionnaire {
   @@index([status])
   @@index([createdById])
   @@index([createdAt])
+  videoProgress VideoProgress[]
+certificates  Certificate[]
 }
 
 model Question {
@@ -180,6 +183,9 @@ model TradesMan {
   @@index([craftId], map: "TradesMan_craftId_fkey")
 
   quizAttempts QuizAttempt[]
+
+  videoProgress VideoProgress[]
+certificates  Certificate[]
 }
 
 enum QuizAttemptStatus {
@@ -211,25 +217,63 @@ model QuizAttempt {
 
   @@index([tradesmanId, questionnaireId])
   @@index([tradesmanId, status])
+  currentQuestionStartedAt DateTime?
+certificate              Certificate?
 }
 
 model QuizAnswer {
   id               BigInt   @id @default(autoincrement())
   attemptId        BigInt
   questionId       BigInt
-  selectedOptionId BigInt
-  isCorrect        Boolean
+  selectedOptionId BigInt?
+  isCorrect        Boolean  @default(false)
+  wasTimedOut      Boolean  @default(false)
   answeredAt       DateTime @default(now())
   createdAt        DateTime @default(now())
 
-  attempt        QuizAttempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question       Question       @relation(fields: [questionId], references: [id])
-  selectedOption QuestionOption @relation(fields: [selectedOptionId], references: [id])
+  attempt        QuizAttempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id])
+  selectedOption QuestionOption? @relation(fields: [selectedOptionId], references: [id])
 
   @@unique([attemptId, questionId])
-  @@index([questionId])
+  @@index([questionId]) 
 }
 
+model VideoProgress {
+  id                  BigInt   @id @default(autoincrement())
+  uuid                String   @unique
+  questionnaireId     BigInt
+  tradesmanId         BigInt
+  watchedPercent      Int      @default(0)  
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  tradesman     TradesMan     @relation(fields: [tradesmanId], references: [id], onDelete: Cascade)
+
+  @@unique([tradesmanId, questionnaireId])
+  @@index([tradesmanId])
+}
+
+model Certificate {
+  id              BigInt   @id @default(autoincrement())
+  uuid            String   @unique
+  certificateNo   String   @unique
+  attemptId       BigInt   @unique
+  questionnaireId BigInt
+  tradesmanId     BigInt
+  certificateUrl  String?
+  issuedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  attempt       QuizAttempt   @relation(fields: [attemptId], references: [id])
+  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id])
+  tradesman     TradesMan     @relation(fields: [tradesmanId], references: [id])
+
+  @@index([tradesmanId, issuedAt])
+}
+ 
 model Device {
   id          BigInt    @id @default(autoincrement())
   userId      BigInt
@@ -599,6 +643,8 @@ enum NotificationType {
   PROJECT_MODIFIED
   NEW_TEAM_MEMBER_CREATED
   RENTAL_CYCLE_UPDATED
+
+  QUESTIONNAIRE_CREATED
 }
 
 enum NotificationRole {
@@ -718,3 +764,4 @@ enum SubscriptionStatus {
   CANCELLED
   FAILED
 }
+ 

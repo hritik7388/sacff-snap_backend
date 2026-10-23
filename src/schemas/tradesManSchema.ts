@@ -40,6 +40,25 @@ export const updateProfileSchema = z.object({
     photoImage: z.string().optional(),
 });
 
+export const getAllQuestionnairesForTradesmanSchema = z.object({
+  filter: z
+    .enum(["ALL", "INCOMPLETE", "COMPLETED"])
+    .default("ALL"),
+
+  page: z.coerce
+    .number()
+    .int("Page must be an integer")
+    .min(1, "Page must be at least 1")
+    .default(1),
+
+  limit: z.coerce
+    .number()
+    .int("Limit must be an integer")
+    .min(1, "Limit must be at least 1")
+    .max(100, "Limit cannot exceed 100")
+    .default(10),
+});
+
 export const tradesManLoginSchema = z.object({
     PJT: z
         .string()
@@ -165,7 +184,31 @@ export const searchFilter = z.object({
         .optional().or(z.literal("")),
 
 });
+export const getQuestionnaireByIdSchema = z.object({
+  id: z.coerce
+    .bigint()
+    .positive("Questionnaire ID must be a positive number"),
+});
 
+ 
+
+export const startQuizSchema = getQuestionnaireByIdSchema;
+
+export const videoProgressSchema = z.object({
+  watchedPercent: z.number().int().min(0).max(100),
+});
+
+export const getCurrentQuestionSchema = z.object({
+  attemptId: z.coerce.bigint().positive(),
+});
+
+export const submitAnswerSchema = z.object({
+  selectedOptionId: z
+    .union([z.string(), z.number()])
+    .transform((value) => BigInt(value))
+    .optional()
+    .nullable(),
+});
 
 export type RegisterTradesManDTO = z.infer<typeof tradesManRegisterSchema>;
 export type LoginTradesManDTO = z.infer<typeof tradesManLoginSchema>;
@@ -184,3 +227,4 @@ export type GetTradesManDetailsDTO = z.infer<typeof GetTradesManDetailsSchema>;
 export type ScaffHoldDetailsDTO = z.infer<typeof scaffHoldDetailsById>
 export type getparentSacffHoldDTO = z.infer<typeof getrequestSacffHold>;
 export type SearchFilterDTO = z.infer<typeof searchFilter>;
+export type GetAllQuestionnairesForTradesmanDTO = z.infer<typeof getAllQuestionnairesForTradesmanSchema>;

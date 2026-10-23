@@ -21,6 +21,693 @@ const uuid_1 = require("uuid");
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
 class tradesManServices {
+    getAllQuestionnairesForTradesmanServices(tradesmanId_1) {
+        return __awaiter(this, arguments, void 0, function* (tradesmanId, filter = "ALL", page = 1, limit = 10) {
+            try {
+                page = Number(page);
+                limit = Number(limit);
+                if (!Number.isInteger(page) ||
+                    !Number.isInteger(limit) ||
+                    page < 1 ||
+                    limit < 1 ||
+                    limit > 100) {
+                    throw new customError_1.CustomError("Invalid pagination", 400, "Page must be >= 1 and limit must be between 1 and 100");
+                }
+                if (!["ALL", "INCOMPLETE", "COMPLETED"].includes(filter)) {
+                    throw new customError_1.CustomError("Invalid filter", 400, "Filter must be ALL, INCOMPLETE, or COMPLETED");
+                }
+                // Fetch all ACTIVE questionnaires.
+                // Progress is fetched only for the logged-in Tradesman.
+                const questionnaires = yield prismaClient_1.default.questionnaire.findMany({
+                    where: {
+                        status: "ACTIVE",
+                    },
+                    select: {
+                        id: true,
+                        uuid: true,
+                        testName: true,
+                        description: true,
+                        videoUrl: true,
+                        certificateTemplateUrl: true,
+                        status: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        _count: {
+                            select: {
+                                questions: true,
+                            },
+                        },
+                        attempts: {
+                            where: {
+                                tradesmanId,
+                            },
+                            orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
+                            take: 1,
+                            select: {
+                                id: true,
+                                uuid: true,
+                                status: true,
+                                totalQuestions: true,
+                                correctAnswers: true,
+                                wrongAnswerCount: true,
+                                score: true,
+                                currentQuestion: true,
+                                startedAt: true,
+                                completedAt: true,
+                                updatedAt: true,
+                            },
+                        },
+                        videoProgress: {
+                            where: {
+                                tradesmanId,
+                            },
+                            take: 1,
+                            select: {
+                                watchedPercent: true,
+                                completedAt: true,
+                                updatedAt: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                });
+                // Build the current Tradesman's progress for each questionnaire.
+                const mappedQuestionnaires = yield Promise.all(questionnaires.map((quiz) => __awaiter(this, void 0, void 0, function* () {
+                    var _a, _b, _c, _d;
+                    const latestAttempt = (_a = quiz.attempts[0]) !== null && _a !== void 0 ? _a : null;
+                    const progress = (_b = quiz.videoProgress[0]) !== null && _b !== void 0 ? _b : null;
+                    const watchedPercent = (_c = progress === null || progress === void 0 ? void 0 : progress.watchedPercent) !== null && _c !== void 0 ? _c : 0;
+                    const isCompleted = (latestAttempt === null || latestAttempt === void 0 ? void 0 : latestAttempt.status) === "PASSED" ||
+                        (latestAttempt === null || latestAttempt === void 0 ? void 0 : latestAttempt.status) === "FAILED";
+                    const hasStarted = watchedPercent > 0 || latestAttempt !== null;
+                    const questionnaireProgress = isCompleted
+                        ? "COMPLETED"
+                        : hasStarted
+                            ? "INCOMPLETE"
+                            : "NOT_STARTED";
+                    let videoUrl = null;
+                    if (quiz.videoUrl) {
+                        videoUrl = yield (0, utils_1.generateReadUrl)(quiz.videoUrl);
+                    }
+                    return {
+                        id: quiz.id.toString(),
+                        uuid: quiz.uuid,
+                        testName: quiz.testName,
+                        description: quiz.description,
+                        videoKey: quiz.videoUrl,
+                        videoUrl,
+                        certificateTemplateUrl: quiz.certificateTemplateUrl,
+                        status: quiz.status,
+                        totalQuestions: quiz._count.questions,
+                        watchedPercent,
+                        isVideoCompleted: watchedPercent >= 100,
+                        videoCompletedAt: (_d = progress === null || progress === void 0 ? void 0 : progress.completedAt) !== null && _d !== void 0 ? _d : null,
+                        questionnaireProgress,
+                        attempt: latestAttempt
+                            ? {
+                                id: latestAttempt.id.toString(),
+                                uuid: latestAttempt.uuid,
+                                status: latestAttempt.status,
+                                totalQuestions: latestAttempt.totalQuestions,
+                                correctAnswers: latestAttempt.correctAnswers,
+                                wrongAnswerCount: latestAttempt.wrongAnswerCount,
+                                score: latestAttempt.score,
+                                currentQuestion: latestAttempt.currentQuestion,
+                                startedAt: latestAttempt.startedAt,
+                                completedAt: latestAttempt.completedAt,
+                                updatedAt: latestAttempt.updatedAt,
+                            }
+                            : null,
+                        createdAt: quiz.createdAt,
+                        updatedAt: quiz.updatedAt,
+                    };
+                })));
+                // Apply filter based on THIS Tradesman's progress.
+                const filteredQuestionnaires = mappedQuestionnaires.filter((quiz) => {
+                    switch (filter) {
+                        case "ALL":
+                            // Only quizzes this Tradesman has not started.
+                            return quiz.questionnaireProgress === "NOT_STARTED";
+                        case "INCOMPLETE":
+                            // Video watched or quiz attempted, but not completed.
+                            return quiz.questionnaireProgress === "INCOMPLETE";
+                        case "COMPLETED":
+                            // Latest attempt is PASSED or FAILED.
+                            return quiz.questionnaireProgress === "COMPLETED";
+                        default:
+                            return false;
+                    }
+                });
+                // Pagination after filtering.
+                const total = filteredQuestionnaires.length;
+                const totalPages = Math.ceil(total / limit);
+                const skip = (page - 1) * limit;
+                const data = filteredQuestionnaires.slice(skip, skip + limit);
+                return {
+                    success: true,
+                    message: "Questionnaires fetched successfully",
+                    data,
+                    pagination: {
+                        page,
+                        limit,
+                        total,
+                        totalPages,
+                        hasNextPage: page < totalPages,
+                        hasPreviousPage: page > 1,
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch questionnaires", 500, error instanceof Error ? error.message : "Unknown error");
+            }
+        });
+    }
+    getQuestionnaireByIdForTradesmanServices(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const questionnaire = yield prismaClient_1.default.questionnaire.findUnique({
+                    where: { id },
+                    include: {
+                        questions: {
+                            include: {
+                                options: true,
+                            },
+                        },
+                        _count: {
+                            select: {
+                                questions: true,
+                            },
+                        },
+                    },
+                });
+                if (!questionnaire) {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "No questionnaire found with this ID");
+                }
+                const videoUrl = questionnaire.videoUrl
+                    ? yield (0, utils_1.generateReadUrl)(questionnaire.videoUrl)
+                    : null;
+                return {
+                    message: "Questionnaire fetched successfully",
+                    data: Object.assign(Object.assign({}, questionnaire), { id: questionnaire.id.toString(), videoKey: questionnaire.videoUrl, videoUrl, questionsCount: questionnaire._count.questions }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch questionnaire", 500, error.message);
+            }
+        });
+    }
+    saveVideoProgressService(tradesmanId, questionnaireId, watchedPercent) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            try {
+                if (!Number.isInteger(watchedPercent) ||
+                    watchedPercent < 0 ||
+                    watchedPercent > 100) {
+                    throw new customError_1.CustomError("Invalid watched percentage", 400, "watchedPercent must be an integer between 0 and 100");
+                }
+                const [questionnaire, tradesman] = yield Promise.all([
+                    prismaClient_1.default.questionnaire.findUnique({
+                        where: {
+                            id: questionnaireId,
+                        },
+                        select: {
+                            id: true,
+                            status: true,
+                        },
+                    }),
+                    prismaClient_1.default.tradesMan.findUnique({
+                        where: {
+                            id: tradesmanId,
+                        },
+                        select: {
+                            id: true,
+                        },
+                    }),
+                ]);
+                if (!questionnaire) {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Questionnaire does not exist");
+                }
+                if (!tradesman) {
+                    throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman does not exist");
+                }
+                if (questionnaire.status !== "ACTIVE") {
+                    throw new customError_1.CustomError("Questionnaire unavailable", 400, "This questionnaire is not currently available");
+                }
+                const existingProgress = yield prismaClient_1.default.videoProgress.findUnique({
+                    where: {
+                        tradesmanId_questionnaireId: {
+                            tradesmanId,
+                            questionnaireId,
+                        },
+                    },
+                    select: {
+                        id: true,
+                        watchedPercent: true,
+                        completedAt: true,
+                    },
+                });
+                // Never reduce the saved progress.
+                const finalPercent = Math.max((_a = existingProgress === null || existingProgress === void 0 ? void 0 : existingProgress.watchedPercent) !== null && _a !== void 0 ? _a : 0, watchedPercent);
+                const completedAt = finalPercent >= 100
+                    ? ((_b = existingProgress === null || existingProgress === void 0 ? void 0 : existingProgress.completedAt) !== null && _b !== void 0 ? _b : new Date())
+                    : null;
+                // Save progress only for this Tradesman.
+                const progress = yield prismaClient_1.default.videoProgress.upsert({
+                    where: {
+                        tradesmanId_questionnaireId: {
+                            tradesmanId,
+                            questionnaireId,
+                        },
+                    },
+                    create: {
+                        uuid: (0, uuid_1.v4)(),
+                        questionnaireId,
+                        tradesmanId,
+                        watchedPercent: finalPercent,
+                        completedAt,
+                    },
+                    update: {
+                        watchedPercent: finalPercent,
+                        completedAt,
+                    },
+                    select: {
+                        uuid: true,
+                        questionnaireId: true,
+                        tradesmanId: true,
+                        watchedPercent: true,
+                        completedAt: true,
+                        updatedAt: true,
+                    },
+                });
+                return {
+                    success: true,
+                    message: "Video progress saved successfully",
+                    data: {
+                        uuid: progress.uuid,
+                        questionnaireId: progress.questionnaireId.toString(),
+                        tradesmanId: progress.tradesmanId.toString(),
+                        watchedPercent: progress.watchedPercent,
+                        isVideoCompleted: progress.watchedPercent >= 100,
+                        completedAt: progress.completedAt,
+                        updatedAt: progress.updatedAt,
+                        questionnaireStatus: questionnaire.status,
+                        questionnaireProgress: progress.watchedPercent > 0 ? "INCOMPLETE" : "NOT_STARTED",
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to save video progress", 500, error instanceof Error ? error.message : "Unknown error");
+            }
+        });
+    }
+    startQuizService(questionnaireId, tradesmanId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const tradesManId = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: { userId: tradesmanId },
+                    select: { id: true },
+                });
+                const questionnaire = yield prismaClient_1.default.questionnaire.findFirst({
+                    where: {
+                        id: questionnaireId,
+                        status: "ACTIVE",
+                    },
+                    include: {
+                        _count: { select: { questions: true } },
+                    },
+                });
+                if (!questionnaire) {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Questionnaire does not exist or is not active");
+                }
+                if (questionnaire._count.questions === 0) {
+                    throw new customError_1.CustomError("No questions available", 400, "Quiz has no questions");
+                }
+                const progress = yield prismaClient_1.default.videoProgress.findUnique({
+                    where: {
+                        tradesmanId_questionnaireId: {
+                            tradesmanId: tradesManId === null || tradesManId === void 0 ? void 0 : tradesManId.id,
+                            questionnaireId,
+                        },
+                    },
+                });
+                if (!progress || progress.watchedPercent < 100 || !progress.completedAt) {
+                    throw new customError_1.CustomError("Complete the training video first", 400, "Video must be watched up to 100%");
+                }
+                const previousAttempt = yield prismaClient_1.default.quizAttempt.findFirst({
+                    where: { questionnaireId, tradesmanId },
+                    orderBy: { createdAt: "desc" },
+                });
+                if ((previousAttempt === null || previousAttempt === void 0 ? void 0 : previousAttempt.status) === "IN_PROGRESS") {
+                    return {
+                        message: "Existing quiz attempt resumed",
+                        data: {
+                            attemptId: previousAttempt.id.toString(),
+                            currentQuestion: previousAttempt.currentQuestion + 1,
+                            totalQuestions: previousAttempt.totalQuestions,
+                            status: previousAttempt.status,
+                        },
+                    };
+                }
+                if ((previousAttempt === null || previousAttempt === void 0 ? void 0 : previousAttempt.status) === "REWATCH_REQUIRED" &&
+                    progress.completedAt <= previousAttempt.updatedAt) {
+                    throw new customError_1.CustomError("Rewatch the video before retrying", 400, "Complete the video again before starting a new attempt");
+                }
+                if ((previousAttempt === null || previousAttempt === void 0 ? void 0 : previousAttempt.status) === "PASSED" ||
+                    (previousAttempt === null || previousAttempt === void 0 ? void 0 : previousAttempt.status) === "FAILED") {
+                    throw new customError_1.CustomError("Quiz already completed", 400, "This questionnaire already has a completed attempt");
+                }
+                const firstQuestion = yield prismaClient_1.default.question.findFirst({
+                    where: { questionnaireId },
+                    orderBy: { sortOrder: "asc" },
+                });
+                if (!firstQuestion) {
+                    throw new customError_1.CustomError("No questions available", 400, "Quiz has no questions");
+                }
+                const attempt = yield prismaClient_1.default.quizAttempt.create({
+                    data: {
+                        uuid: (0, uuid_1.v4)(),
+                        questionnaireId,
+                        tradesmanId,
+                        status: "IN_PROGRESS",
+                        totalQuestions: questionnaire._count.questions,
+                        currentQuestion: firstQuestion.sortOrder,
+                        currentQuestionStartedAt: new Date(),
+                    },
+                });
+                return {
+                    message: "Quiz started successfully",
+                    data: {
+                        attemptId: attempt.id.toString(),
+                        currentQuestion: 1,
+                        totalQuestions: attempt.totalQuestions,
+                        status: attempt.status,
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to start quiz", 500, error.message);
+            }
+        });
+    }
+    getCurrentQuestionService(attemptId, tradesmanId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const attempt = yield prismaClient_1.default.quizAttempt.findFirst({
+                    where: {
+                        id: attemptId,
+                        tradesmanId,
+                    },
+                    include: {
+                        questionnaire: {
+                            select: {
+                                id: true,
+                                testName: true,
+                                description: true,
+                            },
+                        },
+                    },
+                });
+                if (!attempt) {
+                    throw new customError_1.CustomError("Quiz attempt not found", 404, "Invalid attempt ID");
+                }
+                if (attempt.status !== "IN_PROGRESS") {
+                    throw new customError_1.CustomError("Quiz is not in progress", 400, `Current status: ${attempt.status}`);
+                }
+                const question = yield prismaClient_1.default.question.findFirst({
+                    where: {
+                        questionnaireId: attempt.questionnaireId,
+                        sortOrder: attempt.currentQuestion,
+                    },
+                    include: {
+                        options: {
+                            select: {
+                                id: true,
+                                optionText: true,
+                            },
+                        },
+                    },
+                });
+                if (!question) {
+                    throw new customError_1.CustomError("Question not found", 404, "Current question unavailable");
+                }
+                const startedAt = (_a = attempt.currentQuestionStartedAt) !== null && _a !== void 0 ? _a : attempt.startedAt;
+                const elapsedSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+                return {
+                    message: "Current question fetched successfully",
+                    data: {
+                        attemptId: attempt.id.toString(),
+                        questionnaire: Object.assign(Object.assign({}, attempt.questionnaire), { id: attempt.questionnaire.id.toString() }),
+                        question: {
+                            id: question.id.toString(),
+                            questionText: question.questionText,
+                            sortOrder: question.sortOrder,
+                            timeLimitSeconds: question.timeLimitSeconds,
+                            options: question.options.map((option) => ({
+                                id: option.id.toString(),
+                                optionText: option.optionText,
+                            })),
+                        },
+                        currentQuestion: attempt.currentQuestion + 1,
+                        totalQuestions: attempt.totalQuestions,
+                        remainingSeconds: Math.max(0, question.timeLimitSeconds - elapsedSeconds),
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to fetch current question", 500, error.message);
+            }
+        });
+    }
+    submitAnswerService(attemptId, tradesmanId, selectedOptionId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                return yield prismaClient_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                    var _a;
+                    const attempt = yield tx.quizAttempt.findFirst({
+                        where: { id: attemptId, tradesmanId },
+                    });
+                    if (!attempt) {
+                        throw new customError_1.CustomError("Quiz attempt not found", 404, "Invalid attempt ID");
+                    }
+                    if (attempt.status !== "IN_PROGRESS") {
+                        throw new customError_1.CustomError("Quiz is not in progress", 400, attempt.status);
+                    }
+                    const question = yield tx.question.findFirst({
+                        where: {
+                            questionnaireId: attempt.questionnaireId,
+                            sortOrder: attempt.currentQuestion,
+                        },
+                        include: { options: true },
+                    });
+                    if (!question) {
+                        throw new customError_1.CustomError("Question not found", 404, "Current question unavailable");
+                    }
+                    const startedAt = (_a = attempt.currentQuestionStartedAt) !== null && _a !== void 0 ? _a : attempt.startedAt;
+                    const elapsedSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+                    const wasTimedOut = elapsedSeconds >= question.timeLimitSeconds;
+                    if (!wasTimedOut && selectedOptionId === null) {
+                        throw new customError_1.CustomError("Answer is required", 400, "Select an option before submitting");
+                    }
+                    if (selectedOptionId !== null &&
+                        !question.options.some((option) => option.id === selectedOptionId)) {
+                        throw new customError_1.CustomError("Invalid option", 400, "Selected option does not belong to this question");
+                    }
+                    const selectedOption = selectedOptionId === null
+                        ? null
+                        : question.options.find((option) => option.id === selectedOptionId);
+                    const isCorrect = !wasTimedOut && (selectedOption === null || selectedOption === void 0 ? void 0 : selectedOption.isCorrect) === true;
+                    const wrongAnswerCount = attempt.wrongAnswerCount + (isCorrect ? 0 : 1);
+                    const correctAnswers = attempt.correctAnswers + (isCorrect ? 1 : 0);
+                    yield tx.quizAnswer.create({
+                        data: {
+                            attemptId: attempt.id,
+                            questionId: question.id,
+                            selectedOptionId: wasTimedOut ? null : selectedOptionId,
+                            isCorrect,
+                            wasTimedOut,
+                        },
+                    });
+                    // Two wrong answers: require video rewatch.
+                    if (wrongAnswerCount >= 2) {
+                        yield tx.quizAttempt.update({
+                            where: { id: attempt.id },
+                            data: {
+                                wrongAnswerCount,
+                                correctAnswers,
+                                status: "REWATCH_REQUIRED",
+                            },
+                        });
+                        yield tx.videoProgress.upsert({
+                            where: {
+                                tradesmanId_questionnaireId: {
+                                    tradesmanId,
+                                    questionnaireId: attempt.questionnaireId,
+                                },
+                            },
+                            create: {
+                                uuid: (0, uuid_1.v4)(),
+                                tradesmanId,
+                                questionnaireId: attempt.questionnaireId,
+                                watchedPercent: 0,
+                                completedAt: null,
+                            },
+                            update: {
+                                watchedPercent: 0,
+                                completedAt: null,
+                            },
+                        });
+                        return {
+                            message: "Two wrong answers recorded. Rewatch the video to retry.",
+                            data: {
+                                status: "REWATCH_REQUIRED",
+                                isCorrect,
+                                wasTimedOut,
+                                wrongAnswerCount,
+                            },
+                        };
+                    }
+                    // Move to the next question in sort order.
+                    const nextQuestion = yield tx.question.findFirst({
+                        where: {
+                            questionnaireId: attempt.questionnaireId,
+                            sortOrder: { gt: question.sortOrder },
+                        },
+                        orderBy: { sortOrder: "asc" },
+                    });
+                    if (!nextQuestion) {
+                        const score = Number(((correctAnswers / attempt.totalQuestions) * 100).toFixed(2));
+                        const completedAttempt = yield tx.quizAttempt.update({
+                            where: { id: attempt.id },
+                            data: {
+                                wrongAnswerCount,
+                                correctAnswers,
+                                currentQuestion: question.sortOrder,
+                                score,
+                                status: "PASSED",
+                                completedAt: new Date(),
+                            },
+                        });
+                        const certificate = yield tx.certificate.create({
+                            data: {
+                                uuid: (0, uuid_1.v4)(),
+                                certificateNo: `CERT-${(0, uuid_1.v4)()}`,
+                                attemptId: attempt.id,
+                                questionnaireId: attempt.questionnaireId,
+                                tradesmanId,
+                            },
+                        });
+                        return {
+                            message: "Quiz completed and certificate record created",
+                            data: {
+                                status: completedAttempt.status,
+                                score: completedAttempt.score,
+                                correctAnswers,
+                                wrongAnswerCount,
+                                totalQuestions: attempt.totalQuestions,
+                                certificate: {
+                                    id: certificate.id.toString(),
+                                    certificateNo: certificate.certificateNo,
+                                    certificateUrl: certificate.certificateUrl,
+                                    issuedAt: certificate.issuedAt,
+                                },
+                            },
+                        };
+                    }
+                    const updatedAttempt = yield tx.quizAttempt.update({
+                        where: { id: attempt.id },
+                        data: {
+                            wrongAnswerCount,
+                            correctAnswers,
+                            currentQuestion: nextQuestion.sortOrder,
+                            currentQuestionStartedAt: new Date(),
+                        },
+                    });
+                    return {
+                        message: "Answer submitted successfully",
+                        data: {
+                            isCorrect,
+                            wasTimedOut,
+                            wrongAnswerCount,
+                            correctAnswers,
+                            currentQuestion: updatedAttempt.currentQuestion + 1,
+                            totalQuestions: updatedAttempt.totalQuestions,
+                            status: updatedAttempt.status,
+                        },
+                    };
+                }));
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                // A duplicate answer can also hit QuizAnswer's unique constraint.
+                if (error.code === "P2002") {
+                    throw new customError_1.CustomError("Question already answered", 409, "An answer has already been submitted for this question");
+                }
+                throw new customError_1.CustomError("Failed to submit answer", 500, error.message);
+            }
+        });
+    }
+    getCertificatesService(tradesmanId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const certificates = yield prismaClient_1.default.certificate.findMany({
+                    where: { tradesmanId },
+                    include: {
+                        questionnaire: {
+                            select: {
+                                id: true,
+                                testName: true,
+                                certificateTemplateUrl: true,
+                            },
+                        },
+                        attempt: {
+                            select: {
+                                score: true,
+                                correctAnswers: true,
+                                totalQuestions: true,
+                                completedAt: true,
+                                status: true,
+                            },
+                        },
+                    },
+                    orderBy: { issuedAt: "desc" },
+                });
+                return {
+                    message: "Certificates fetched successfully",
+                    data: certificates.map((certificate) => ({
+                        id: certificate.id.toString(),
+                        uuid: certificate.uuid,
+                        certificateNo: certificate.certificateNo,
+                        certificateUrl: certificate.certificateUrl,
+                        issuedAt: certificate.issuedAt,
+                        questionnaire: Object.assign(Object.assign({}, certificate.questionnaire), { id: certificate.questionnaire.id.toString() }),
+                        quizResult: certificate.attempt,
+                    })),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to fetch certificates", 500, error.message);
+            }
+        });
+    }
     dashboard(userId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
