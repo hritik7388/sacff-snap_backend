@@ -82,6 +82,14 @@ router.get(
   tradesManRoutes.getCertificates.bind(tradesManRoutes),
 );
 
+router.get(
+  "/certificates/:certificateId",
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.getCertificateById.bind(tradesManRoutes),
+);
+
 /**
  * @route   POST /api/v1/tradesMan/tradesManLogin
  * @desc    login TradesMan

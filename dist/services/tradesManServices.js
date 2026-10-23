@@ -22,7 +22,7 @@ const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
 class tradesManServices {
     getAllQuestionnairesForTradesmanServices(tradesmanId_1) {
-        return __awaiter(this, arguments, void 0, function* (tradesmanId, filter = "ALL", page = 1, limit = 10) {
+        return __awaiter(this, arguments, void 0, function* (tradesmanId, filter = "ALL", page = 1, limit = 10, search) {
             try {
                 page = Number(page);
                 limit = Number(limit);
@@ -146,6 +146,7 @@ class tradesManServices {
                 })));
                 // Apply filter based on THIS Tradesman's progress.
                 const filteredQuestionnaires = mappedQuestionnaires.filter((quiz) => {
+                    let matchesFilter = false;
                     switch (filter) {
                         case "ALL":
                             // Only quizzes this Tradesman has not started.
@@ -154,11 +155,13 @@ class tradesManServices {
                             // Video watched or quiz attempted, but not completed.
                             return quiz.questionnaireProgress === "INCOMPLETE";
                         case "COMPLETED":
-                            // Latest attempt is PASSED or FAILED.
-                            return quiz.questionnaireProgress === "COMPLETED";
-                        default:
-                            return false;
+                            matchesFilter =
+                                quiz.questionnaireProgress === "COMPLETED";
+                            break;
                     }
+                    const matchesSearch = !search ||
+                        quiz.testName.toLowerCase().includes(search.toLowerCase());
+                    return matchesFilter && matchesSearch;
                 });
                 // Pagination after filtering.
                 const total = filteredQuestionnaires.length;
@@ -590,8 +593,15 @@ class tradesManServices {
                         },
                         orderBy: { sortOrder: "asc" },
                     });
+                    // All questions have been answered.
                     if (!nextQuestion) {
-                        const score = Number(((correctAnswers / attempt.totalQuestions) * 100).toFixed(2));
+                        const totalQuestions = attempt.totalQuestions;
+                        const score = totalQuestions > 0
+                            ? Number(((correctAnswers / totalQuestions) * 100).toFixed(2))
+                            : 0;
+                        // Passing threshold: 70%.
+                        const passingScore = 70;
+                        const status = score >= passingScore ? "PASSED" : "FAILED";
                         const completedAttempt = yield tx.quizAttempt.update({
                             where: { id: attempt.id },
                             data: {
@@ -599,33 +609,41 @@ class tradesManServices {
                                 correctAnswers,
                                 currentQuestion: question.sortOrder,
                                 score,
-                                status: "PASSED",
+                                status,
                                 completedAt: new Date(),
                             },
                         });
-                        const certificate = yield tx.certificate.create({
-                            data: {
-                                uuid: (0, uuid_1.v4)(),
-                                certificateNo: `CERT-${(0, uuid_1.v4)()}`,
-                                attemptId: attempt.id,
-                                questionnaireId: attempt.questionnaireId,
-                                tradesmanId,
-                            },
-                        });
+                        // Create a certificate only when the quiz is passed.
+                        let certificate = null;
+                        if (status === "PASSED") {
+                            certificate = yield tx.certificate.create({
+                                data: {
+                                    uuid: (0, uuid_1.v4)(),
+                                    certificateNo: `CERT-${(0, uuid_1.v4)()}`,
+                                    attemptId: attempt.id,
+                                    questionnaireId: attempt.questionnaireId,
+                                    tradesmanId,
+                                },
+                            });
+                        }
                         return {
-                            message: "Quiz completed and certificate record created",
+                            message: status === "PASSED"
+                                ? "Quiz passed and certificate record created"
+                                : "Quiz completed but failed",
                             data: {
                                 status: completedAttempt.status,
                                 score: completedAttempt.score,
                                 correctAnswers,
                                 wrongAnswerCount,
-                                totalQuestions: attempt.totalQuestions,
-                                certificate: {
-                                    id: certificate.id.toString(),
-                                    certificateNo: certificate.certificateNo,
-                                    certificateUrl: certificate.certificateUrl,
-                                    issuedAt: certificate.issuedAt,
-                                },
+                                totalQuestions,
+                                certificate: certificate
+                                    ? {
+                                        id: certificate.id.toString(),
+                                        certificateNo: certificate.certificateNo,
+                                        certificateUrl: certificate.certificateUrl,
+                                        issuedAt: certificate.issuedAt,
+                                    }
+                                    : null,
                             },
                         };
                     }
@@ -650,7 +668,10 @@ class tradesManServices {
                             status: updatedAttempt.status,
                         },
                     };
-                }));
+                }), {
+                    maxWait: 10000,
+                    timeout: 15000,
+                });
             }
             catch (error) {
                 if (error instanceof customError_1.CustomError)
@@ -705,6 +726,59 @@ class tradesManServices {
                 if (error instanceof customError_1.CustomError)
                     throw error;
                 throw new customError_1.CustomError("Failed to fetch certificates", 500, error.message);
+            }
+        });
+    }
+    getCertificateByIdService(certificateId, tradesmanId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const certificate = yield prismaClient_1.default.certificate.findFirst({
+                    where: {
+                        id: certificateId,
+                        tradesmanId,
+                        attempt: {
+                            status: "PASSED",
+                        },
+                    },
+                    include: {
+                        questionnaire: {
+                            select: {
+                                id: true,
+                                testName: true,
+                                certificateTemplateUrl: true,
+                            },
+                        },
+                        attempt: {
+                            select: {
+                                score: true,
+                                correctAnswers: true,
+                                totalQuestions: true,
+                                completedAt: true,
+                                status: true,
+                            },
+                        },
+                    },
+                });
+                if (!certificate) {
+                    throw new customError_1.CustomError("Certificate not found", 404, "Certificate does not exist or does not belong to this tradesman");
+                }
+                return {
+                    message: "Certificate fetched successfully",
+                    data: {
+                        id: certificate.id.toString(),
+                        uuid: certificate.uuid,
+                        certificateNo: certificate.certificateNo,
+                        certificateUrl: certificate.certificateUrl,
+                        issuedAt: certificate.issuedAt,
+                        questionnaire: Object.assign(Object.assign({}, certificate.questionnaire), { id: certificate.questionnaire.id.toString() }),
+                        quizResult: certificate.attempt,
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to fetch certificate", 500, error.message);
             }
         });
     }

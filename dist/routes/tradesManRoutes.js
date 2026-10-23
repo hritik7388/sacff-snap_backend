@@ -30,6 +30,7 @@ router.get("/attempts/:attemptId/current-question", authMiddleware_1.authMiddlew
 router.post("/attempts/:attemptId/answer", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.submitAnswer.bind(tradesManRoutes));
 // Get Tradesman's certificates
 router.get("/certificates", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCertificates.bind(tradesManRoutes));
+router.get("/certificates/:certificateId", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCertificateById.bind(tradesManRoutes));
 /**
  * @route   POST /api/v1/tradesMan/tradesManLogin
  * @desc    login TradesMan

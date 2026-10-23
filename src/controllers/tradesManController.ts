@@ -251,34 +251,105 @@ async saveVideoProgress(
   }
 
   // 5. Get Certificates
-  async getCertificates(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: Function,
-  ) {
-    try {
-      const tradesmanId = req.user?.id;
+ 
+async getCertificates(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const userId = req.user?.id;
 
-      if (!tradesmanId) {
-        return res.status(401).json({
-          success: false,
-          message: "Tradesman authentication required",
-        });
-      }
-
-      const result = await tradesMan.getCertificatesService(
-        BigInt(tradesmanId),
-      );
-
-      return res.status(200).json({
-        success: true,
-        ...result,
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Tradesman authentication required",
       });
-    } catch (err) {
-      next(err);
     }
-  }
 
+    const tradesman = await prisma.tradesMan.findFirst({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      return res.status(404).json({
+        success: false,
+        message: "Tradesman not found",
+      });
+    }
+
+    const result = await tradesMan.getCertificatesService(
+      tradesman.id,
+    );
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+async getCertificateById(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const userId = req.user?.id;
+    const { certificateId } = req.params;
+
+    if (typeof certificateId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid certificate ID",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Tradesman authentication required",
+      });
+    }
+
+    
+    const tradesman = await prisma.tradesMan.findFirst({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      return res.status(404).json({
+        success: false,
+        message: "Tradesman not found",
+      });
+    }
+
+    const result = await tradesMan.getCertificateByIdService(
+      BigInt(certificateId),
+      tradesman.id,
+    );
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
   async getTradesManDetails(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
       const id = req.user!.id;

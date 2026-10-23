@@ -21,7 +21,7 @@ model Questionnaire {
   description            String              @db.Text
   videoUrl               String
   certificateTemplateUrl String?
-  status                 QuestionnaireStatus @default(INACTIVE)
+  status                 QuestionnaireStatus @default(ACTIVE)
 
   createdById BigInt
   createdAt   DateTime @default(now())
