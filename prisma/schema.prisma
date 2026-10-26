@@ -750,7 +750,6 @@ model RoiLead {
   // Calculated Results
   ghostRentalExposure       Float         @default(0)
   standbyLaborLeakage       Float         @default(0)
-  adminOverheadLeakage      Float         @default(0)
   totalAnnualLeakage        Float         @default(0)
   potentialRecoverableValue Float         @default(0)
 

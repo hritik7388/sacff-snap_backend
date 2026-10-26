@@ -102,14 +102,12 @@ class RoiServices {
             metrics: {
                 ghostRentalExposure: ghostRental,
                 standbyLaborLeakage: standbyLabor,
-                adminOverheadLeakage: adminOverhead,
                 totalAnnualLeakage: totalLeakage,
                 potentialRecoverableValue: recoverable,
             },
             formattedMetrics: {
                 ghostRentalExposure: this.formatCurrency(ghostRental),
                 standbyLaborLeakage: this.formatCurrency(standbyLabor),
-                adminOverheadLeakage: this.formatCurrency(adminOverhead),
                 totalAnnualLeakage: this.formatCurrency(totalLeakage),
                 potentialRecoverableValue: this.formatCurrency(recoverable),
             },
@@ -165,7 +163,6 @@ class RoiServices {
                         // Calculated results
                         ghostRentalExposure: calculation.metrics.ghostRentalExposure,
                         standbyLaborLeakage: calculation.metrics.standbyLaborLeakage,
-                        adminOverheadLeakage: calculation.metrics.adminOverheadLeakage,
                         totalAnnualLeakage: calculation.metrics.totalAnnualLeakage,
                         potentialRecoverableValue: calculation.metrics.potentialRecoverableValue,
                         // Breakdown & Recommendation
@@ -271,8 +268,6 @@ class RoiServices {
                     formattedGhostRental: this.formatCurrency(lead.ghostRentalExposure),
                     standbyLaborLeakage: lead.standbyLaborLeakage,
                     formattedStandbyLabor: this.formatCurrency(lead.standbyLaborLeakage),
-                    adminOverheadLeakage: lead.adminOverheadLeakage,
-                    formattedAdminOverhead: this.formatCurrency(lead.adminOverheadLeakage),
                     totalAnnualLeakage: lead.totalAnnualLeakage,
                     formattedTotalLeakage: this.formatCurrency(lead.totalAnnualLeakage),
                     potentialRecoverableValue: lead.potentialRecoverableValue,
