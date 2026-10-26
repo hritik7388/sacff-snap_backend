@@ -11,6 +11,7 @@ import password from './passwordRoutes';
 import scaffhold from './scaffHoldRoutes'; 
 import competentPerson from './competentPersonRoutes';
 import subscription from './subscriptionRoutes';
+import roi from './roiRoutes';
 
 const router = Router(); 
 router.use('/v1/company', companyRoutes);
@@ -24,4 +25,5 @@ router.use('/v1/password', password);
 router.use('/v1/scaffHold', scaffhold); 
 router.use('/v1/competentPerson',competentPerson);
 router.use('/v1/subscription', subscription);
+router.use('/v1/roi', roi);
 export default router;

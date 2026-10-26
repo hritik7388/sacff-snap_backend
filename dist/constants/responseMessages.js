@@ -233,6 +233,17 @@ exports.RESPONSE_MESSAGES = {
         CONTACT_DELETE_FAILED: "Failed to delete Contact",
         NOT_FOUND: "Contact Not found"
     },
+    ROI: {
+        CALCULATE_SUCCESS: "ROI calculation completed successfully",
+        SUBMIT_SUCCESS: "ROI lead submitted and results generated successfully",
+        SUBMIT_FAILED: "Failed to submit ROI lead",
+        FETCH_ALL_SUCCESS: "ROI leads fetched successfully",
+        FETCH_BY_ID_SUCCESS: "ROI lead details fetched successfully",
+        NOT_FOUND: "ROI lead not found",
+        UPDATE_STATUS_SUCCESS: "ROI lead status updated successfully",
+        DELETE_SUCCESS: "ROI lead deleted successfully",
+        ANALYTICS_SUCCESS: "ROI analytics fetched successfully"
+    },
     AWS: {
         FETCH_SUCCESS: "AWS credentials fetched successfully",
         FETCH_FAILED: "Failed to fetch AWS credentials",

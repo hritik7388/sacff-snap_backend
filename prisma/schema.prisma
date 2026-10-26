@@ -718,3 +718,57 @@ enum SubscriptionStatus {
   CANCELLED
   FAILED
 }
+
+// ─── ROI Calculator Leads ──────────────────────────────────────────────────
+
+enum RoiLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  CLOSED
+}
+
+model RoiLead {
+  id                        BigInt        @id @default(autoincrement())
+  uuid                      String        @unique
+  firstName                 String
+  email                     String
+  company                   String
+  state                     String
+  status                    RoiLeadStatus @default(NEW)
+  notes                     String?       @db.Text
+
+  // Operation Inputs
+  annualScaffoldCount       Int           @default(0)
+  avgRentalDurationDays     Float         @default(0)
+  dailyRentalCost           Float         @default(0)
+  crewSizePerBuild          Int           @default(0)
+  hourlyLaborRate           Float         @default(0)
+  standbyHours              Float         @default(0)
+
+  // Calculated Results
+  ghostRentalExposure       Float         @default(0)
+  standbyLaborLeakage       Float         @default(0)
+  adminOverheadLeakage      Float         @default(0)
+  totalAnnualLeakage        Float         @default(0)
+  potentialRecoverableValue Float         @default(0)
+
+  // Breakdown & Plan Recommendation
+  ghostRentalRecovery       Float         @default(0)
+  standbyLaborRecovery      Float         @default(0)
+  adminRecovery             Float         @default(0)
+  recommendedPlan           String?
+  recommendedPlanPrice      Float?
+  recommendedPlanAnnual     Float?
+
+  ipAddress                 String?
+  userAgent                 String?
+
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+}
