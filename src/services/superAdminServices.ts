@@ -403,22 +403,23 @@ async generateQuestionnaireVideoUploadService(
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      const responseData = questionnaires.map(async (quiz) => ({
-        id: quiz.id.toString(),
-        uuid: quiz.uuid,
-        testName: quiz.testName,
-        description: quiz.description,
-         videoUrl: quiz.videoUrl
+   const responseData = await Promise.all(
+  questionnaires.map(async (quiz) => ({
+    id: quiz.id.toString(),
+    uuid: quiz.uuid,
+    testName: quiz.testName,
+    description: quiz.description,
+    videoUrl: quiz.videoUrl
       ? await generateReadUrl(quiz.videoUrl)
       : null,
-        certificateTemplateUrl: quiz.certificateTemplateUrl,
-        status: quiz.status,
-        createdById: quiz.createdById.toString(),
-        totalQuestions: quiz._count.questions,
-        createdAt: quiz.createdAt,
-        updatedAt: quiz.updatedAt,
-      }));
-
+    certificateTemplateUrl: quiz.certificateTemplateUrl,
+    status: quiz.status,
+    createdById: quiz.createdById.toString(),
+    totalQuestions: quiz._count.questions,
+    createdAt: quiz.createdAt,
+    updatedAt: quiz.updatedAt,
+  }))
+);
       return {
         message: "Questionnaires fetched successfully",
         data: responseData,
@@ -512,8 +513,6 @@ async updateQuestionnaireServices(
   data: UpdateQuestionnaireDTO,
 ) {
   try {
-   
-
     const questionnaireId = BigInt(id);
 
     const existing = await prisma.questionnaire.findUnique({
@@ -531,7 +530,7 @@ async updateQuestionnaireServices(
 
     const updated = await prisma.$transaction(
       async (tx) => {
-        // Update quiz details
+        // Update questionnaire details
         await tx.questionnaire.update({
           where: { id: questionnaireId },
           data: {
@@ -554,35 +553,96 @@ async updateQuestionnaireServices(
           },
         });
 
-        // Replace questions and options only when provided
+        // Update questions and options only when provided
         if (data.questions !== undefined) {
-          await tx.question.deleteMany({
-            where: { questionnaireId },
+          const existingQuestions = await tx.question.findMany({
+            where: {
+              questionnaireId,
+            },
+            orderBy: [
+              { sortOrder: "asc" },
+              { id: "asc" },
+            ],
+            include: {
+              options: {
+                orderBy: {
+                  id: "asc",
+                },
+              },
+            },
           });
 
           for (const [index, question] of data.questions.entries()) {
-            await tx.question.create({
-              data: {
-                questionnaireId,
-                questionText: question.questionText,
-                sortOrder: index,
-                timeLimitSeconds: 60,
-                options: {
-                  create: question.options.map((option) => ({
-                    optionText: option.optionText,
-                    isCorrect: option.isCorrect,
-                  })),
+            const existingQuestion = existingQuestions[index];
+
+            if (existingQuestion) {
+              // Update existing question
+              await tx.question.update({
+                where: {
+                  id: existingQuestion.id,
                 },
-              },
-            });
+                data: {
+                  questionText: question.questionText,
+                  sortOrder: index,
+                  timeLimitSeconds: 60,
+                },
+              });
+
+              // Update existing options
+              for (const [optionIndex, option] of question.options.entries()) {
+                const existingOption =
+                  existingQuestion.options[optionIndex];
+
+                if (existingOption) {
+                  await tx.questionOption.update({
+                    where: {
+                      id: existingOption.id,
+                    },
+                    data: {
+                      optionText: option.optionText,
+                      isCorrect: option.isCorrect,
+                    },
+                  });
+                } else {
+                  // Create new option if it doesn't exist
+                  await tx.questionOption.create({
+                    data: {
+                      questionId: existingQuestion.id,
+                      optionText: option.optionText,
+                      isCorrect: option.isCorrect,
+                    },
+                  });
+                }
+              }
+            } else {
+              // Create new question with options
+              await tx.question.create({
+                data: {
+                  questionnaireId,
+                  questionText: question.questionText,
+                  sortOrder: index,
+                  timeLimitSeconds: 60,
+                  options: {
+                    create: question.options.map((option) => ({
+                      optionText: option.optionText,
+                      isCorrect: option.isCorrect,
+                    })),
+                  },
+                },
+              });
+            }
           }
         }
 
         return tx.questionnaire.findUniqueOrThrow({
-          where: { id: questionnaireId },
+          where: {
+            id: questionnaireId,
+          },
           include: {
             questions: {
-              orderBy: { sortOrder: "asc" },
+              orderBy: {
+                sortOrder: "asc",
+              },
               include: {
                 options: true,
               },

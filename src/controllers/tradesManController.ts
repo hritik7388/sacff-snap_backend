@@ -2,7 +2,7 @@
 import { Response } from "express";
 import { Request } from "express";
 import { tradesManServices } from "../services/tradesManServices";
-import { tradesManRegisterSchema, tradesManLoginSchema, tradesManCraftSchema, updateProfileSchema, seacrchJobSchema, requestScaffOldSchema, updateScaffOldSRequestchema, jobApplicationSchema, searchScaffHold, deleteRequest, requestSacffHold, GetTradesManDetailsSchema, scaffHoldDetailsById, getrequestSacffHold, searchFilter, getAllQuestionnairesForTradesmanSchema, getQuestionnaireByIdSchema, getCurrentQuestionSchema, startQuizSchema, videoProgressSchema, submitAnswerSchema, } from "../schemas/tradesManSchema";
+import { tradesManRegisterSchema, tradesManLoginSchema, tradesManCraftSchema, updateProfileSchema, seacrchJobSchema, requestScaffOldSchema, updateScaffOldSRequestchema, jobApplicationSchema, searchScaffHold, deleteRequest, requestSacffHold, GetTradesManDetailsSchema, scaffHoldDetailsById, getrequestSacffHold, searchFilter, getAllQuestionnairesForTradesmanSchema, getQuestionnaireByIdSchema, getCurrentQuestionSchema, startQuizSchema,   submitAllAnswersSchema, } from "../schemas/tradesManSchema";
 import { AuthenticatedRequest } from "../types/index";
 import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
@@ -191,15 +191,15 @@ async getCurrentQuestion(
 }
 
   // 4. Submit Answer
- async submitAnswer(
+async submitAnswer(
   req: AuthenticatedRequest,
   res: Response,
   next: Function,
 ) {
   try {
-    const { attemptId } = getCurrentQuestionSchema.parse(req.body);
-
-    const { selectedOptionId } = submitAnswerSchema.parse(req.body);
+    // Validate complete request body
+    const { attemptId, answers } =
+      submitAllAnswersSchema.parse(req.body);
 
     const userId = req.user?.id;
 
@@ -228,12 +228,14 @@ async getCurrentQuestion(
       );
     }
 
-    const result = await tradesMan.submitAnswerService(
-      attemptId,
+    // Submit all answers together
+    const result = await tradesMan.submitAllAnswersService(
+      BigInt(attemptId),
       tradesman.id,
-      selectedOptionId == null
-        ? null
-        : BigInt(selectedOptionId),
+      answers.map((answer) => ({
+        questionId: BigInt(answer.questionId),
+        selectedOptionId: BigInt(answer.selectedOptionId),
+      })),
     );
 
     return res.status(200).json({

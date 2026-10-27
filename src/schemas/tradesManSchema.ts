@@ -203,13 +203,37 @@ export const getCurrentQuestionSchema = z.object({
   attemptId: z.coerce.bigint().positive(),
 });
 
-export const submitAnswerSchema = z.object({
-  selectedOptionId: z
-    .union([z.string(), z.number()])
-    .transform((value) => BigInt(value))
-    .optional()
-    .nullable(),
+export const submitAllAnswersSchema = z.object({
+  attemptId: z
+    .string()
+    .regex(/^\d+$/, "Invalid attempt ID"),
+
+  answers: z
+    .array(
+      z.object({
+        questionId: z
+          .string()
+          .regex(/^\d+$/, "Invalid question ID"),
+
+        selectedOptionId: z
+          .string()
+          .regex(/^\d+$/, "Invalid selected option ID"),
+      })
+    )
+    .min(1, "At least one answer is required")
+    .refine(
+      (answers) =>
+        new Set(answers.map((answer) => answer.questionId)).size ===
+        answers.length,
+      {
+        message: "Duplicate question IDs are not allowed",
+      }
+    ),
 });
+
+export type SubmitAllAnswersDTO = z.infer<
+  typeof submitAllAnswersSchema
+>;
 
 export type RegisterTradesManDTO = z.infer<typeof tradesManRegisterSchema>;
 export type LoginTradesManDTO = z.infer<typeof tradesManLoginSchema>;

@@ -304,7 +304,7 @@ class superAdminServices {
                     }),
                 ]);
                 const totalPages = Math.ceil(totalCount / limit);
-                const responseData = questionnaires.map((quiz) => __awaiter(this, void 0, void 0, function* () {
+                const responseData = yield Promise.all(questionnaires.map((quiz) => __awaiter(this, void 0, void 0, function* () {
                     return ({
                         id: quiz.id.toString(),
                         uuid: quiz.uuid,
@@ -320,7 +320,7 @@ class superAdminServices {
                         createdAt: quiz.createdAt,
                         updatedAt: quiz.updatedAt,
                     });
-                }));
+                })));
                 return {
                     message: "Questionnaires fetched successfully",
                     data: responseData,
@@ -393,7 +393,7 @@ class superAdminServices {
                     throw new customError_1.CustomError("Questionnaire not found", 404, "Not found");
                 }
                 const updated = yield prismaClient_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
-                    // Update quiz details
+                    // Update questionnaire details
                     yield tx.questionnaire.update({
                         where: { id: questionnaireId },
                         data: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (data.testName !== undefined && {
@@ -408,33 +408,92 @@ class superAdminServices {
                             status: data.status,
                         })),
                     });
-                    // Replace questions and options only when provided
+                    // Update questions and options only when provided
                     if (data.questions !== undefined) {
-                        yield tx.question.deleteMany({
-                            where: { questionnaireId },
-                        });
-                        for (const [index, question] of data.questions.entries()) {
-                            yield tx.question.create({
-                                data: {
-                                    questionnaireId,
-                                    questionText: question.questionText,
-                                    sortOrder: index,
-                                    timeLimitSeconds: 60,
-                                    options: {
-                                        create: question.options.map((option) => ({
-                                            optionText: option.optionText,
-                                            isCorrect: option.isCorrect,
-                                        })),
+                        const existingQuestions = yield tx.question.findMany({
+                            where: {
+                                questionnaireId,
+                            },
+                            orderBy: [
+                                { sortOrder: "asc" },
+                                { id: "asc" },
+                            ],
+                            include: {
+                                options: {
+                                    orderBy: {
+                                        id: "asc",
                                     },
                                 },
-                            });
+                            },
+                        });
+                        for (const [index, question] of data.questions.entries()) {
+                            const existingQuestion = existingQuestions[index];
+                            if (existingQuestion) {
+                                // Update existing question
+                                yield tx.question.update({
+                                    where: {
+                                        id: existingQuestion.id,
+                                    },
+                                    data: {
+                                        questionText: question.questionText,
+                                        sortOrder: index,
+                                        timeLimitSeconds: 60,
+                                    },
+                                });
+                                // Update existing options
+                                for (const [optionIndex, option] of question.options.entries()) {
+                                    const existingOption = existingQuestion.options[optionIndex];
+                                    if (existingOption) {
+                                        yield tx.questionOption.update({
+                                            where: {
+                                                id: existingOption.id,
+                                            },
+                                            data: {
+                                                optionText: option.optionText,
+                                                isCorrect: option.isCorrect,
+                                            },
+                                        });
+                                    }
+                                    else {
+                                        // Create new option if it doesn't exist
+                                        yield tx.questionOption.create({
+                                            data: {
+                                                questionId: existingQuestion.id,
+                                                optionText: option.optionText,
+                                                isCorrect: option.isCorrect,
+                                            },
+                                        });
+                                    }
+                                }
+                            }
+                            else {
+                                // Create new question with options
+                                yield tx.question.create({
+                                    data: {
+                                        questionnaireId,
+                                        questionText: question.questionText,
+                                        sortOrder: index,
+                                        timeLimitSeconds: 60,
+                                        options: {
+                                            create: question.options.map((option) => ({
+                                                optionText: option.optionText,
+                                                isCorrect: option.isCorrect,
+                                            })),
+                                        },
+                                    },
+                                });
+                            }
                         }
                     }
                     return tx.questionnaire.findUniqueOrThrow({
-                        where: { id: questionnaireId },
+                        where: {
+                            id: questionnaireId,
+                        },
                         include: {
                             questions: {
-                                orderBy: { sortOrder: "asc" },
+                                orderBy: {
+                                    sortOrder: "asc",
+                                },
                                 include: {
                                     options: true,
                                 },

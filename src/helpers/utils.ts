@@ -23,6 +23,11 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png"];
+const allowedVideoTypes = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+];
 const allowedDocumentTypes = ["application/pdf"];
 
 const s3Client = new S3Client({
@@ -69,7 +74,7 @@ export const generateVideoUploadUrl = async (
     );
   }
 
-  if (!allowedImageTypes.includes(contentType)) {
+  if (!allowedVideoTypes.includes(contentType)) {
     throw new CustomError(
       "Unsupported video type",
       400,

@@ -31,8 +31,8 @@ export const createQuestionnaireSchema = z.object({
     testName: z.string().trim().min(1, "Test title is required"),
     description: z.string().trim().min(1, "Description is required"),
     status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
-    videoUrl: z.string().url("Valid video URL is required"),
-    certificateTemplateUrl: z.string().url("Valid certificate URL is required"),
+    videoUrl: z.string().min(1,"Valid video URL is required"),
+    certificateTemplateUrl: z.string().min(1,"Valid certificate URL is required"),
 
     questions: z.array(
         z.object({

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.submitAnswerSchema = exports.getCurrentQuestionSchema = exports.videoProgressSchema = exports.startQuizSchema = exports.getQuestionnaireByIdSchema = exports.searchFilter = exports.scaffHoldDetailsById = exports.getrequestSacffHold = exports.requestSacffHold = exports.searchScaffHold = exports.deleteRequest = exports.GetTradesManDetailsSchema = exports.jobApplicationSchema = exports.updateScaffOldSRequestchema = exports.requestScaffOldSchema = exports.seacrchJobSchema = exports.joinCraftTradesManSchema = exports.tradesManCraftSchema = exports.tradesManLoginSchema = exports.getAllQuestionnairesForTradesmanSchema = exports.updateProfileSchema = exports.tradesManRegisterSchema = void 0;
+exports.submitAllAnswersSchema = exports.getCurrentQuestionSchema = exports.videoProgressSchema = exports.startQuizSchema = exports.getQuestionnaireByIdSchema = exports.searchFilter = exports.scaffHoldDetailsById = exports.getrequestSacffHold = exports.requestSacffHold = exports.searchScaffHold = exports.deleteRequest = exports.GetTradesManDetailsSchema = exports.jobApplicationSchema = exports.updateScaffOldSRequestchema = exports.requestScaffOldSchema = exports.seacrchJobSchema = exports.joinCraftTradesManSchema = exports.tradesManCraftSchema = exports.tradesManLoginSchema = exports.getAllQuestionnairesForTradesmanSchema = exports.updateProfileSchema = exports.tradesManRegisterSchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 const emptyToUndefined = zod_1.default.string().transform((val) => (val.trim() === "" ? undefined : val));
 exports.tradesManRegisterSchema = zod_1.default.object({
@@ -165,10 +165,22 @@ exports.videoProgressSchema = zod_1.default.object({
 exports.getCurrentQuestionSchema = zod_1.default.object({
     attemptId: zod_1.default.coerce.bigint().positive(),
 });
-exports.submitAnswerSchema = zod_1.default.object({
-    selectedOptionId: zod_1.default
-        .union([zod_1.default.string(), zod_1.default.number()])
-        .transform((value) => BigInt(value))
-        .optional()
-        .nullable(),
+exports.submitAllAnswersSchema = zod_1.default.object({
+    attemptId: zod_1.default
+        .string()
+        .regex(/^\d+$/, "Invalid attempt ID"),
+    answers: zod_1.default
+        .array(zod_1.default.object({
+        questionId: zod_1.default
+            .string()
+            .regex(/^\d+$/, "Invalid question ID"),
+        selectedOptionId: zod_1.default
+            .string()
+            .regex(/^\d+$/, "Invalid selected option ID"),
+    }))
+        .min(1, "At least one answer is required")
+        .refine((answers) => new Set(answers.map((answer) => answer.questionId)).size ===
+        answers.length, {
+        message: "Duplicate question IDs are not allowed",
+    }),
 });

@@ -159,8 +159,8 @@ class tradesManController {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;
             try {
-                const { attemptId } = tradesManSchema_1.getCurrentQuestionSchema.parse(req.body);
-                const { selectedOptionId } = tradesManSchema_1.submitAnswerSchema.parse(req.body);
+                // Validate complete request body
+                const { attemptId, answers } = tradesManSchema_1.submitAllAnswersSchema.parse(req.body);
                 const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
                 if (!userId) {
                     return res.status(401).json({
@@ -180,9 +180,11 @@ class tradesManController {
                 if (!tradesman) {
                     throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
                 }
-                const result = yield tradesMan.submitAnswerService(attemptId, tradesman.id, selectedOptionId == null
-                    ? null
-                    : BigInt(selectedOptionId));
+                // Submit all answers together
+                const result = yield tradesMan.submitAllAnswersService(BigInt(attemptId), tradesman.id, answers.map((answer) => ({
+                    questionId: BigInt(answer.questionId),
+                    selectedOptionId: BigInt(answer.selectedOptionId),
+                })));
                 return res.status(200).json(Object.assign({ success: true }, result));
             }
             catch (err) {

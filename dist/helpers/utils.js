@@ -31,6 +31,11 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_s3_1 = require("@aws-sdk/client-s3");
 const s3_request_presigner_1 = require("@aws-sdk/s3-request-presigner");
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png"];
+const allowedVideoTypes = [
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+];
 const allowedDocumentTypes = ["application/pdf"];
 const s3Client = new client_s3_1.S3Client({
     region: process.env.AWS_REGION,
@@ -63,7 +68,7 @@ const generateVideoUploadUrl = (filename, contentType) => __awaiter(void 0, void
     if (!(filename === null || filename === void 0 ? void 0 : filename.trim())) {
         throw new customError_1.CustomError("Invalid filename", 400, "Video filename is required");
     }
-    if (!allowedImageTypes.includes(contentType)) {
+    if (!allowedVideoTypes.includes(contentType)) {
         throw new customError_1.CustomError("Unsupported video type", 400, "Only MP4, WebM and MOV videos are allowed");
     }
     const sanitizedFilename = filename

@@ -28,8 +28,8 @@ exports.createQuestionnaireSchema = zod_1.default.object({
     testName: zod_1.default.string().trim().min(1, "Test title is required"),
     description: zod_1.default.string().trim().min(1, "Description is required"),
     status: zod_1.default.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
-    videoUrl: zod_1.default.string().url("Valid video URL is required"),
-    certificateTemplateUrl: zod_1.default.string().url("Valid certificate URL is required"),
+    videoUrl: zod_1.default.string().min(1, "Valid video URL is required"),
+    certificateTemplateUrl: zod_1.default.string().min(1, "Valid certificate URL is required"),
     questions: zod_1.default.array(zod_1.default.object({
         questionText: zod_1.default.string().trim().min(1, "Question is required"),
         options: zod_1.default.array(zod_1.default.object({
