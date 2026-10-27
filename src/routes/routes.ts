@@ -12,6 +12,7 @@ import scaffhold from './scaffHoldRoutes';
 import competentPerson from './competentPersonRoutes';
 import subscription from './subscriptionRoutes';
 import faqRoutes from './faqRoutes';
+import roi from './roiRoutes';
 
 const router = Router(); 
 router.use('/v1/company', companyRoutes);
@@ -26,4 +27,5 @@ router.use('/v1/scaffHold', scaffhold);
 router.use('/v1/competentPerson',competentPerson);
 router.use('/v1/subscription', subscription);
 router.use('/v1/faq', faqRoutes);
+router.use('/v1/roi', roi);
 export default router;
