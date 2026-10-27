@@ -19,18 +19,17 @@ router.post("/register", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.
  * @access  Private (TradesMan)
  */
 router.get("/questionnaires", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getAllQuestionnairesForTradesman.bind(tradesManRoutes));
-router.get("/questionnaires/:id", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes));
-// Save video watch progress
-router.post("/questionnaires/:id/video-progress", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.saveVideoProgress.bind(tradesManRoutes));
+router.get("/getQuestionByID", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes));
 // Start or resume quiz
-router.post("/questionnaires/:id/start", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.startQuiz.bind(tradesManRoutes));
+router.post("/startQuiz", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.startQuiz.bind(tradesManRoutes));
 // Get current question for an attempt
-router.get("/attempts/:attemptId/current-question", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCurrentQuestion.bind(tradesManRoutes));
+router.get("/currentQuestionList", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCurrentQuestion.bind(tradesManRoutes));
 // Submit answer
-router.post("/attempts/:attemptId/answer", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.submitAnswer.bind(tradesManRoutes));
+router.post("/submitAnswer", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.submitAnswer.bind(tradesManRoutes));
 // Get Tradesman's certificates
 router.get("/certificates", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCertificates.bind(tradesManRoutes));
-router.get("/certificates/:certificateId", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCertificateById.bind(tradesManRoutes));
+router.get("/certificateId", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getCertificateById.bind(tradesManRoutes));
+router.post("/enrollQuestionnaire", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.enrollQuestionnaire.bind(tradesManRoutes));
 /**
  * @route   POST /api/v1/tradesMan/tradesManLogin
  * @desc    login TradesMan

@@ -16,9 +16,16 @@ export const searchQuestionnaireSchema = z.object({
 
 export type SearchQuestionnaireDTO = z.infer<
   typeof searchQuestionnaireSchema
->;
+>; 
 
-
+export const generateVideoUploadSchema = z.object({
+  filename: z.string().trim().min(1, "Filename is required"),
+  contentType: z.enum([
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+  ]),
+});
 
 export const createQuestionnaireSchema = z.object({
     testName: z.string().trim().min(1, "Test title is required"),

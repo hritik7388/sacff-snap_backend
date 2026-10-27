@@ -31,6 +31,18 @@ class superAdminController {
             }
         });
     }
+    generateQuestionnaireVideoUpload(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { filename, contentType } = superAdminSchema_1.generateVideoUploadSchema.parse(req.body);
+                const result = yield superAdmin.generateQuestionnaireVideoUploadService(filename, contentType);
+                return res.status(200).json(Object.assign({ success: true }, result));
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
     getQuestionnaireDashboard(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {

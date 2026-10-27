@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.extractS3Key = exports.mailTransporter = void 0;
+exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.generateVideoUploadUrl = exports.extractS3Key = exports.mailTransporter = void 0;
 // src/helpers/utils.ts
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const qrcode_1 = __importDefault(require("qrcode"));
@@ -59,6 +59,32 @@ const extractS3Key = (image) => {
     return image;
 };
 exports.extractS3Key = extractS3Key;
+const generateVideoUploadUrl = (filename, contentType) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!(filename === null || filename === void 0 ? void 0 : filename.trim())) {
+        throw new customError_1.CustomError("Invalid filename", 400, "Video filename is required");
+    }
+    if (!allowedImageTypes.includes(contentType)) {
+        throw new customError_1.CustomError("Unsupported video type", 400, "Only MP4, WebM and MOV videos are allowed");
+    }
+    const sanitizedFilename = filename
+        .trim()
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const key = `questionnaire_videos/${Date.now()}-${sanitizedFilename}`;
+    const command = new client_s3_1.PutObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+        ContentType: contentType,
+    });
+    const uploadUrl = yield (0, s3_request_presigner_1.getSignedUrl)(s3Client, command, {
+        expiresIn: 3600,
+    });
+    return {
+        uploadUrl,
+        key,
+        expiresIn: 3600,
+    };
+});
+exports.generateVideoUploadUrl = generateVideoUploadUrl;
 const generatePresignedUrl = (filename, contentType) => __awaiter(void 0, void 0, void 0, function* () {
     const timestamp = Date.now();
     const sanitizedFilename = filename.replace(/\s+/g, "_");

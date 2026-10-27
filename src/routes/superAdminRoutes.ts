@@ -34,6 +34,16 @@ router.post(
     authMiddleware,isSUperAdmin,
     superAdminRoutes.createQuestionnaire.bind(superAdminRoutes)
 );
+// Generate presigned URL for questionnaire video upload
+router.post(
+  "/questionnaire/video/upload-url",
+  clientAuthMiddleware,
+  authMiddleware,
+  isSUperAdmin,
+  superAdminRoutes.generateQuestionnaireVideoUpload.bind(
+    superAdminRoutes,
+  ),
+);
 
 router.get(
   "/questionnaire/list",

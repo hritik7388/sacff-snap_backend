@@ -20,6 +20,8 @@ router.get("/questionnaire/dashboard", authMiddleware_2.clientAuthMiddleware, au
  */
 router.post('/login', authMiddleware_2.clientAuthMiddleware, superAdminRoutes.superAdminLogin.bind(superAdminRoutes));
 router.post("/questionnaire/create", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.createQuestionnaire.bind(superAdminRoutes));
+// Generate presigned URL for questionnaire video upload
+router.post("/questionnaire/video/upload-url", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.generateQuestionnaireVideoUpload.bind(superAdminRoutes));
 router.get("/questionnaire/list", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getAllQuestionnaires.bind(superAdminRoutes));
 // Get complete quiz with questions and options
 router.get("/questionnaire/:id", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getQuestionnaireById.bind(superAdminRoutes));

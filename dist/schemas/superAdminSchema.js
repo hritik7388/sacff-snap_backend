@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.updateProfileImageSchema = exports.blogByIdSchema = exports.Contactinfo = exports.deleteContact = exports.contact = exports.deleteblogSchema = exports.publishblogSchema = exports.blogSchema = exports.notifictaion = exports.addNewCompanySchema = exports.changeQuestionnaireStatusSchema = exports.updateQuestionnaireSchema = exports.companyStatus = exports.rejectCompanyRequestSchema = exports.approveCompanyRequestSchema = exports.createQuestionnaireSchema = exports.searchQuestionnaireSchema = exports.superAdminSchema = void 0;
+exports.logout = exports.updateProfileImageSchema = exports.blogByIdSchema = exports.Contactinfo = exports.deleteContact = exports.contact = exports.deleteblogSchema = exports.publishblogSchema = exports.blogSchema = exports.notifictaion = exports.addNewCompanySchema = exports.changeQuestionnaireStatusSchema = exports.updateQuestionnaireSchema = exports.companyStatus = exports.rejectCompanyRequestSchema = exports.approveCompanyRequestSchema = exports.createQuestionnaireSchema = exports.generateVideoUploadSchema = exports.searchQuestionnaireSchema = exports.superAdminSchema = void 0;
 // src/schemas/superAdminSchema.ts
 const zod_1 = __importDefault(require("zod"));
 exports.superAdminSchema = zod_1.default.object({
@@ -15,6 +15,14 @@ exports.searchQuestionnaireSchema = zod_1.default.object({
     status: zod_1.default.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
     startDate: zod_1.default.string().optional(),
     endDate: zod_1.default.string().optional(),
+});
+exports.generateVideoUploadSchema = zod_1.default.object({
+    filename: zod_1.default.string().trim().min(1, "Filename is required"),
+    contentType: zod_1.default.enum([
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+    ]),
 });
 exports.createQuestionnaireSchema = zod_1.default.object({
     testName: zod_1.default.string().trim().min(1, "Test title is required"),

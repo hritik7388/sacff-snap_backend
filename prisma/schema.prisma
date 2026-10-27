@@ -7,6 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum FAQStatus {
+  ACTIVE
+  INACTIVE
+}
+model QuestionnaireEnrollment {
+  id              BigInt   @id @default(autoincrement())
+  uuid            String   @unique
+  questionnaireId BigInt
+  tradesmanId     BigInt
+  isEnrolled      Boolean  @default(true)
+  enrolledAt      DateTime @default(now()) 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  questionnaire Questionnaire @relation(   fields: [questionnaireId],    references: [id],    onDelete: Cascade  )
+
+  tradesman TradesMan @relation(    fields: [tradesmanId],    references: [id],    onDelete: Cascade  )
+
+  @@unique([tradesmanId, questionnaireId])
+  @@index([questionnaireId])
+  @@index([tradesmanId])
+}
+model FAQ {
+  id          BigInt    @id @default(autoincrement())
+  uuid        String    @unique
+  question    String    @db.VarChar(500)
+  answer      String    @db.Text
+  status      FAQStatus @default(ACTIVE)
+  sortOrder   Int       @default(0) 
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, sortOrder]) 
+  @@map("faqs")
+}
+
 enum QuestionnaireStatus {
   ACTIVE
   INCOMPLETE
@@ -34,9 +70,9 @@ model Questionnaire {
 
   @@index([status])
   @@index([createdById])
-  @@index([createdAt])
-  videoProgress VideoProgress[]
+  @@index([createdAt]) 
 certificates  Certificate[]
+enrollments QuestionnaireEnrollment[]
 }
 
 model Question {
@@ -182,10 +218,9 @@ model TradesMan {
 
   @@index([craftId], map: "TradesMan_craftId_fkey")
 
-  quizAttempts QuizAttempt[]
-
-  videoProgress VideoProgress[]
+  quizAttempts QuizAttempt[] 
 certificates  Certificate[]
+enrollments QuestionnaireEnrollment[]
 }
 
 enum QuizAttemptStatus {
@@ -239,23 +274,7 @@ model QuizAnswer {
   @@index([questionId]) 
 }
 
-model VideoProgress {
-  id                  BigInt   @id @default(autoincrement())
-  uuid                String   @unique
-  questionnaireId     BigInt
-  tradesmanId         BigInt
-  watchedPercent      Int      @default(0)  
-  completedAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
-  tradesman     TradesMan     @relation(fields: [tradesmanId], references: [id], onDelete: Cascade)
-
-  @@unique([tradesmanId, questionnaireId])
-  @@index([tradesmanId])
-}
-
+ 
 model Certificate {
   id              BigInt   @id @default(autoincrement())
   uuid            String   @unique

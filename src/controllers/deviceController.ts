@@ -1,3 +1,4 @@
+// src/controllers/deviceController.ts
 import {Response} from "express";
 import {Request} from "express";
 import {AuthenticatedRequest} from "../types/index";

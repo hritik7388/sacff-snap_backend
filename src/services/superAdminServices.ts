@@ -13,6 +13,7 @@ import {
   generateCompanyId,
   generateReadUrl,
   generateToken,
+  generateVideoUploadUrl,
   pushNotificationDelhi,
   sendMail,
 } from "../helpers/utils";
@@ -43,6 +44,35 @@ import { NotificationRole, NotificationType, Prisma, QuestionnaireStatus } from 
 dotenv.config();
 
 export class superAdminServices {
+async generateQuestionnaireVideoUploadService(
+  filename: string,
+  contentType: string,
+) {
+  try {
+    const result = await generateVideoUploadUrl(
+      filename,
+      contentType,
+    );
+
+    return {
+      message: "Video upload URL generated successfully",
+      data: {
+        uploadUrl: result.uploadUrl,
+        videoKey: result.key,
+        expiresIn: result.expiresIn,
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) throw error;
+
+    throw new CustomError(
+      "Failed to generate video upload URL",
+      500,
+      error.message,
+    );
+  }
+}
+
   async createQuestionnaireServices(
     data: CreateQuestionnaireDTO,
     superAdminId: bigint,

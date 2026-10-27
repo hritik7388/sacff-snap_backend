@@ -40,7 +40,7 @@ export class tradesManServices {
     filter: TradesmanQuestionnaireFilter = "ALL",
     page: number = 1,
     limit: number = 10,
-     search?: string,
+    search?: string,
   ) {
     try {
       page = Number(page);
@@ -68,12 +68,51 @@ export class tradesManServices {
         );
       }
 
-      // Fetch all ACTIVE questionnaires.
-      // Progress is fetched only for the logged-in Tradesman.
+      // Fetch active enrollments for authenticated Tradesman
+      const enrolledRecords = await prisma.questionnaireEnrollment.findMany({
+        where: {
+          tradesmanId,
+          isEnrolled: true,
+        },
+        select: {
+          questionnaireId: true,
+        },
+      });
+
+      const enrolledQuestionnaireIds = enrolledRecords.map(
+        (record) => record.questionnaireId,
+      );
+
+      console.log("GET ALL FILTER:", filter);
+      console.log("GET ALL TRADESMAN ID:", tradesmanId.toString());
+      console.log(
+        "ENROLLED QUESTIONNAIRE IDS:",
+        enrolledQuestionnaireIds.map((id) => id.toString()),
+      );
+
       const questionnaires = await prisma.questionnaire.findMany({
         where: {
           status: "ACTIVE",
+
+          // ALL: Only questionnaires not enrolled by this Tradesman
+          ...(filter === "ALL"
+            ? {
+                id: {
+                  notIn: enrolledQuestionnaireIds,
+                },
+              }
+            : {}),
+
+          // INCOMPLETE: Only enrolled questionnaires
+          ...(filter === "INCOMPLETE"
+            ? {
+                id: {
+                  in: enrolledQuestionnaireIds,
+                },
+              }
+            : {}),
         },
+
         select: {
           id: true,
           uuid: true,
@@ -112,16 +151,16 @@ export class tradesManServices {
             },
           },
 
-          videoProgress: {
+          enrollments: {
             where: {
               tradesmanId,
+              isEnrolled: true,
+            },
+            select: {
+              id: true,
+              isEnrolled: true,
             },
             take: 1,
-            select: {
-              watchedPercent: true,
-              completedAt: true,
-              updatedAt: true,
-            },
           },
         },
 
@@ -130,31 +169,25 @@ export class tradesManServices {
         },
       });
 
-      // Build the current Tradesman's progress for each questionnaire.
       const mappedQuestionnaires = await Promise.all(
         questionnaires.map(async (quiz) => {
           const latestAttempt = quiz.attempts[0] ?? null;
-          const progress = quiz.videoProgress[0] ?? null;
 
-          const watchedPercent = progress?.watchedPercent ?? 0;
+          const isEnrolled = quiz.enrollments[0]?.isEnrolled ?? false;
 
           const isCompleted =
             latestAttempt?.status === "PASSED" ||
             latestAttempt?.status === "FAILED";
 
-          const hasStarted = watchedPercent > 0 || latestAttempt !== null;
-
           const questionnaireProgress = isCompleted
             ? "COMPLETED"
-            : hasStarted
+            : isEnrolled
               ? "INCOMPLETE"
               : "NOT_STARTED";
 
-          let videoUrl: string | null = null;
-
-          if (quiz.videoUrl) {
-            videoUrl = await generateReadUrl(quiz.videoUrl);
-          }
+          const videoUrl = quiz.videoUrl
+            ? await generateReadUrl(quiz.videoUrl)
+            : null;
 
           return {
             id: quiz.id.toString(),
@@ -166,13 +199,12 @@ export class tradesManServices {
             videoUrl,
 
             certificateTemplateUrl: quiz.certificateTemplateUrl,
+
             status: quiz.status,
 
             totalQuestions: quiz._count.questions,
 
-            watchedPercent,
-            isVideoCompleted: watchedPercent >= 100,
-            videoCompletedAt: progress?.completedAt ?? null,
+            isEnrolled,
 
             questionnaireProgress,
 
@@ -198,32 +230,38 @@ export class tradesManServices {
         }),
       );
 
-      // Apply filter based on THIS Tradesman's progress.
       const filteredQuestionnaires = mappedQuestionnaires.filter((quiz) => {
-          let matchesFilter = false;
+        let matchesFilter = false;
+
         switch (filter) {
           case "ALL":
-            // Only quizzes this Tradesman has not started.
-            return quiz.questionnaireProgress === "NOT_STARTED";
+            matchesFilter = !quiz.isEnrolled;
+            break;
 
           case "INCOMPLETE":
-            // Video watched or quiz attempted, but not completed.
-            return quiz.questionnaireProgress === "INCOMPLETE";
+            matchesFilter =
+              quiz.isEnrolled && quiz.questionnaireProgress !== "COMPLETED";
+            break;
 
-           case "COMPLETED":
-          matchesFilter =
-            quiz.questionnaireProgress === "COMPLETED";
-          break;
-      }
+          case "COMPLETED":
+            matchesFilter = quiz.questionnaireProgress === "COMPLETED";
+            break;
+        }
 
-      const matchesSearch =
-        !search ||
-        quiz.testName.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch =
+          !search ||
+          quiz.testName.toLowerCase().includes(search.trim().toLowerCase());
 
-      return matchesFilter && matchesSearch;
-    });
+        return matchesFilter && matchesSearch;
+      });
 
-      // Pagination after filtering.
+      const recent = [...filteredQuestionnaires]
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        )
+        .slice(0, 3);
+
       const total = filteredQuestionnaires.length;
       const totalPages = Math.ceil(total / limit);
       const skip = (page - 1) * limit;
@@ -234,13 +272,12 @@ export class tradesManServices {
         success: true,
         message: "Questionnaires fetched successfully",
         data,
+        recent,
         pagination: {
           page,
           limit,
           total,
           totalPages,
-          hasNextPage: page < totalPages,
-          hasPreviousPage: page > 1,
         },
       };
     } catch (error) {
@@ -255,6 +292,7 @@ export class tradesManServices {
       );
     }
   }
+
   async getQuestionnaireByIdForTradesmanServices(id: bigint) {
     try {
       const questionnaire = await prisma.questionnaire.findUnique({
@@ -281,6 +319,13 @@ export class tradesManServices {
         );
       }
 
+      // Check whether this questionnaire has been enrolled
+      const enrollmentCount = await prisma.questionnaireEnrollment.count({
+        where: {
+          questionnaireId: id,
+        },
+      });
+
       const videoUrl = questionnaire.videoUrl
         ? await generateReadUrl(questionnaire.videoUrl)
         : null;
@@ -293,6 +338,8 @@ export class tradesManServices {
           videoKey: questionnaire.videoUrl,
           videoUrl,
           questionsCount: questionnaire._count.questions,
+          isEnrolled: enrollmentCount > 0,
+          enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED",
         },
       };
     } catch (error: any) {
@@ -308,165 +355,41 @@ export class tradesManServices {
     }
   }
 
-  async saveVideoProgressService(
-    tradesmanId: bigint,
-    questionnaireId: bigint,
-    watchedPercent: number,
-  ) {
+  async startQuizService(questionnaireId: bigint, tradesmanId: bigint) {
     try {
-      if (
-        !Number.isInteger(watchedPercent) ||
-        watchedPercent < 0 ||
-        watchedPercent > 100
-      ) {
-        throw new CustomError(
-          "Invalid watched percentage",
-          400,
-          "watchedPercent must be an integer between 0 and 100",
-        );
-      }
-
-      const [questionnaire, tradesman] = await Promise.all([
-        prisma.questionnaire.findUnique({
-          where: {
-            id: questionnaireId,
-          },
-          select: {
-            id: true,
-            status: true,
-          },
-        }),
-
-        prisma.tradesMan.findUnique({
-          where: {
-            id: tradesmanId,
-          },
-          select: {
-            id: true,
-          },
-        }),
-      ]);
-
-      if (!questionnaire) {
-        throw new CustomError(
-          "Questionnaire not found",
-          404,
-          "Questionnaire does not exist",
-        );
-      }
+      // 1. Get actual Tradesman profile ID
+      // tradesmanId parameter is authenticated User ID
+      const tradesman = await prisma.tradesMan.findUnique({
+        where: {
+          userId: tradesmanId,
+        },
+        select: {
+          id: true,
+        },
+      });
 
       if (!tradesman) {
         throw new CustomError(
           "Tradesman not found",
           404,
-          "Tradesman does not exist",
+          "Tradesman profile does not exist",
         );
       }
 
-      if (questionnaire.status !== "ACTIVE") {
-        throw new CustomError(
-          "Questionnaire unavailable",
-          400,
-          "This questionnaire is not currently available",
-        );
-      }
+      const actualTradesmanId = tradesman.id;
 
-      const existingProgress = await prisma.videoProgress.findUnique({
-        where: {
-          tradesmanId_questionnaireId: {
-            tradesmanId,
-            questionnaireId,
-          },
-        },
-        select: {
-          id: true,
-          watchedPercent: true,
-          completedAt: true,
-        },
-      });
-
-      // Never reduce the saved progress.
-      const finalPercent = Math.max(
-        existingProgress?.watchedPercent ?? 0,
-        watchedPercent,
-      );
-
-      const completedAt =
-        finalPercent >= 100
-          ? (existingProgress?.completedAt ?? new Date())
-          : null;
-
-      // Save progress only for this Tradesman.
-      const progress = await prisma.videoProgress.upsert({
-        where: {
-          tradesmanId_questionnaireId: {
-            tradesmanId,
-            questionnaireId,
-          },
-        },
-        create: {
-          uuid: uuidv4(),
-          questionnaireId,
-          tradesmanId,
-          watchedPercent: finalPercent,
-          completedAt,
-        },
-        update: {
-          watchedPercent: finalPercent,
-          completedAt,
-        },
-        select: {
-          uuid: true,
-          questionnaireId: true,
-          tradesmanId: true,
-          watchedPercent: true,
-          completedAt: true,
-          updatedAt: true,
-        },
-      });
-
-      return {
-        success: true,
-        message: "Video progress saved successfully",
-        data: {
-          uuid: progress.uuid,
-          questionnaireId: progress.questionnaireId.toString(),
-          tradesmanId: progress.tradesmanId.toString(),
-          watchedPercent: progress.watchedPercent,
-          isVideoCompleted: progress.watchedPercent >= 100,
-          completedAt: progress.completedAt,
-          updatedAt: progress.updatedAt,
-          questionnaireStatus: questionnaire.status,
-          questionnaireProgress:
-            progress.watchedPercent > 0 ? "INCOMPLETE" : "NOT_STARTED",
-        },
-      };
-    } catch (error) {
-      if (error instanceof CustomError) {
-        throw error;
-      }
-
-      throw new CustomError(
-        "Failed to save video progress",
-        500,
-        error instanceof Error ? error.message : "Unknown error",
-      );
-    }
-  }
-
-  async startQuizService(questionnaireId: bigint, tradesmanId: bigint) {
-    try {
-      const tradesManId = await prisma.tradesMan.findUnique({
-        where: { userId: tradesmanId },
-        select: { id: true },
-      });
+      // 2. Validate questionnaire
       const questionnaire = await prisma.questionnaire.findFirst({
         where: {
           id: questionnaireId,
           status: "ACTIVE",
         },
         include: {
-          _count: { select: { questions: true } },
+          _count: {
+            select: {
+              questions: true,
+            },
+          },
         },
       });
 
@@ -486,28 +409,36 @@ export class tradesManServices {
         );
       }
 
-      const progress = await prisma.videoProgress.findUnique({
+      // 3. Check enrollment
+      const enrollment = await prisma.questionnaireEnrollment.findUnique({
         where: {
           tradesmanId_questionnaireId: {
-            tradesmanId: tradesManId?.id!,
+            tradesmanId: actualTradesmanId,
             questionnaireId,
           },
         },
       });
 
-      if (!progress || progress.watchedPercent < 100 || !progress.completedAt) {
+      if (!enrollment) {
         throw new CustomError(
-          "Complete the training video first",
+          "Questionnaire not enrolled",
           400,
-          "Video must be watched up to 100%",
+          "Please enroll in the questionnaire before starting the quiz",
         );
       }
 
+      // 4. Get previous attempt
       const previousAttempt = await prisma.quizAttempt.findFirst({
-        where: { questionnaireId, tradesmanId },
-        orderBy: { createdAt: "desc" },
+        where: {
+          questionnaireId,
+          tradesmanId: actualTradesmanId,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
       });
 
+      // 5. Resume existing attempt
       if (previousAttempt?.status === "IN_PROGRESS") {
         return {
           message: "Existing quiz attempt resumed",
@@ -520,17 +451,11 @@ export class tradesManServices {
         };
       }
 
-      if (
-        previousAttempt?.status === "REWATCH_REQUIRED" &&
-        progress.completedAt <= previousAttempt.updatedAt
-      ) {
-        throw new CustomError(
-          "Rewatch the video before retrying",
-          400,
-          "Complete the video again before starting a new attempt",
-        );
-      }
+      // 6. Allow retry after REWATCH_REQUIRED
+      // VideoProgress table has been removed,
+      // so video rewatch completion cannot be verified here.
 
+      // 7. Prevent restarting completed quiz
       if (
         previousAttempt?.status === "PASSED" ||
         previousAttempt?.status === "FAILED"
@@ -542,9 +467,14 @@ export class tradesManServices {
         );
       }
 
+      // 8. Fetch first question
       const firstQuestion = await prisma.question.findFirst({
-        where: { questionnaireId },
-        orderBy: { sortOrder: "asc" },
+        where: {
+          questionnaireId,
+        },
+        orderBy: {
+          sortOrder: "asc",
+        },
       });
 
       if (!firstQuestion) {
@@ -555,11 +485,12 @@ export class tradesManServices {
         );
       }
 
+      // 9. Create new attempt
       const attempt = await prisma.quizAttempt.create({
         data: {
           uuid: uuidv4(),
           questionnaireId,
-          tradesmanId,
+          tradesmanId: actualTradesmanId,
           status: "IN_PROGRESS",
           totalQuestions: questionnaire._count.questions,
           currentQuestion: firstQuestion.sortOrder,
@@ -567,6 +498,7 @@ export class tradesManServices {
         },
       });
 
+      // 10. Return response
       return {
         message: "Quiz started successfully",
         data: {
@@ -577,7 +509,9 @@ export class tradesManServices {
         },
       };
     } catch (error: any) {
-      if (error instanceof CustomError) throw error;
+      if (error instanceof CustomError) {
+        throw error;
+      }
 
       throw new CustomError("Failed to start quiz", 500, error.message);
     }
@@ -627,6 +561,7 @@ export class tradesManServices {
             select: {
               id: true,
               optionText: true,
+              isCorrect: true,
             },
           },
         },
@@ -650,22 +585,29 @@ export class tradesManServices {
         message: "Current question fetched successfully",
         data: {
           attemptId: attempt.id.toString(),
+
           questionnaire: {
             ...attempt.questionnaire,
             id: attempt.questionnaire.id.toString(),
           },
+
           question: {
             id: question.id.toString(),
             questionText: question.questionText,
             sortOrder: question.sortOrder,
             timeLimitSeconds: question.timeLimitSeconds,
+            createdAt: question.createdAt.toISOString(),
+
             options: question.options.map((option) => ({
               id: option.id.toString(),
               optionText: option.optionText,
+              isCorrect: option.isCorrect,
             })),
           },
+
           currentQuestion: attempt.currentQuestion + 1,
           totalQuestions: attempt.totalQuestions,
+
           remainingSeconds: Math.max(
             0,
             question.timeLimitSeconds - elapsedSeconds,
@@ -787,26 +729,6 @@ export class tradesManServices {
                 wrongAnswerCount,
                 correctAnswers,
                 status: "REWATCH_REQUIRED",
-              },
-            });
-
-            await tx.videoProgress.upsert({
-              where: {
-                tradesmanId_questionnaireId: {
-                  tradesmanId,
-                  questionnaireId: attempt.questionnaireId,
-                },
-              },
-              create: {
-                uuid: uuidv4(),
-                tradesmanId,
-                questionnaireId: attempt.questionnaireId,
-                watchedPercent: 0,
-                completedAt: null,
-              },
-              update: {
-                watchedPercent: 0,
-                completedAt: null,
               },
             });
 
@@ -983,6 +905,218 @@ export class tradesManServices {
       if (error instanceof CustomError) throw error;
 
       throw new CustomError("Failed to fetch certificates", 500, error.message);
+    }
+  }
+
+  async enrollQuestionnaireService(
+    questionnaireId: bigint,
+    tradesmanId: bigint,
+  ) {
+    try {
+      // 1. Validate questionnaire and tradesman
+      const [questionnaire, tradesman] = await Promise.all([
+        prisma.questionnaire.findFirst({
+          where: {
+            id: questionnaireId,
+            status: "ACTIVE",
+          },
+          select: {
+            id: true,
+            uuid: true,
+            testName: true,
+          },
+        }),
+
+        prisma.tradesMan.findUnique({
+          where: {
+            id: tradesmanId,
+          },
+          select: {
+            id: true,
+          },
+        }),
+      ]);
+
+      if (!questionnaire) {
+        throw new CustomError(
+          "Questionnaire not found",
+          404,
+          "Questionnaire does not exist or is not active",
+        );
+      }
+
+      if (!tradesman) {
+        throw new CustomError(
+          "Tradesman not found",
+          404,
+          "Tradesman does not exist",
+        );
+      }
+
+      // 2. Create or update enrollment
+      const enrollment = await prisma.questionnaireEnrollment.upsert({
+        where: {
+          tradesmanId_questionnaireId: {
+            tradesmanId,
+            questionnaireId,
+          },
+        },
+
+        create: {
+          uuid: uuidv4(),
+          tradesmanId,
+          questionnaireId,
+          isEnrolled: true,
+        },
+
+        update: {
+          isEnrolled: true,
+        },
+
+        select: {
+          id: true,
+          uuid: true,
+          questionnaireId: true,
+          tradesmanId: true,
+          isEnrolled: true,
+          enrolledAt: true,
+        },
+      });
+
+      // 3. Fetch complete questionnaire details
+      const fullQuestionnaire = await prisma.questionnaire.findUnique({
+        where: {
+          id: questionnaireId,
+        },
+
+        include: {
+          questions: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+
+            include: {
+              options: true,
+            },
+          },
+
+          _count: {
+            select: {
+              questions: true,
+            },
+          },
+
+          attempts: {
+            where: {
+              tradesmanId,
+            },
+
+            orderBy: {
+              createdAt: "desc",
+            },
+
+            take: 1,
+
+            select: {
+              id: true,
+              uuid: true,
+              status: true,
+              score: true,
+              totalQuestions: true,
+              correctAnswers: true,
+              currentQuestion: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      });
+
+      if (!fullQuestionnaire) {
+        throw new CustomError(
+          "Questionnaire not found",
+          404,
+          "Questionnaire could not be fetched",
+        );
+      }
+
+      // 4. Generate video URL from stored S3 key
+      const videoKey = fullQuestionnaire.videoUrl;
+
+      const videoUrl = videoKey ? await generateReadUrl(videoKey) : null;
+
+      // 5. Get latest attempt
+      const latestAttempt = fullQuestionnaire.attempts[0] ?? null;
+
+      // 6. Remove internal fields
+      const {
+        attempts,
+        questions,
+        _count,
+        videoUrl: storedVideoUrl,
+        ...questionnaireData
+      } = fullQuestionnaire;
+
+      // 7. Return complete response
+      return {
+        success: true,
+        message: "Questionnaire enrolled successfully",
+
+        data: {
+          ...questionnaireData,
+
+          id: fullQuestionnaire.id.toString(),
+
+          videoKey,
+          videoUrl,
+
+          questionsCount: _count.questions,
+
+          questions: questions.map((question: any) => ({
+            ...question,
+
+            id: question.id.toString(),
+            questionnaireId: question.questionnaireId.toString(),
+
+            options: question.options.map((option: any) => ({
+              ...option,
+
+              id: option.id.toString(),
+              questionId: option.questionId.toString(),
+            })),
+          })),
+
+          // Enrollment details
+          enrollment: {
+            id: enrollment.id.toString(),
+            uuid: enrollment.uuid,
+            questionnaireId: enrollment.questionnaireId.toString(),
+            tradesmanId: enrollment.tradesmanId.toString(),
+            isEnrolled: enrollment.isEnrolled,
+            enrolledAt: enrollment.enrolledAt,
+          },
+
+          isEnrolled: enrollment.isEnrolled,
+
+          // Latest quiz attempt
+          latestAttempt: latestAttempt
+            ? {
+                ...latestAttempt,
+                id: latestAttempt.id.toString(),
+              }
+            : null,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError(
+        "Failed to enroll questionnaire",
+        500,
+        error instanceof Error ? error.message : "Unknown error",
+      );
     }
   }
 

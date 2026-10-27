@@ -5,6 +5,7 @@ import { tradesManServices } from "../services/tradesManServices";
 import { tradesManRegisterSchema, tradesManLoginSchema, tradesManCraftSchema, updateProfileSchema, seacrchJobSchema, requestScaffOldSchema, updateScaffOldSRequestchema, jobApplicationSchema, searchScaffHold, deleteRequest, requestSacffHold, GetTradesManDetailsSchema, scaffHoldDetailsById, getrequestSacffHold, searchFilter, getAllQuestionnairesForTradesmanSchema, getQuestionnaireByIdSchema, getCurrentQuestionSchema, startQuizSchema, videoProgressSchema, submitAnswerSchema, } from "../schemas/tradesManSchema";
 import { AuthenticatedRequest } from "../types/index";
 import prisma from "../config/prismaClient";
+import { CustomError } from "../types/customError";
 const tradesMan = new tradesManServices();
 
 export class tradesManController {
@@ -58,7 +59,7 @@ async getAllQuestionnairesForTradesman(
       req.query,
     );
 
-    // Get the actual TradesMan profile ID using the authenticated user ID.
+    // Resolve actual TradesMan ID from Bearer Token User ID
     const tradesman = await prisma.tradesMan.findUnique({
       where: {
         userId: BigInt(userId),
@@ -81,6 +82,7 @@ async getAllQuestionnairesForTradesman(
         query.filter,
         query.page,
         query.limit,
+        query.search,
       );
 
     return res.status(200).json(result);
@@ -96,57 +98,10 @@ async getQuestionnaireByIdForTradesman(
   next: Function,
 ) {
   try {
-    const { id } = getQuestionnaireByIdSchema.parse(req.params);
+    const { id } = getQuestionnaireByIdSchema.parse(req.query);
 
     const result =
       await tradesMan.getQuestionnaireByIdForTradesmanServices(id);
-
-    res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
-}
-
-async saveVideoProgress(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const userId = req.user?.id;
-
-    const { id } = getQuestionnaireByIdSchema.parse(req.params);
-    const { watchedPercent } = videoProgressSchema.parse(req.body);
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const tradesman = await prisma.tradesMan.findUnique({
-      where: {
-        userId: BigInt(userId),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!tradesman) {
-      return res.status(404).json({
-        success: false,
-        message: "Tradesman profile not found",
-      });
-    }
-
-    // Correct order: tradesmanId, questionnaireId, watchedPercent
-    const result = await tradesMan.saveVideoProgressService(
-      tradesman.id,
-      BigInt(id),
-      watchedPercent,
-    );
 
     return res.status(200).json(result);
   } catch (err) {
@@ -154,6 +109,7 @@ async saveVideoProgress(
   }
 }
 
+ 
 
   // 2. Start Quiz
   async startQuiz(
@@ -162,7 +118,7 @@ async saveVideoProgress(
     next: Function,
   ) {
     try {
-      const { id } = startQuizSchema.parse(req.params);
+      const { id } = startQuizSchema.parse(req.body);
       const tradesmanId = req.user?.id;
 
       if (!tradesmanId) {
@@ -187,68 +143,109 @@ async saveVideoProgress(
   }
 
   // 3. Get Current Question
-  async getCurrentQuestion(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: Function,
-  ) {
-    try {
-      const { attemptId } = getCurrentQuestionSchema.parse(req.params);
-      const tradesmanId = req.user?.id;
+async getCurrentQuestion(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const userId = req.user?.id;
 
-      if (!tradesmanId) {
-        return res.status(401).json({
-          success: false,
-          message: "Tradesman authentication required",
-        });
-      }
-
-      const result = await tradesMan.getCurrentQuestionService(
-        BigInt(attemptId),
-        BigInt(tradesmanId),
+    if (!userId) {
+      throw new CustomError(
+        "Unauthorized",
+        401,
+        "User not authenticated",
       );
-
-      return res.status(200).json({
-        success: true,
-        ...result,
-      });
-    } catch (err) {
-      next(err);
     }
+
+    // Read attemptId from query params
+    const { attemptId } = getCurrentQuestionSchema.parse(req.query);
+
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      throw new CustomError(
+        "Tradesman not found",
+        404,
+        "Tradesman profile does not exist",
+      );
+    }
+
+    const result = await tradesMan.getCurrentQuestionService(
+      attemptId,
+      tradesman.id,
+    );
+
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
   }
+}
 
   // 4. Submit Answer
-  async submitAnswer(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: Function,
-  ) {
-    try {
-      const { attemptId } = getCurrentQuestionSchema.parse(req.params);
-      const { selectedOptionId } = submitAnswerSchema.parse(req.body);
-      const tradesmanId = req.user?.id;
+ async submitAnswer(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const { attemptId } = getCurrentQuestionSchema.parse(req.body);
 
-      if (!tradesmanId) {
-        return res.status(401).json({
-          success: false,
-          message: "Tradesman authentication required",
-        });
-      }
+    const { selectedOptionId } = submitAnswerSchema.parse(req.body);
 
-      const result = await tradesMan.submitAnswerService(
-        BigInt(attemptId),
-        BigInt(tradesmanId),
-        selectedOptionId == null ? null : BigInt(selectedOptionId),
-      );
+    const userId = req.user?.id;
 
-      return res.status(200).json({
-        success: true,
-        ...result,
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Tradesman authentication required",
       });
-    } catch (err) {
-      next(err);
     }
+
+    // Get actual TradesMan ID from authenticated User ID
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      throw new CustomError(
+        "Tradesman not found",
+        404,
+        "Tradesman profile does not exist",
+      );
+    }
+
+    const result = await tradesMan.submitAnswerService(
+      attemptId,
+      tradesman.id,
+      selectedOptionId == null
+        ? null
+        : BigInt(selectedOptionId),
+    );
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
   }
+}
+
+
 
   // 5. Get Certificates
  
@@ -350,6 +347,67 @@ async getCertificateById(
     next(err);
   }
 }
+
+async enrollQuestionnaire(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    // 1. Get User ID from Bearer Token
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // 2. Get Questionnaire ID from request body
+    const { questionnaireId } = req.body;
+
+    if (
+      questionnaireId === undefined ||
+      questionnaireId === null ||
+      !/^[1-9]\d*$/.test(String(questionnaireId))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid questionnaireId is required",
+      });
+    }
+
+    // 3. Resolve actual TradesMan ID using token User ID
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId: BigInt(userId),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      return res.status(404).json({
+        success: false,
+        message: "Tradesman profile not found",
+      });
+    }
+
+    // 4. Enroll using actual TradesMan ID
+    const result = await tradesMan.enrollQuestionnaireService(
+      BigInt(questionnaireId),
+      tradesman.id,
+    );
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("ENROLL QUESTIONNAIRE ERROR:", error);
+    next(error);
+  }
+}
+
   async getTradesManDetails(req: AuthenticatedRequest, res: Response, next: Function) {
     try {
       const id = req.user!.id;

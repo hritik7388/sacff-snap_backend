@@ -57,6 +57,49 @@ export const extractS3Key = (image: string) => {
   return image;
 };
 
+export const generateVideoUploadUrl = async (
+  filename: string,
+  contentType: string,
+) => {
+  if (!filename?.trim()) {
+    throw new CustomError(
+      "Invalid filename",
+      400,
+      "Video filename is required",
+    );
+  }
+
+  if (!allowedImageTypes.includes(contentType)) {
+    throw new CustomError(
+      "Unsupported video type",
+      400,
+      "Only MP4, WebM and MOV videos are allowed",
+    );
+  }
+
+  const sanitizedFilename = filename
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  const key = `questionnaire_videos/${Date.now()}-${sanitizedFilename}`;
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME!,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: 3600,
+  });
+
+  return {
+    uploadUrl,
+    key,
+    expiresIn: 3600,
+  };
+};
+
 export const generatePresignedUrl = async (
   filename: string,
   contentType: string,

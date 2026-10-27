@@ -57,6 +57,7 @@ export const getAllQuestionnairesForTradesmanSchema = z.object({
     .min(1, "Limit must be at least 1")
     .max(100, "Limit cannot exceed 100")
     .default(10),
+    search: z.string().optional(),
 });
 
 export const tradesManLoginSchema = z.object({

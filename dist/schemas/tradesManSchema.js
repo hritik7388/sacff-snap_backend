@@ -53,6 +53,7 @@ exports.getAllQuestionnairesForTradesmanSchema = zod_1.default.object({
         .min(1, "Limit must be at least 1")
         .max(100, "Limit cannot exceed 100")
         .default(10),
+    search: zod_1.default.string().optional(),
 });
 exports.tradesManLoginSchema = zod_1.default.object({
     PJT: zod_1.default

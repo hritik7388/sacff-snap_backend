@@ -22,6 +22,7 @@ import {
   searchQuestionnaireSchema,
   updateQuestionnaireSchema,
   changeQuestionnaireStatusSchema,
+  generateVideoUploadSchema,
 } from "../schemas/superAdminSchema";
 import { AuthenticatedRequest } from "../types/index";
 import { SubscriptionServices } from "../services/subscriptionServices";
@@ -48,6 +49,30 @@ export class superAdminController {
       next(err);
     }
   }
+
+  async generateQuestionnaireVideoUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const { filename, contentType } =
+      generateVideoUploadSchema.parse(req.body);
+
+    const result =
+      await superAdmin.generateQuestionnaireVideoUploadService(
+        filename,
+        contentType,
+      );
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
   async getQuestionnaireDashboard(req: Request, res: Response, next: Function) {
     try {

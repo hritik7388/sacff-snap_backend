@@ -36,6 +36,26 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const client_1 = require("@prisma/client");
 dotenv_1.default.config();
 class superAdminServices {
+    generateQuestionnaireVideoUploadService(filename, contentType) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const result = yield (0, utils_1.generateVideoUploadUrl)(filename, contentType);
+                return {
+                    message: "Video upload URL generated successfully",
+                    data: {
+                        uploadUrl: result.uploadUrl,
+                        videoKey: result.key,
+                        expiresIn: result.expiresIn,
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to generate video upload URL", 500, error.message);
+            }
+        });
+    }
     createQuestionnaireServices(data, superAdminId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {

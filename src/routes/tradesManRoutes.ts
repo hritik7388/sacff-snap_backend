@@ -28,23 +28,16 @@ router.get(
   ),
 );
 router.get(
-  "/questionnaires/:id",
+  "/getQuestionByID",
   clientAuthMiddleware,
   tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes),
 );
 
-// Save video watch progress
-router.post(
-  "/questionnaires/:id/video-progress",
-  authMiddleware,
-  isTradesMan,
-  clientAuthMiddleware,
-  tradesManRoutes.saveVideoProgress.bind(tradesManRoutes),
-);
+ 
 
 // Start or resume quiz
 router.post(
-  "/questionnaires/:id/start",
+  "/startQuiz",
 
   authMiddleware,
   isTradesMan,
@@ -54,7 +47,7 @@ router.post(
 
 // Get current question for an attempt
 router.get(
-  "/attempts/:attemptId/current-question",
+  "/currentQuestionList",
 
   authMiddleware,
   isTradesMan,
@@ -64,7 +57,7 @@ router.get(
 
 // Submit answer
 router.post(
-  "/attempts/:attemptId/answer",
+  "/submitAnswer",
 
   authMiddleware,
   isTradesMan,
@@ -83,13 +76,20 @@ router.get(
 );
 
 router.get(
-  "/certificates/:certificateId",
+  "/certificateId",
   authMiddleware,
   isTradesMan,
   clientAuthMiddleware,
   tradesManRoutes.getCertificateById.bind(tradesManRoutes),
 );
 
+router.post(
+  "/enrollQuestionnaire",
+  authMiddleware,
+  isTradesMan,
+  clientAuthMiddleware,
+  tradesManRoutes.enrollQuestionnaire.bind(tradesManRoutes),
+);
 /**
  * @route   POST /api/v1/tradesMan/tradesManLogin
  * @desc    login TradesMan
