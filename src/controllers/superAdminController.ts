@@ -23,6 +23,8 @@ import {
   updateQuestionnaireSchema,
   changeQuestionnaireStatusSchema,
   generateVideoUploadSchema,
+  generateImageUploadSchema,
+  deleteQuestionnaireSchema,
 } from "../schemas/superAdminSchema";
 import { AuthenticatedRequest } from "../types/index";
 import { SubscriptionServices } from "../services/subscriptionServices";
@@ -73,7 +75,62 @@ export class superAdminController {
     next(error);
   }
 }
+async generateQuestionnaireImageUpload(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const { filename, contentType } =
+      generateImageUploadSchema.parse(req.body);
 
+    const result =
+      await superAdmin.generateQuestionnaireImageUploadService(
+        filename,
+        contentType,
+      );
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async deleteQuestionnaire(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const superAdminId = req.user?.id;
+
+    if (!superAdminId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { questionnaireId } = deleteQuestionnaireSchema.parse(
+      req.body,
+    );
+
+    const result = await superAdmin.deleteQuestionnaireServices(
+      questionnaireId,
+      BigInt(superAdminId),
+    );
+
+    return res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
   async getQuestionnaireDashboard(req: Request, res: Response, next: Function) {
     try {
       const result = await superAdmin.getQuestionnaireDashboardServices();

@@ -45,6 +45,24 @@ router.post(
   ),
 );
 
+
+router.post(
+  "/questionnaire/image/upload-url",
+  clientAuthMiddleware,
+  authMiddleware,
+  isSUperAdmin,
+  superAdminRoutes.generateQuestionnaireImageUpload.bind(
+    superAdminRoutes,
+  ),
+);
+router.delete(
+  "/questionnaire/delete",
+  clientAuthMiddleware,
+  authMiddleware,
+  isSUperAdmin,
+  superAdminRoutes.deleteQuestionnaire.bind(superAdminRoutes),
+);
+
 router.get(
   "/questionnaire/list",
   clientAuthMiddleware,

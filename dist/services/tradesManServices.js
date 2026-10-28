@@ -500,9 +500,9 @@ class tradesManServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 // Bearer token contains User table ID
-                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                const tradesman = yield prismaClient_1.default.user.findUnique({
                     where: {
-                        userId,
+                        id: userId,
                     },
                     select: {
                         id: true,
@@ -511,7 +511,7 @@ class tradesManServices {
                 if (!tradesman) {
                     throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
                 }
-                const tradesmanId = tradesman.id;
+                const tradesmanId = userId;
                 // Same as getCurrentQuestionService:
                 // attemptId parameter now contains Questionnaire ID
                 const questionnaireId = attemptId;
@@ -800,10 +800,11 @@ class tradesManServices {
                     }),
                     prismaClient_1.default.tradesMan.findUnique({
                         where: {
-                            id: tradesmanId,
+                            userId: tradesmanId,
                         },
                         select: {
                             id: true,
+                            userId: true,
                         },
                     }),
                 ]);
@@ -860,7 +861,7 @@ class tradesManServices {
                         },
                         attempts: {
                             where: {
-                                tradesmanId,
+                                tradesmanId: tradesman.id,
                             },
                             orderBy: {
                                 createdAt: "desc",

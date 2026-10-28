@@ -38,6 +38,7 @@ export class tradesManServices {
  
 
 
+
 async getAllQuestionnairesForTradesmanServices(
   tradesmanId: bigint,
   filter: TradesmanQuestionnaireFilter = "ALL",
@@ -71,6 +72,28 @@ async getAllQuestionnairesForTradesmanServices(
       );
     }
 
+    // FIX 1:
+    // tradesmanId parameter contains User.id from Bearer Token.
+    // Fetch actual TradesMan.id for QuizAttempt queries.
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId: tradesmanId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      throw new CustomError(
+        "Tradesman not found",
+        404,
+        "Tradesman profile does not exist",
+      );
+    }
+
+    const actualTradesmanId = tradesman.id;
+
     // 1. Fetch ALL ACTIVE questionnaires
     // Enrollment filtering is done below for this Tradesman.
     const questionnaires = await prisma.questionnaire.findMany({
@@ -97,7 +120,9 @@ async getAllQuestionnairesForTradesmanServices(
 
         attempts: {
           where: {
-            tradesmanId,
+            // FIX 2:
+            // QuizAttempt.tradesmanId references TradesMan.id
+            tradesmanId: actualTradesmanId,
           },
           orderBy: [
             { startedAt: "desc" },
@@ -121,6 +146,7 @@ async getAllQuestionnairesForTradesmanServices(
 
         enrollments: {
           where: {
+            // Enrollment.tradesmanId stores User.id
             tradesmanId,
           },
           select: {
@@ -307,6 +333,7 @@ async getAllQuestionnairesForTradesmanServices(
     );
   }
 }
+
 
 
   async getQuestionnaireByIdForTradesmanServices(id: bigint) {
@@ -535,29 +562,32 @@ async getAllQuestionnairesForTradesmanServices(
 
 async getCurrentQuestionService(
   attemptId: bigint,
-  tradesmanId: bigint
+  userId: bigint,
 ) {
   try {
-    // attemptId parameter now contains Enrollment ID
- const enrollment = await prisma.questionnaireEnrollment.findFirst({
-  where: {
-    questionnaireId: attemptId,
-    tradesmanId,
-    isEnrolled: true,
-  },
-  select: {
-    questionnaireId: true,
-  },
-});
+    // attemptId parameter contains Questionnaire ID
+
+    // 1. Verify enrollment using User ID
+    const enrollment = await prisma.questionnaireEnrollment.findFirst({
+      where: {
+        questionnaireId: attemptId,
+        tradesmanId: userId,
+        isEnrolled: true,
+      },
+      select: {
+        questionnaireId: true,
+      },
+    });
+
     if (!enrollment) {
       throw new CustomError(
         "Quiz attempt not found",
         404,
-        "Invalid attempt ID"
+        "Invalid attempt ID",
       );
     }
 
-    // Fetch questionnaire details
+    // 2. Fetch questionnaire details
     const questionnaire = await prisma.questionnaire.findUnique({
       where: {
         id: enrollment.questionnaireId,
@@ -573,11 +603,11 @@ async getCurrentQuestionService(
       throw new CustomError(
         "Questionnaire not found",
         404,
-        "Questionnaire does not exist"
+        "Questionnaire does not exist",
       );
     }
 
-    // Fetch ALL questions with their options
+    // 3. Fetch ALL questions with their options
     const questions = await prisma.question.findMany({
       where: {
         questionnaireId: enrollment.questionnaireId,
@@ -594,15 +624,34 @@ async getCurrentQuestionService(
       throw new CustomError(
         "Questions not found",
         404,
-        "No questions available for this questionnaire"
+        "No questions available for this questionnaire",
       );
     }
 
-    // Get latest quiz attempt if available
+    // 4. Fetch actual TradesMan ID for QuizAttempt
+    const tradesman = await prisma.tradesMan.findUnique({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!tradesman) {
+      throw new CustomError(
+        "Tradesman not found",
+        404,
+        "Tradesman profile does not exist",
+      );
+    }
+
+    // 5. Get latest quiz attempt if available
+    // QuizAttempt.tradesmanId references TradesMan.id
     const attempt = await prisma.quizAttempt.findFirst({
       where: {
         questionnaireId: enrollment.questionnaireId,
-        tradesmanId,
+        tradesmanId: tradesman.id,
       },
       orderBy: {
         createdAt: "desc",
@@ -612,7 +661,7 @@ async getCurrentQuestionService(
     const currentQuestion = attempt
       ? questions.find(
           (question) =>
-            question.sortOrder === attempt.currentQuestion
+            question.sortOrder === attempt.currentQuestion,
         )
       : questions[0];
 
@@ -622,10 +671,11 @@ async getCurrentQuestionService(
 
     const elapsedSeconds = startedAt
       ? Math.floor(
-          (Date.now() - startedAt.getTime()) / 1000
+          (Date.now() - startedAt.getTime()) / 1000,
         )
       : 0;
 
+    // 6. Return existing response unchanged
     return {
       message: "Current question fetched successfully",
       data: {
@@ -664,7 +714,7 @@ async getCurrentQuestionService(
         remainingSeconds: currentQuestion
           ? Math.max(
               0,
-              currentQuestion.timeLimitSeconds - elapsedSeconds
+              currentQuestion.timeLimitSeconds - elapsedSeconds,
             )
           : 0,
       },
@@ -675,10 +725,11 @@ async getCurrentQuestionService(
     throw new CustomError(
       "Failed to fetch current questions",
       500,
-      error.message
+      error.message,
     );
   }
 }
+
 
 
 
@@ -692,12 +743,14 @@ async submitAllAnswersService(
 ) {
   try {
     // Bearer token contains User table ID
+    // Fetch actual TradesMan ID using User ID
     const tradesman = await prisma.tradesMan.findUnique({
       where: {
         userId,
       },
       select: {
         id: true,
+        userId: true,
       },
     });
 
@@ -709,20 +762,22 @@ async submitAllAnswersService(
       );
     }
 
+    // QuizAttempt and Certificate use TradesMan.id
     const tradesmanId = tradesman.id;
 
-    // Same as getCurrentQuestionService:
-    // attemptId parameter now contains Questionnaire ID
+    // StartQuiz API removed:
+    // attemptId parameter contains Questionnaire ID
     const questionnaireId = attemptId;
 
     return await prisma.$transaction(
       async (tx) => {
         // 1. Verify enrollment
+        // Enrollment.tradesmanId references TradesMan.userId
         const enrollment =
           await tx.questionnaireEnrollment.findFirst({
             where: {
               questionnaireId,
-              tradesmanId,
+              tradesmanId: userId,
               isEnrolled: true,
             },
             select: {
@@ -761,8 +816,10 @@ async submitAllAnswersService(
         }
 
         // 3. All questions must be answered
-        if (!Array.isArray(answers) ||
-            answers.length !== questions.length) {
+        if (
+          !Array.isArray(answers) ||
+          answers.length !== questions.length
+        ) {
           throw new CustomError(
             "Incomplete answers",
             400,
@@ -786,6 +843,7 @@ async submitAllAnswersService(
         }
 
         // 4. Fetch latest attempt for this questionnaire
+        // QuizAttempt.tradesmanId references TradesMan.id
         const latestAttempt = await tx.quizAttempt.findFirst({
           where: {
             questionnaireId,
@@ -819,8 +877,9 @@ async submitAllAnswersService(
 
         // 5. StartQuiz API removed:
         // Create attempt automatically if none exists
-        const attempt = latestAttempt ??
-          await tx.quizAttempt.create({
+        const attempt =
+          latestAttempt ??
+          (await tx.quizAttempt.create({
             data: {
               uuid: uuidv4(),
               questionnaireId,
@@ -833,7 +892,7 @@ async submitAllAnswersService(
               currentQuestion: questions[0].sortOrder,
               currentQuestionStartedAt: new Date(),
             },
-          });
+          }));
 
         if (attempt.status !== "IN_PROGRESS") {
           throw new CustomError(
@@ -1037,10 +1096,11 @@ async submitAllAnswersService(
     throw new CustomError(
       "Failed to submit answers",
       500,
-      error.message,
+      error instanceof Error ? error.message : "Unknown error",
     );
   }
 }
+
 
 
 
@@ -1112,10 +1172,11 @@ async submitAllAnswersService(
 
         prisma.tradesMan.findUnique({
           where: {
-            id: tradesmanId,
+            userId: tradesmanId,
           },
           select: {
             id: true,
+            userId: true,
           },
         }),
       ]);
@@ -1191,7 +1252,7 @@ async submitAllAnswersService(
 
           attempts: {
             where: {
-              tradesmanId,
+              tradesmanId:tradesman.id,
             },
 
             orderBy: {

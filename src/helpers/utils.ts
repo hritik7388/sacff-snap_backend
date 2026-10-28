@@ -142,6 +142,50 @@ export const generateReadUrl = async (key: string): Promise<string> => {
   return url;
 };
 
+export const generateImageUploadUrl = async (
+  filename: string,
+  contentType: string,
+) => {
+  const allowedImageTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ];
+
+  if (!allowedImageTypes.includes(contentType)) {
+    throw new Error("Unsupported image type");
+  }
+
+  const timestamp = Date.now();
+
+  const sanitizedFilename = filename
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9._-]/g, "");
+
+  const key = `questionnaire_images/${timestamp}-${sanitizedFilename}`;
+
+  const putObjectCommand = new PutObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME!,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(
+    s3Client,
+    putObjectCommand,
+    {
+      expiresIn: 3600,
+    },
+  );
+
+  return {
+    uploadUrl,
+    key,
+    expiresIn: 3600,
+  };
+};
+
 export interface JWTPayload {
   login_id: string;
   id: string;

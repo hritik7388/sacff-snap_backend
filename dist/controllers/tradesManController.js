@@ -168,20 +168,8 @@ class tradesManController {
                         message: "Tradesman authentication required",
                     });
                 }
-                // Get actual TradesMan ID from authenticated User ID
-                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
-                    where: {
-                        userId: BigInt(userId),
-                    },
-                    select: {
-                        id: true,
-                    },
-                });
-                if (!tradesman) {
-                    throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
-                }
                 // Submit all answers together
-                const result = yield tradesMan.submitAllAnswersService(BigInt(attemptId), tradesman.id, answers.map((answer) => ({
+                const result = yield tradesMan.submitAllAnswersService(BigInt(attemptId), BigInt(userId), answers.map((answer) => ({
                     questionId: BigInt(answer.questionId),
                     selectedOptionId: BigInt(answer.selectedOptionId),
                 })));
@@ -288,23 +276,8 @@ class tradesManController {
                         message: "Valid questionnaireId is required",
                     });
                 }
-                // 3. Resolve actual TradesMan ID using token User ID
-                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
-                    where: {
-                        userId: BigInt(userId),
-                    },
-                    select: {
-                        id: true,
-                    },
-                });
-                if (!tradesman) {
-                    return res.status(404).json({
-                        success: false,
-                        message: "Tradesman profile not found",
-                    });
-                }
                 // 4. Enroll using actual TradesMan ID
-                const result = yield tradesMan.enrollQuestionnaireService(BigInt(questionnaireId), tradesman.id);
+                const result = yield tradesMan.enrollQuestionnaireService(BigInt(questionnaireId), BigInt(userId));
                 return res.status(200).json(result);
             }
             catch (error) {

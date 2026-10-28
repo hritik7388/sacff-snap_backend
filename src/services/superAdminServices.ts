@@ -73,6 +73,130 @@ async generateQuestionnaireVideoUploadService(
   }
 }
 
+
+async generateQuestionnaireImageUploadService(
+  filename: string,
+  contentType: string,
+) {
+  try {
+    const result = await generateVideoUploadUrl(
+      filename,
+      contentType,
+    );
+
+    return {
+      message: "Image upload URL generated successfully",
+      data: {
+        uploadUrl: result.uploadUrl,
+        imageKey: result.key,
+        expiresIn: result.expiresIn,
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) throw error;
+
+    throw new CustomError(
+      "Failed to generate image upload URL",
+      500,
+      error.message,
+    );
+  }
+}
+
+async deleteQuestionnaireServices(
+  questionnaireId: bigint,
+  superAdminId: bigint,
+) {
+  try {
+    // 1. Verify SuperAdmin
+    const superAdmin = await prisma.user.findFirst({
+      where: {
+        id: superAdminId,
+        user_type: "SUPER_ADMIN",
+        status: "ACTIVE",
+        isDeleted: false,
+        isVerified: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!superAdmin) {
+      throw new CustomError(
+        "Unauthorized SuperAdmin",
+        403,
+        "SuperAdmin access required",
+      );
+    }
+
+    // 2. Validate questionnaire ID
+    if (!questionnaireId  ) {
+      throw new CustomError(
+        "Invalid questionnaire ID",
+        400,
+        "Valid questionnaire ID is required",
+      );
+    }
+
+    // 3. Check questionnaire exists
+    const questionnaire = await prisma.questionnaire.findUnique({
+      where: {
+        id: questionnaireId,
+      },
+      select: {
+        id: true,
+        uuid: true,
+        testName: true,
+      },
+    });
+
+    if (!questionnaire) {
+      throw new CustomError(
+        "Questionnaire not found",
+        404,
+        "Questionnaire does not exist",
+      );
+    }
+
+    // 4. Delete questionnaire
+    // Requires appropriate ON DELETE CASCADE relations
+    await prisma.questionnaire.delete({
+      where: {
+        id: questionnaireId,
+      },
+    });
+
+    // 5. Return response
+    return {
+      status: 200,
+      message: "Questionnaire deleted successfully",
+      data: {
+        id: questionnaire.id.toString(),
+        uuid: questionnaire.uuid,
+        testName: questionnaire.testName,
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+
+    if (error.code === "P2003") {
+      throw new CustomError(
+        "Failed to delete questionnaire",
+        409,
+        "Questionnaire has related records that prevent deletion",
+      );
+    }
+
+    throw new CustomError(
+      "Failed to delete questionnaire",
+      500,
+      error.message,
+    );
+  }
+}
   async createQuestionnaireServices(
     data: CreateQuestionnaireDTO,
     superAdminId: bigint,

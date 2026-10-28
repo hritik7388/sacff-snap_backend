@@ -27,6 +27,23 @@ export const generateVideoUploadSchema = z.object({
   ]),
 });
 
+
+export const generateImageUploadSchema = z.object({
+  filename: z.string().trim().min(1, "Filename is required"),
+
+  contentType: z.enum([
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ]),
+});
+export const deleteQuestionnaireSchema = z.object({
+  questionnaireId: z.coerce
+    .bigint()
+    .refine((id) => id > BigInt(0), "Valid questionnaire ID is required"),
+});
+
 export const createQuestionnaireSchema = z.object({
     testName: z.string().trim().min(1, "Test title is required"),
     description: z.string().trim().min(1, "Description is required"),

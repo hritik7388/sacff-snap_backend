@@ -23,7 +23,7 @@ model QuestionnaireEnrollment {
 
   questionnaire Questionnaire @relation(   fields: [questionnaireId],    references: [id],    onDelete: Cascade  )
 
-  tradesman TradesMan @relation(    fields: [tradesmanId],    references: [id],    onDelete: Cascade  )
+  tradesman TradesMan @relation(    fields: [tradesmanId],    references: [userId],    onDelete: Cascade  )
 
   @@unique([tradesmanId, questionnaireId])
   @@index([questionnaireId])

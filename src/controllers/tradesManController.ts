@@ -66,6 +66,7 @@ async getAllQuestionnairesForTradesman(
       },
       select: {
         id: true,
+        userId: true,
       },
     });
 
@@ -78,7 +79,7 @@ async getAllQuestionnairesForTradesman(
 
     const result =
       await tradesMan.getAllQuestionnairesForTradesmanServices(
-        tradesman.id,
+        tradesman.userId,
         query.filter,
         query.page,
         query.limit,
@@ -162,12 +163,14 @@ async getCurrentQuestion(
     // Read attemptId from query params
     const { attemptId } = getCurrentQuestionSchema.parse(req.query);
 
+    // Verify TradesMan using User ID from Bearer Token
     const tradesman = await prisma.tradesMan.findUnique({
       where: {
         userId: BigInt(userId),
       },
       select: {
         id: true,
+        userId: true,
       },
     });
 
@@ -179,9 +182,10 @@ async getCurrentQuestion(
       );
     }
 
+    // Pass User ID because enrollment uses TradesMan.userId
     const result = await tradesMan.getCurrentQuestionService(
       attemptId,
-      tradesman.id,
+      tradesman.userId,
     );
 
     return res.status(200).json(result);
@@ -210,28 +214,12 @@ async submitAnswer(
       });
     }
 
-    // Get actual TradesMan ID from authenticated User ID
-    const tradesman = await prisma.tradesMan.findUnique({
-      where: {
-        userId: BigInt(userId),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!tradesman) {
-      throw new CustomError(
-        "Tradesman not found",
-        404,
-        "Tradesman profile does not exist",
-      );
-    }
+  
 
     // Submit all answers together
     const result = await tradesMan.submitAllAnswersService(
       BigInt(attemptId),
-      tradesman.id,
+      BigInt(userId),
       answers.map((answer) => ({
         questionId: BigInt(answer.questionId),
         selectedOptionId: BigInt(answer.selectedOptionId),
@@ -296,6 +284,7 @@ async getCertificates(
 }
 
 
+
 async getCertificateById(
   req: AuthenticatedRequest,
   res: Response,
@@ -303,9 +292,12 @@ async getCertificateById(
 ) {
   try {
     const userId = req.user?.id;
-    const { certificateId } = req.params;
+  const certificateId = req.query.certificateId;
 
-    if (typeof certificateId !== "string") {
+    if (
+      typeof certificateId !== "string" ||
+      !/^[1-9]\d*$/.test(certificateId)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid certificate ID",
@@ -319,7 +311,6 @@ async getCertificateById(
       });
     }
 
-    
     const tradesman = await prisma.tradesMan.findFirst({
       where: {
         userId: BigInt(userId),
@@ -349,6 +340,7 @@ async getCertificateById(
     next(err);
   }
 }
+
 
 async enrollQuestionnaire(
   req: AuthenticatedRequest,
@@ -380,27 +372,11 @@ async enrollQuestionnaire(
       });
     }
 
-    // 3. Resolve actual TradesMan ID using token User ID
-    const tradesman = await prisma.tradesMan.findUnique({
-      where: {
-        userId: BigInt(userId),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!tradesman) {
-      return res.status(404).json({
-        success: false,
-        message: "Tradesman profile not found",
-      });
-    }
+    
 
     // 4. Enroll using actual TradesMan ID
-    const result = await tradesMan.enrollQuestionnaireService(
-      BigInt(questionnaireId),
-      tradesman.id,
+    const result = await tradesMan.enrollQuestionnaireService( 
+      BigInt(questionnaireId),  BigInt(userId),
     );
 
     return res.status(200).json(result);
