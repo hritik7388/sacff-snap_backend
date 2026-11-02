@@ -831,7 +831,7 @@ export const greenpdfTemplate = (data: any) => {
         /* Location Row */
         .location-container {
             display: flex;
-            margin-top: 10px;
+            margin-top: 0px;
             margin-bottom: 10px;
         }
 
@@ -900,7 +900,7 @@ export const greenpdfTemplate = (data: any) => {
         .note-box {
             border: 2px solid var(--safety-black);
             display: flex;
-            min-height: 120px;
+            min-height: 108px;
             margin-bottom: 9px;
         }
 
@@ -1093,20 +1093,32 @@ export const greenpdfTemplate = (data: any) => {
                   year: "numeric",
                 })}</div>
                 <div class="cell cell-peach col-load val-load">
-    ${data.lightDuty ? `
+    ${
+      data.lightDuty
+        ? `
         <div>Light Duty</div>
         <div>25 lbs. per sq.ft.</div>
-    ` : ""}
+    `
+        : ""
+    }
 
-    ${data.mediumDuty ? `
+    ${
+      data.mediumDuty
+        ? `
         <div>Medium Duty</div>
         <div>50 lbs. per sq.ft.</div>
-    ` : ""}
+    `
+        : ""
+    }
 
-    ${data.heavyDuty ? `
+    ${
+      data.heavyDuty
+        ? `
         <div>Heavy Duty</div>
         <div>75 lbs. per sq.ft.</div>
-    ` : ""}
+    `
+        : ""
+    }
 </div>
             </div>
             <div class="table-row">
@@ -1805,20 +1817,32 @@ export const yellowpdfTemplate = (data: any) => {
                   year: "numeric",
                 })}</div>
               <div class="cell cell-peach col-load val-load">
-    ${data.lightDuty ? `
+    ${
+      data.lightDuty
+        ? `
         <div>Light Duty</div>
         <div>25 lbs. per sq.ft.</div>
-    ` : ""}
+    `
+        : ""
+    }
 
-    ${data.mediumDuty ? `
+    ${
+      data.mediumDuty
+        ? `
         <div>Medium Duty</div>
         <div>50 lbs. per sq.ft.</div>
-    ` : ""}
+    `
+        : ""
+    }
 
-    ${data.heavyDuty ? `
+    ${
+      data.heavyDuty
+        ? `
         <div>Heavy Duty</div>
         <div>75 lbs. per sq.ft.</div>
-    ` : ""}
+    `
+        : ""
+    }
 </div>
             </div>
             <div class="table-row">

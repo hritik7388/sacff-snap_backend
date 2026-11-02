@@ -23,11 +23,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png"];
-const allowedVideoTypes = [
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-];
+const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 const allowedDocumentTypes = ["application/pdf"];
 
 const s3Client = new S3Client({
@@ -82,9 +78,7 @@ export const generateVideoUploadUrl = async (
     );
   }
 
-  const sanitizedFilename = filename
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  const sanitizedFilename = filename.trim().replace(/[^a-zA-Z0-9._-]/g, "_");
 
   const key = `questionnaire_videos/${Date.now()}-${sanitizedFilename}`;
 
@@ -171,13 +165,9 @@ export const generateImageUploadUrl = async (
     ContentType: contentType,
   });
 
-  const uploadUrl = await getSignedUrl(
-    s3Client,
-    putObjectCommand,
-    {
-      expiresIn: 3600,
-    },
-  );
+  const uploadUrl = await getSignedUrl(s3Client, putObjectCommand, {
+    expiresIn: 3600,
+  });
 
   return {
     uploadUrl,
@@ -530,7 +520,7 @@ export const imageGenerator = async (
 
     await page.setViewport({
       width: RENDER_WIDTH,
-      height: 1200,
+      height: 975,
       deviceScaleFactor: 3,
     });
 
@@ -585,15 +575,11 @@ export const imageGenerator = async (
     if (contentRatio > LABEL_ASPECT_RATIO) {
       // Keep width and extend height
       canvasWidth = contentWidth;
-      canvasHeight = Math.round(
-        contentWidth / LABEL_ASPECT_RATIO,
-      );
+      canvasHeight = Math.round(contentWidth / LABEL_ASPECT_RATIO);
     } else {
       // Keep height and extend width
       canvasHeight = contentHeight;
-      canvasWidth = Math.round(
-        contentHeight * LABEL_ASPECT_RATIO,
-      );
+      canvasWidth = Math.round(contentHeight * LABEL_ASPECT_RATIO);
     }
 
     // ======================================================
@@ -632,10 +618,7 @@ export const imageGenerator = async (
     // Ensure browser is closed if an error occurs
     if (browser) {
       await browser.close().catch((closeError: any) => {
-        console.error(
-          "❌ Puppeteer browser close error:",
-          closeError,
-        );
+        console.error("❌ Puppeteer browser close error:", closeError);
       });
     }
   }

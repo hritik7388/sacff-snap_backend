@@ -29,6 +29,8 @@ router.get(
 );
 router.get(
   "/getQuestionByID",
+  authMiddleware,
+  isTradesMan,
   clientAuthMiddleware,
   tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes),
 );

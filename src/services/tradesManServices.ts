@@ -184,6 +184,13 @@ async getAllQuestionnairesForTradesmanServices(
           ? await generateReadUrl(quiz.videoUrl)
           : null;
 
+            const certificateTemplateUrl =
+          quiz.certificateTemplateUrl
+            ? await generateReadUrl(
+                quiz.certificateTemplateUrl,
+              )
+            : null;
+
         return {
           id: quiz.id.toString(),
           uuid: quiz.uuid,
@@ -193,8 +200,7 @@ async getAllQuestionnairesForTradesmanServices(
           videoKey: quiz.videoUrl,
           videoUrl,
 
-          certificateTemplateUrl:
-            quiz.certificateTemplateUrl,
+         certificateTemplateUrl,
 
           status: quiz.status,
 
@@ -336,67 +342,97 @@ async getAllQuestionnairesForTradesmanServices(
 
 
 
-  async getQuestionnaireByIdForTradesmanServices(id: bigint) {
-    try {
-      const questionnaire = await prisma.questionnaire.findUnique({
-        where: { id },
-        include: {
-          questions: {
-            include: {
-              options: true,
-            },
+
+async getQuestionnaireByIdForTradesmanServices(
+  userId: bigint,
+  id: bigint,
+) {
+  try {
+    // 1. Fetch questionnaire
+    const questionnaire = await prisma.questionnaire.findUnique({
+      where: { id },
+      include: {
+        questions: {
+          include: {
+            options: true,
           },
-          _count: {
-            select: {
-              questions: true,
-            },
+        },
+        _count: {
+          select: {
+            questions: true,
           },
         },
-      });
+      },
+    });
 
-      if (!questionnaire) {
-        throw new CustomError(
-          "Questionnaire not found",
-          404,
-          "No questionnaire found with this ID",
-        );
-      }
-
-      // Check whether this questionnaire has been enrolled
-      const enrollmentCount = await prisma.questionnaireEnrollment.count({
-        where: {
-          questionnaireId: id,
-        },
-      });
-
-      const videoUrl = questionnaire.videoUrl
-        ? await generateReadUrl(questionnaire.videoUrl)
-        : null;
-
-      return {
-        message: "Questionnaire fetched successfully",
-        data: {
-          ...questionnaire,
-          id: questionnaire.id.toString(),
-          videoKey: questionnaire.videoUrl,
-          videoUrl,
-          questionsCount: questionnaire._count.questions,
-          isEnrolled: enrollmentCount > 0,
-          enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED",
-        },
-      };
-    } catch (error: any) {
-      if (error instanceof CustomError) {
-        throw error;
-      }
-
+    if (!questionnaire) {
       throw new CustomError(
-        "Failed to fetch questionnaire",
-        500,
-        error.message,
+        "Questionnaire not found",
+        404,
+        "No questionnaire found with this ID",
       );
     }
+
+    // 2. Check enrollment for CURRENT logged-in user only
+    // QuestionnaireEnrollment.tradesmanId references TradesMan.userId
+    const enrollmentCount =
+      await prisma.questionnaireEnrollment.count({
+        where: {
+          questionnaireId: id,
+          tradesmanId: userId,
+          isEnrolled: true,
+        },
+      });
+
+    // 3. Generate video presigned URL
+    const videoUrl = questionnaire.videoUrl
+      ? await generateReadUrl(questionnaire.videoUrl)
+      : null;
+
+    // 4. Generate certificate template presigned URL
+    const certificateTemplateUrl =
+      questionnaire.certificateTemplateUrl
+        ? await generateReadUrl(
+            questionnaire.certificateTemplateUrl,
+          )
+        : null;
+
+    // 5. Existing response structure unchanged
+    return {
+      message: "Questionnaire fetched successfully",
+      data: {
+        ...questionnaire,
+
+        id: questionnaire.id.toString(),
+
+        videoKey: questionnaire.videoUrl,
+        videoUrl,
+
+        certificateTemplateUrl,
+
+        questionsCount: questionnaire._count.questions,
+
+        isEnrolled: enrollmentCount > 0,
+
+        enrollmentStatus:
+          enrollmentCount > 0
+            ? "ENROLLED"
+            : "NOT_ENROLLED",
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+
+    throw new CustomError(
+      "Failed to fetch questionnaire",
+      500,
+      error.message,
+    );
   }
+}
+
 
   async startQuizService(questionnaireId: bigint, tradesmanId: bigint) {
     try {
@@ -1053,6 +1089,26 @@ async submitAllAnswersService(
           });
         }
 
+      let certificateTemplateUrl: string | null = null;
+
+        if (certificate) {
+          const questionnaire = await tx.questionnaire.findUnique({
+            where: {
+              id: questionnaireId,
+            },
+            select: {
+              certificateTemplateUrl: true,
+            },
+          });
+
+          certificateTemplateUrl =
+            questionnaire?.certificateTemplateUrl
+              ? await generateReadUrl(
+                  questionnaire.certificateTemplateUrl,
+                )
+              : null;
+        }
+
         // 12. Existing response unchanged
         return {
           message:
@@ -1071,6 +1127,7 @@ async submitAllAnswersService(
                   id: certificate.id.toString(),
                   certificateNo: certificate.certificateNo,
                   certificateUrl: certificate.certificateUrl,
+                  certificateTemplateUrl,
                   issuedAt: certificate.issuedAt,
                 }
               : null,
@@ -1104,34 +1161,42 @@ async submitAllAnswersService(
 
 
 
-  async getCertificatesService(tradesmanId: bigint) {
-    try {
-      const certificates = await prisma.certificate.findMany({
-        where: { tradesmanId },
-        include: {
-          questionnaire: {
-            select: {
-              id: true,
-              testName: true,
-              certificateTemplateUrl: true,
-            },
-          },
-          attempt: {
-            select: {
-              score: true,
-              correctAnswers: true,
-              totalQuestions: true,
-              completedAt: true,
-              status: true,
-            },
+
+async getCertificatesService(tradesmanId: bigint) {
+  try {
+    const certificates = await prisma.certificate.findMany({
+      where: { tradesmanId },
+      include: {
+        questionnaire: {
+          select: {
+            id: true,
+            testName: true,
+            certificateTemplateUrl: true,
           },
         },
-        orderBy: { issuedAt: "desc" },
-      });
+        attempt: {
+          select: {
+            score: true,
+            correctAnswers: true,
+            totalQuestions: true,
+            completedAt: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { issuedAt: "desc" },
+    });
 
-      return {
-        message: "Certificates fetched successfully",
-        data: certificates.map((certificate) => ({
+    const data = await Promise.all(
+      certificates.map(async (certificate) => {
+        const certificateTemplateUrl =
+          certificate.questionnaire.certificateTemplateUrl
+            ? await generateReadUrl(
+                certificate.questionnaire.certificateTemplateUrl,
+              )
+            : null;
+
+        return {
           id: certificate.id.toString(),
           uuid: certificate.uuid,
           certificateNo: certificate.certificateNo,
@@ -1140,16 +1205,28 @@ async submitAllAnswersService(
           questionnaire: {
             ...certificate.questionnaire,
             id: certificate.questionnaire.id.toString(),
+            certificateTemplateUrl,
           },
           quizResult: certificate.attempt,
-        })),
-      };
-    } catch (error: any) {
-      if (error instanceof CustomError) throw error;
+        };
+      }),
+    );
 
-      throw new CustomError("Failed to fetch certificates", 500, error.message);
-    }
+    return {
+      message: "Certificates fetched successfully",
+      data,
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) throw error;
+
+    throw new CustomError(
+      "Failed to fetch certificates",
+      500,
+      error.message,
+    );
   }
+}
+
 
   async enrollQuestionnaireService(
     questionnaireId: bigint,
@@ -1289,6 +1366,13 @@ async submitAllAnswersService(
 
       const videoUrl = videoKey ? await generateReadUrl(videoKey) : null;
 
+          const certificateTemplateUrl =
+      fullQuestionnaire.certificateTemplateUrl
+        ? await generateReadUrl(
+            fullQuestionnaire.certificateTemplateUrl,
+          )
+        : null;
+
       // 5. Get latest attempt
       const latestAttempt = fullQuestionnaire.attempts[0] ?? null;
 
@@ -1313,7 +1397,7 @@ async submitAllAnswersService(
 
           videoKey,
           videoUrl,
-
+certificateTemplateUrl,
           questionsCount: _count.questions,
 
           questions: questions.map((question: any) => ({
@@ -1402,6 +1486,13 @@ async submitAllAnswersService(
         );
       }
 
+         const certificateTemplateUrl =
+      certificate.questionnaire.certificateTemplateUrl
+        ? await generateReadUrl(
+            certificate.questionnaire.certificateTemplateUrl,
+          )
+        : null;
+
       return {
         message: "Certificate fetched successfully",
         data: {
@@ -1413,6 +1504,7 @@ async submitAllAnswersService(
           questionnaire: {
             ...certificate.questionnaire,
             id: certificate.questionnaire.id.toString(),
+            certificateTemplateUrl
           },
           quizResult: certificate.attempt,
         },

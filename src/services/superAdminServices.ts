@@ -11,6 +11,7 @@ import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import {
   extractS3Key,
   generateCompanyId,
+  generateImageUploadUrl,
   generateReadUrl,
   generateToken,
   generateVideoUploadUrl,
@@ -79,7 +80,7 @@ async generateQuestionnaireImageUploadService(
   contentType: string,
 ) {
   try {
-    const result = await generateVideoUploadUrl(
+    const result = await generateImageUploadUrl(
       filename,
       contentType,
     );
@@ -177,25 +178,31 @@ async deleteQuestionnaireServices(
         testName: questionnaire.testName,
       },
     };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
+} catch (error: any) {
+  console.error("DELETE QUESTIONNAIRE ERROR:", {
+    code: error?.code,
+    message: error?.message,
+    meta: error?.meta,
+  });
 
-    if (error.code === "P2003") {
-      throw new CustomError(
-        "Failed to delete questionnaire",
-        409,
-        "Questionnaire has related records that prevent deletion",
-      );
-    }
+  if (error instanceof CustomError) {
+    throw error;
+  }
 
+  if (error.code === "P2003") {
     throw new CustomError(
       "Failed to delete questionnaire",
-      500,
-      error.message,
+      409,
+      "Questionnaire has related records that prevent deletion",
     );
   }
+
+  throw new CustomError(
+    "Failed to delete questionnaire",
+    500,
+    error.message,
+  );
+}
 }
   async createQuestionnaireServices(
     data: CreateQuestionnaireDTO,
