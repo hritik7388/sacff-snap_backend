@@ -74,6 +74,7 @@ class tradesManController {
                     },
                     select: {
                         id: true,
+                        userId: true,
                     },
                 });
                 if (!tradesman) {
@@ -82,7 +83,7 @@ class tradesManController {
                         message: "Tradesman profile not found",
                     });
                 }
-                const result = yield tradesMan.getAllQuestionnairesForTradesmanServices(tradesman.id, query.filter, query.page, query.limit, query.search);
+                const result = yield tradesMan.getAllQuestionnairesForTradesmanServices(tradesman.userId, query.filter, query.page, query.limit, query.search);
                 return res.status(200).json(result);
             }
             catch (err) {
@@ -93,9 +94,21 @@ class tradesManController {
     }
     getQuestionnaireByIdForTradesman(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             try {
+                // Get logged-in User ID from bearer token
+                const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!userId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Unauthorized",
+                    });
+                }
+                // Existing validation unchanged
                 const { id } = tradesManSchema_1.getQuestionnaireByIdSchema.parse(req.query);
-                const result = yield tradesMan.getQuestionnaireByIdForTradesmanServices(id);
+                // Pass questionnaire ID and logged-in User ID
+                const result = yield tradesMan.getQuestionnaireByIdForTradesmanServices(BigInt(userId), id);
+                // Existing response unchanged
                 return res.status(200).json(result);
             }
             catch (err) {
@@ -135,18 +148,21 @@ class tradesManController {
                 }
                 // Read attemptId from query params
                 const { attemptId } = tradesManSchema_1.getCurrentQuestionSchema.parse(req.query);
+                // Verify TradesMan using User ID from Bearer Token
                 const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
                     where: {
                         userId: BigInt(userId),
                     },
                     select: {
                         id: true,
+                        userId: true,
                     },
                 });
                 if (!tradesman) {
                     throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
                 }
-                const result = yield tradesMan.getCurrentQuestionService(attemptId, tradesman.id);
+                // Pass User ID because enrollment uses TradesMan.userId
+                const result = yield tradesMan.getCurrentQuestionService(attemptId, tradesman.userId);
                 return res.status(200).json(result);
             }
             catch (error) {
@@ -219,8 +235,9 @@ class tradesManController {
             var _a;
             try {
                 const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-                const { certificateId } = req.params;
-                if (typeof certificateId !== "string") {
+                const certificateId = req.query.certificateId;
+                if (typeof certificateId !== "string" ||
+                    !/^[1-9]\d*$/.test(certificateId)) {
                     return res.status(400).json({
                         success: false,
                         message: "Invalid certificate ID",

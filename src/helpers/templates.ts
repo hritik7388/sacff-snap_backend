@@ -1971,3 +1971,831 @@ export const yellowpdfTemplate = (data: any) => {
 </html>
 `;
 };
+
+const escapeHtml = (value: any): string => {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+export const certifictae=(data:any)=>{
+   const tradesmanName = escapeHtml(data.tradesmanName);
+  const email = escapeHtml(data.email);
+
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScaffSnapp Safety Academy - Certificate of Completion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-navy: #0c2340;
+      --secondary-navy: #103362;
+      --accent-orange: #f59e0b;
+      --accent-orange-dark: #d97706;
+      --border-blue: #0284c7;
+      --frame-blue: #0ea5e9;
+      --light-blue-bg: #dce7f3;
+      --card-border: #94a3b8;
+      --text-dark: #0f172a;
+      --text-muted: #64748b;
+      --text-body: #334155;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text-dark);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* A4 Certificate Container */
+    .certificate-page {
+      width: 794px;
+      min-height: 1123px;
+      height: 1123px;
+      background: #ffffff;
+      position: relative;
+      padding: 0;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      border: none;
+      border-top: 3px solid var(--border-blue);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    /* Top Caution Stripe Bar */
+    .hazard-stripe-top {
+      width: 100%;
+      height: 18px;
+      margin: 0;
+      margin-top: 0;
+      margin-left: 0;
+      margin-right: 0;
+      background: repeating-linear-gradient(
+        -45deg,
+        #0c2340,
+        #0c2340 12px,
+        #ffffff 12px,
+        #ffffff 24px
+      );
+      border-bottom: 2px solid #0c2340;
+      margin-bottom: 14px;
+    }
+
+    /* Certificate Header */
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 4px 24px 10px 24px;
+    }
+
+    /* Logo Styling */
+    .brand-logo {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-logo .scaff-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      line-height: 0.95;
+      color: #ea580c;
+      letter-spacing: -0.5px;
+      position: relative;
+      display: inline-block;
+    }
+
+    .brand-logo .scaff-title::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -3px;
+      width: 82px;
+      height: 3px;
+      background-color: #0c2340;
+    }
+
+    .brand-logo .snapp-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      font-size: 26px;
+      line-height: 1.1;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+      margin-top: 5px;
+    }
+
+    .brand-logo .tagline {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: #334155;
+      margin-top: 10px;
+      text-transform: uppercase;
+    }
+
+    /* Safety Academy Right Header */
+    .academy-heading {
+      text-align: right;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 27px;
+      line-height: 1.05;
+      color: var(--primary-navy);
+      letter-spacing: 0.5px;
+    }
+
+    /* Title Block */
+    .title-block {
+      text-align: center;
+      margin-top: 6px;
+      margin-bottom: 14px;
+    }
+
+    .certificate-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 34px;
+      color: var(--primary-navy);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .certificate-subtitle {
+      font-size: 15px;
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.2px;
+    }
+
+    /* Protocol Ribbon Bar with Slanted Stripes */
+    .protocol-bar-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 10px 0 16px 0;
+    }
+
+    .slanted-stripes {
+      display: flex;
+      gap: 5px;
+    }
+
+    .slanted-stripes span {
+      display: inline-block;
+      width: 7px;
+      height: 22px;
+      background-color: var(--primary-navy);
+      transform: skewX(-26deg);
+    }
+
+    .protocol-ribbon {
+      background-color: var(--primary-navy);
+      color: #ffffff;
+      padding: 7px 28px;
+      transform: skewX(-14deg);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+    }
+
+    .protocol-ribbon-text {
+      display: inline-block;
+      transform: skewX(14deg);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13.5px;
+      font-weight: 800;
+      font-style: italic;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* Awarded To Section */
+    .awardee-section {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    .awarded-to-label {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 16px;
+      font-style: normal;
+      color: #334155;
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .awardee-name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--primary-navy);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      line-height: 1.1;
+    }
+
+    /* Metadata Grid Box */
+    .metadata-table-box {
+      border: 1.5px solid var(--card-border);
+      border-radius: 12px;
+      background: #ffffff;
+      margin: 0 24px 18px 24px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .grid-cell {
+      padding: 12px 16px;
+      border-bottom: 1px solid #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .grid-cell.left-col {
+      border-right: 1px solid #cbd5e1;
+    }
+
+    .grid-cell:nth-last-child(-n+2) {
+      border-bottom: none;
+    }
+
+    .meta-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .meta-value {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: var(--text-dark);
+      line-height: 1.25;
+    }
+
+    .grid-cell.disclaimer-cell {
+      grid-row: span 2;
+      border-bottom: none;
+      padding: 14px 18px;
+    }
+
+    .disclaimer-statement {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-body);
+      line-height: 1.4;
+    }
+
+    .disclaimer-statement .heading-line {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
+
+    /* Competencies Box */
+    .competencies-container {
+      margin: 0 24px 14px 24px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1.5px solid #94a3b8;
+    }
+
+    .competencies-header {
+      background-color: var(--primary-navy);
+      color: #ffffff;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-badge-icon {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-badge-icon svg {
+      width: 12px;
+      height: 12px;
+      stroke: #ffffff;
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .competencies-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .competencies-list {
+      background-color: var(--light-blue-bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .competency-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 18px;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    .competency-item:last-child {
+      border-bottom: none;
+    }
+
+    .item-check-icon {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--primary-navy);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: transparent;
+    }
+
+    .item-check-icon svg {
+      width: 13px;
+      height: 13px;
+      stroke: var(--primary-navy);
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .competency-text {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary-navy);
+      line-height: 1.35;
+    }
+
+    /* Small Disclaimer Paragraph */
+    .fine-print-disclaimer {
+      text-align: center;
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: #475569;
+      margin: 4px 28px 14px 28px;
+      padding: 0 10px;
+    }
+
+    .fine-print-disclaimer strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    /* Footer Card */
+    .footer-panel {
+      border: none;
+      border-top: 1.5px solid var(--card-border);
+      border-bottom: 3px solid var(--border-blue);
+      border-radius: 0;
+      background: #ffffff;
+      margin: auto 0 0 0;
+      width: 100%;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    .footer-logo-block {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .footer-logo-block .scaff-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      line-height: 0.95;
+      color: #ea580c;
+      position: relative;
+      display: inline-block;
+    }
+
+    .footer-logo-block .scaff-title::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -2px;
+      width: 58px;
+      height: 2.5px;
+      background-color: #0c2340;
+    }
+
+    .footer-logo-block .snapp-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      font-size: 18px;
+      color: #0f172a;
+      text-decoration: underline;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 3px;
+      margin-top: 4px;
+    }
+
+    .footer-logo-block .tagline {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 6.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #334155;
+      margin-top: 6px;
+      line-height: 1.25;
+      text-transform: uppercase;
+    }
+
+    .operator-block {
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: var(--text-muted);
+    }
+
+    .operator-block .operator-label {
+      font-size: 9.5px;
+      color: #64748b;
+    }
+
+    .operator-block .operator-name {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .operator-block .operator-web {
+      color: #334155;
+      font-weight: 500;
+    }
+
+    /* Yellow Shield Security Badge */
+    .shield-badge-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shield-badge {
+      width: 54px;
+      height: 64px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+    }
+
+    /* QR Code & Verification Info */
+    .verify-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .verify-text {
+      text-align: right;
+    }
+
+    .verify-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .verify-desc {
+      font-size: 9px;
+      color: #475569;
+      line-height: 1.35;
+      margin-top: 2px;
+    }
+
+    .qr-container {
+      width: 68px;
+      height: 68px;
+      padding: 4px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-container svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: transparent;
+        padding: 0;
+        margin: 0;
+      }
+      .certificate-page {
+        box-shadow: none;
+        border: 2px solid var(--border-blue);
+        margin: 0 auto;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Single Standalone A4 Certificate Component -->
+  <div class="certificate-page">
+    
+    <!-- Top Hazard Caution Strip -->
+    <div class="hazard-stripe-top"></div>
+
+    <!-- Header: Logo & Safety Academy -->
+    <header class="header-section">
+      <div class="brand-logo">
+        <span class="scaff-title">Scaff</span>
+        <span class="snapp-title">Snapp</span>
+        <span class="tagline">Scaffolding Management—From Planning to Closeout</span>
+      </div>
+      <div class="academy-heading">
+        SAFETY<br />ACADEMY
+      </div>
+    </header>
+
+    <!-- Certificate Title & Subtitle -->
+    <div class="title-block">
+      <h1 class="certificate-title">CERTIFICATE OF COMPLETION</h1>
+      <p class="certificate-subtitle">Personal Fall Protection Equipment (PFPE) — Visual Inspection</p>
+    </div>
+
+    <!-- Ribbon with Hazard Stripes -->
+    <div class="protocol-bar-wrapper">
+      <div class="slanted-stripes">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="protocol-ribbon">
+        <span class="protocol-ribbon-text">USER AWARENESS &amp; PRE-USE FIELD CHECK PROTOCOLS</span>
+      </div>
+      <div class="slanted-stripes">
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- Awarded to Recipient -->
+    <div class="awardee-section">
+      <div class="awarded-to-label">Awarded to</div>
+    <div class="awardee-name">
+    ${tradesmanName}
+  </div>
+    </div>
+
+    <!-- 2-Column Metadata Grid -->
+    <div class="metadata-table-box">
+      <!-- Left: Tradesman Email -->
+      <div class="grid-cell left-col">
+        <span class="meta-label">Tradesman Email:</span>
+        <span class="meta-value">${email}</span>
+      </div>
+      <!-- Right: Status -->
+      <div class="grid-cell">
+        <span class="meta-label">Status:</span>
+        <span class="meta-value">Awareness Training Completed</span>
+      </div>
+
+      <!-- Left: Certificate ID -->
+      <div class="grid-cell left-col">
+        <span class="meta-label">Certificate ID:</span>
+        <span class="meta-value">BR-549</span>
+      </div>
+      <!-- Right: Instructional Awareness Disclaimer (spans 2 rows) -->
+      <div class="grid-cell disclaimer-cell">
+        <div class="disclaimer-statement">
+          <div class="heading-line">Instructional Awareness Overview—</div>
+          Does not confer regulatory or competent person status under OSHA/ANSI standards.
+        </div>
+      </div>
+
+      <!-- Left: Completion Date -->
+      <div class="grid-cell left-col">
+        <span class="meta-label">Completion Date:</span>
+        <span class="meta-value">October 7, 2026</span>
+      </div>
+    </div>
+
+    <!-- Core Competencies Mastered Box -->
+    <div class="competencies-container">
+      <div class="competencies-header">
+        <div class="header-badge-icon">
+          <svg viewBox="0 0 24 24">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <span class="competencies-title">CORE FRAMEWORK COMPETENCIES MASTERED:</span>
+      </div>
+      <div class="competencies-list">
+        <div class="competency-item">
+          <div class="item-check-icon">
+            <svg viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <span class="competency-text">The 3-Point Pre-Use Bucket Test (Webbing, Fit-Check, Labeled &amp; Date Check, Indicator Audit)</span>
+        </div>
+        <div class="competency-item">
+          <div class="item-check-icon">
+            <svg viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <span class="competency-text">Distinguishing User Operational Scope vs. Competent Person Boundaries</span>
+        </div>
+        <div class="competency-item">
+          <div class="item-check-icon">
+            <svg viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <span class="competency-text">Enforcing the Universal Site Mandate: “If it looks wrong, don’t dip in.”</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fine Print Disclaimer -->
+    <p class="fine-print-disclaimer">
+      This certificate records successful completion of an informational awareness exercise. <strong>ScaffSnapp</strong> does not issue formal regulatory field certifications. The user and employer remain fully responsible for conducting inspections in accordance with manufacturer instructions and OSHA/ANSI requirements. The form, fit, and condition of PFPE on site may be.
+    </p>
+
+    <!-- Footer Information Bar -->
+    <footer class="footer-panel">
+      <!-- Mini Logo -->
+      <div class="footer-logo-block">
+        <span class="scaff-title">Scaff</span>
+        <span class="snapp-title">Snapp</span>
+        <span class="tagline">SCAFFOLDING MANAGEMENT—<br />FROM PLANNING TO CLOSEOUT</span>
+      </div>
+
+      <!-- Operated by -->
+      <div class="operator-block">
+        <div class="operator-label">Operated by:</div>
+        <div class="operator-name">ScaffSnapp Safety Academy</div>
+        <div class="operator-web">scaffsnapp.com</div>
+      </div>
+
+      <!-- Verified Security Shield Icon -->
+      <div class="shield-badge-container">
+        <svg class="shield-badge" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield Outer Contour with Heavy Black Border and Gold Yellow Fill -->
+          <path d="M50 4 C78 4, 94 18, 94 48 C94 82, 68 106, 50 116 C32 106, 6 82, 6 48 C6 18, 22 4, 50 4 Z" 
+                fill="#f59e0b" 
+                stroke="#000000" 
+                stroke-width="7" 
+                stroke-linejoin="round" />
+          <!-- Inner Black Checkmark -->
+          <path d="M30 58 L45 74 L73 40" 
+                fill="none" 
+                stroke="#000000" 
+                stroke-width="9" 
+                stroke-linecap="round" 
+                stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <!-- Verification Info & QR Code -->
+      <div class="verify-section">
+        <div class="verify-text">
+          <div class="verify-title">VERIFY TRADESMAN PROFILE</div>
+          <div class="verify-desc">
+            Scan to access live credentials and<br />
+            training history &rsaquo;
+          </div>
+        </div>
+        <!-- QR Code SVG with Brand Icon in Center -->
+        <div class="qr-container">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Top-Left Finder Pattern -->
+            <rect x="5" y="5" width="26" height="26" rx="3" fill="#000000" />
+            <rect x="9" y="9" width="18" height="18" rx="2" fill="#ffffff" />
+            <rect x="13" y="13" width="10" height="10" rx="1.5" fill="#000000" />
+
+            <!-- Top-Right Finder Pattern -->
+            <rect x="69" y="5" width="26" height="26" rx="3" fill="#000000" />
+            <rect x="73" y="9" width="18" height="18" rx="2" fill="#ffffff" />
+            <rect x="77" y="13" width="10" height="10" rx="1.5" fill="#000000" />
+
+            <!-- Bottom-Left Finder Pattern -->
+            <rect x="5" y="69" width="26" height="26" rx="3" fill="#000000" />
+            <rect x="9" y="73" width="18" height="18" rx="2" fill="#ffffff" />
+            <rect x="13" y="77" width="10" height="10" rx="1.5" fill="#000000" />
+
+            <!-- QR Data Modules Matrix -->
+            <!-- Row 1-6 alignment & data -->
+            <rect x="36" y="8" width="5" height="5" fill="#000000" />
+            <rect x="47" y="8" width="5" height="5" fill="#000000" />
+            <rect x="58" y="8" width="5" height="5" fill="#000000" />
+            <rect x="41" y="16" width="5" height="5" fill="#000000" />
+            <rect x="53" y="16" width="5" height="5" fill="#000000" />
+            <rect x="36" y="24" width="5" height="5" fill="#000000" />
+            <rect x="47" y="24" width="5" height="5" fill="#000000" />
+            <rect x="58" y="24" width="5" height="5" fill="#000000" />
+
+            <!-- Timing horizontal & vertical -->
+            <rect x="8" y="37" width="5" height="5" fill="#000000" />
+            <rect x="18" y="37" width="5" height="5" fill="#000000" />
+            <rect x="28" y="37" width="5" height="5" fill="#000000" />
+            <rect x="38" y="37" width="5" height="5" fill="#000000" />
+            <rect x="68" y="37" width="5" height="5" fill="#000000" />
+            <rect x="78" y="37" width="5" height="5" fill="#000000" />
+            <rect x="88" y="37" width="5" height="5" fill="#000000" />
+
+            <!-- Lower data modules -->
+            <rect x="36" y="48" width="5" height="5" fill="#000000" />
+            <rect x="58" y="48" width="5" height="5" fill="#000000" />
+            <rect x="68" y="48" width="5" height="5" fill="#000000" />
+            <rect x="83" y="48" width="5" height="5" fill="#000000" />
+            
+            <rect x="36" y="58" width="5" height="5" fill="#000000" />
+            <rect x="47" y="58" width="5" height="5" fill="#000000" />
+            <rect x="73" y="58" width="5" height="5" fill="#000000" />
+            <rect x="88" y="58" width="5" height="5" fill="#000000" />
+
+            <rect x="36" y="70" width="5" height="5" fill="#000000" />
+            <rect x="47" y="70" width="5" height="5" fill="#000000" />
+            <rect x="58" y="70" width="5" height="5" fill="#000000" />
+            <rect x="68" y="70" width="5" height="5" fill="#000000" />
+            <rect x="78" y="70" width="5" height="5" fill="#000000" />
+
+            <rect x="42" y="80" width="5" height="5" fill="#000000" />
+            <rect x="53" y="80" width="5" height="5" fill="#000000" />
+            <rect x="63" y="80" width="5" height="5" fill="#000000" />
+            <rect x="83" y="80" width="5" height="5" fill="#000000" />
+
+            <rect x="36" y="90" width="5" height="5" fill="#000000" />
+            <rect x="53" y="90" width="5" height="5" fill="#000000" />
+            <rect x="73" y="90" width="5" height="5" fill="#000000" />
+            <rect x="88" y="90" width="5" height="5" fill="#000000" />
+
+            <!-- Center Brand Badge in QR -->
+            <rect x="39" y="39" width="22" height="22" rx="4" fill="#f59e0b" stroke="#ffffff" stroke-width="2" />
+            <text x="50" y="55" font-family="'Montserrat', sans-serif" font-size="14" font-weight="900" fill="#ffffff" text-anchor="middle">S</text>
+          </svg>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+</body>
+</html>
+`
+
+}

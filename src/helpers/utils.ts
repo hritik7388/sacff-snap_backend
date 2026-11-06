@@ -450,7 +450,8 @@ export const qrCodeGenerator = async (
 // };
 
 import sharp from "sharp";
-import { greenpdfTemplate, yellowpdfTemplate } from "./templates";
+import { certifictae, greenpdfTemplate, yellowpdfTemplate } from "./templates";
+import path from "path";
 
 export const imageGenerator = async (
   scaffholdDetails: any,
@@ -619,6 +620,177 @@ export const imageGenerator = async (
     if (browser) {
       await browser.close().catch((closeError: any) => {
         console.error("❌ Puppeteer browser close error:", closeError);
+      });
+    }
+  }
+};
+
+import fs from "fs";
+export const certificateImageGenerator = async (
+  certificateDetails: any,
+): Promise<Buffer> => {
+  let browser: any;
+
+  try {
+    // ======================================================
+    // HTML TEMPLATE
+    // ======================================================
+
+    const html = certifictae({
+      ...certificateDetails,
+    });
+
+    // ======================================================
+    // PUPPETEER
+    // ======================================================
+
+    const A4_WIDTH = 794;
+    const A4_HEIGHT = 1123;
+
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+
+    await page.setViewport({
+      width: A4_WIDTH,
+      height: A4_HEIGHT,
+      deviceScaleFactor: 3,
+    });
+
+    // ======================================================
+    // RENDER HTML
+    // ======================================================
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+      timeout: 60000,
+    });
+
+    // Wait for fonts
+    await page.evaluate(() => document.fonts.ready);
+
+    // Wait for certificate element
+    await page.waitForSelector(".certificate-page", {
+      timeout: 15000,
+    });
+
+    const certificateElement = await page.$(".certificate-page");
+
+    if (!certificateElement) {
+      throw new Error(
+        "Could not find .certificate-page element. Check certificate HTML template.",
+      );
+    }
+
+    // ======================================================
+    // SCREENSHOT
+    // ======================================================
+
+    const rawBuffer = (await certificateElement.screenshot({
+      type: "png",
+      captureBeyondViewport: true,
+    })) as Buffer;
+
+    if (!rawBuffer || rawBuffer.length === 0) {
+      throw new Error("Certificate image generation returned empty buffer");
+    }
+
+    console.log(
+      "✅ CERTIFICATE IMAGE GENERATED:",
+      rawBuffer.length,
+      "bytes",
+    );
+
+    // ======================================================
+    // CLOSE BROWSER AFTER SCREENSHOT
+    // ======================================================
+
+    await browser.close();
+    browser = null;
+
+    // ======================================================
+    // NORMALIZE A4 ASPECT RATIO
+    // A4 ratio: 794 x 1123
+    // ======================================================
+
+    const A4_ASPECT_RATIO = A4_WIDTH / A4_HEIGHT;
+
+    const meta = await sharp(rawBuffer).metadata();
+
+    if (!meta.width || !meta.height) {
+      throw new Error("Unable to read generated certificate dimensions");
+    }
+
+    const contentWidth = meta.width;
+    const contentHeight = meta.height;
+
+    let canvasWidth: number;
+    let canvasHeight: number;
+
+    const contentRatio = contentWidth / contentHeight;
+
+    if (contentRatio > A4_ASPECT_RATIO) {
+      // Keep width and extend height
+      canvasWidth = contentWidth;
+      canvasHeight = Math.round(contentWidth / A4_ASPECT_RATIO);
+    } else {
+      // Keep height and extend width
+      canvasHeight = contentHeight;
+      canvasWidth = Math.round(contentHeight * A4_ASPECT_RATIO);
+    }
+
+    // ======================================================
+    // FINAL IMAGE
+    // ======================================================
+
+    const finalBuffer = await sharp({
+      create: {
+        width: canvasWidth,
+        height: canvasHeight,
+        channels: 4,
+        background: {
+          r: 255,
+          g: 255,
+          b: 255,
+          alpha: 1,
+        },
+      },
+    })
+      .composite([
+        {
+          input: rawBuffer,
+          top: 0,
+          left: 0,
+        },
+      ])
+      .png()
+      .toBuffer();
+
+    console.log(
+      "✅ FINAL CERTIFICATE IMAGE GENERATED:",
+      finalBuffer.length,
+      "bytes",
+    );
+
+    return finalBuffer;
+  } catch (err: any) {
+    console.error("❌ CERTIFICATE IMAGE GEN ERR:", err);
+
+    throw err;
+  } finally {
+    // ======================================================
+    // ENSURE BROWSER IS CLOSED
+    // ======================================================
+
+    if (browser) {
+      await browser.close().catch((closeError: any) => {
+        console.error(
+          "❌ Puppeteer browser close error:",
+          closeError,
+        );
       });
     }
   }

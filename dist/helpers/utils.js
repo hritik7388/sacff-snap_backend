@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateReadUrl = exports.generatePresignedUrl = exports.generateVideoUploadUrl = exports.extractS3Key = exports.mailTransporter = void 0;
+exports.certificateImageGenerator = exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateImageUploadUrl = exports.generateReadUrl = exports.generatePresignedUrl = exports.generateVideoUploadUrl = exports.extractS3Key = exports.mailTransporter = void 0;
 // src/helpers/utils.ts
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const qrcode_1 = __importDefault(require("qrcode"));
@@ -31,11 +31,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_s3_1 = require("@aws-sdk/client-s3");
 const s3_request_presigner_1 = require("@aws-sdk/s3-request-presigner");
 const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png"];
-const allowedVideoTypes = [
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-];
+const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 const allowedDocumentTypes = ["application/pdf"];
 const s3Client = new client_s3_1.S3Client({
     region: process.env.AWS_REGION,
@@ -71,9 +67,7 @@ const generateVideoUploadUrl = (filename, contentType) => __awaiter(void 0, void
     if (!allowedVideoTypes.includes(contentType)) {
         throw new customError_1.CustomError("Unsupported video type", 400, "Only MP4, WebM and MOV videos are allowed");
     }
-    const sanitizedFilename = filename
-        .trim()
-        .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const sanitizedFilename = filename.trim().replace(/[^a-zA-Z0-9._-]/g, "_");
     const key = `questionnaire_videos/${Date.now()}-${sanitizedFilename}`;
     const command = new client_s3_1.PutObjectCommand({
         Bucket: process.env.AWS_BUCKET_NAME,
@@ -121,6 +115,36 @@ const generateReadUrl = (key) => __awaiter(void 0, void 0, void 0, function* () 
     return url;
 });
 exports.generateReadUrl = generateReadUrl;
+const generateImageUploadUrl = (filename, contentType) => __awaiter(void 0, void 0, void 0, function* () {
+    const allowedImageTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+    ];
+    if (!allowedImageTypes.includes(contentType)) {
+        throw new Error("Unsupported image type");
+    }
+    const timestamp = Date.now();
+    const sanitizedFilename = filename
+        .replace(/\s+/g, "_")
+        .replace(/[^a-zA-Z0-9._-]/g, "");
+    const key = `questionnaire_images/${timestamp}-${sanitizedFilename}`;
+    const putObjectCommand = new client_s3_1.PutObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+        ContentType: contentType,
+    });
+    const uploadUrl = yield (0, s3_request_presigner_1.getSignedUrl)(s3Client, putObjectCommand, {
+        expiresIn: 3600,
+    });
+    return {
+        uploadUrl,
+        key,
+        expiresIn: 3600,
+    };
+});
+exports.generateImageUploadUrl = generateImageUploadUrl;
 const generateToken = (payload, expiresIn = "30d") => {
     if (!process.env.JWT_SECRET) {
         throw new Error("JWT_SECRET is not defined in environment variables");
@@ -382,7 +406,7 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
         const page = yield browser.newPage();
         yield page.setViewport({
             width: RENDER_WIDTH,
-            height: 1200,
+            height: 975,
             deviceScaleFactor: 3,
         });
         // Render HTML before locating #tag
@@ -469,3 +493,67 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
     }
 });
 exports.imageGenerator = imageGenerator;
+const certificateImageGenerator = (certificateDetails) => __awaiter(void 0, void 0, void 0, function* () {
+    let browser;
+    try {
+        // ======================================================
+        // HTML TEMPLATE
+        // ======================================================
+        const html = certificateTemplate(Object.assign({}, certificateDetails));
+        // ======================================================
+        // PUPPETEER
+        // ======================================================
+        const A4_WIDTH = 794;
+        const A4_HEIGHT = 1123;
+        browser = yield puppeteer_1.default.launch({
+            headless: true,
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        });
+        const page = yield browser.newPage();
+        yield page.setViewport({
+            width: A4_WIDTH,
+            height: A4_HEIGHT,
+            deviceScaleFactor: 3,
+        });
+        // ======================================================
+        // RENDER HTML
+        // ======================================================
+        yield page.setContent(html, {
+            waitUntil: "networkidle0",
+        });
+        // Wait for Google Fonts
+        yield page.evaluate(() => __awaiter(void 0, void 0, void 0, function* () {
+            yield document.fonts.ready;
+        }));
+        yield page.waitForSelector(".certificate-page", {
+            timeout: 10000,
+        });
+        const certificateElement = yield page.$(".certificate-page");
+        if (!certificateElement) {
+            throw new Error("Certificate element not found");
+        }
+        const certificateBuffer = (yield certificateElement.screenshot({
+            type: "png",
+            captureBeyondViewport: true,
+        }));
+        yield browser.close();
+        browser = null;
+        return certificateBuffer;
+    }
+    catch (err) {
+        console.error("❌ CERTIFICATE IMAGE GENERATION ERROR:", err);
+        throw err;
+    }
+    finally {
+        // Ensure browser closes even if an error occurs
+        if (browser) {
+            yield browser.close().catch((closeError) => {
+                console.error("❌ Puppeteer browser close error:", closeError);
+            });
+        }
+    }
+});
+exports.certificateImageGenerator = certificateImageGenerator;
+function certificateTemplate(arg0) {
+    throw new Error("Function not implemented.");
+}

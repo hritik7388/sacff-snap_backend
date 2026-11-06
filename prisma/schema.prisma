@@ -57,6 +57,7 @@ model Questionnaire {
   description            String              @db.Text
   videoUrl               String
   certificateTemplateUrl String?
+  certificateThumbnailUrl     String?
   status                 QuestionnaireStatus @default(ACTIVE)
 
   createdById BigInt

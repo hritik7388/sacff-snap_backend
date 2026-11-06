@@ -50,6 +50,7 @@ export const createQuestionnaireSchema = z.object({
     status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
     videoUrl: z.string().min(1,"Valid video URL is required"),
     certificateTemplateUrl: z.string().min(1,"Valid certificate URL is required"),
+    certificateThumbnailUrl: z.string().min(1,"Valid certificate thumbnail URL is required"),
 
     questions: z.array(
         z.object({

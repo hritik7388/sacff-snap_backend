@@ -320,25 +320,11 @@ export class tradesManController {
         });
       }
 
-      const tradesman = await prisma.tradesMan.findFirst({
-        where: {
-          userId: BigInt(userId),
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!tradesman) {
-        return res.status(404).json({
-          success: false,
-          message: "Tradesman not found",
-        });
-      }
+    
 
       const result = await tradesMan.getCertificateByIdService(
         BigInt(certificateId),
-        tradesman.id,
+        BigInt(userId)
       );
 
       return res.status(200).json({

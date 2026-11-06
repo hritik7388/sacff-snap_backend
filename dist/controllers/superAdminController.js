@@ -43,6 +43,38 @@ class superAdminController {
             }
         });
     }
+    generateQuestionnaireImageUpload(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { filename, contentType } = superAdminSchema_1.generateImageUploadSchema.parse(req.body);
+                const result = yield superAdmin.generateQuestionnaireImageUploadService(filename, contentType);
+                return res.status(200).json(Object.assign({ success: true }, result));
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
+    deleteQuestionnaire(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const superAdminId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!superAdminId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Unauthorized",
+                    });
+                }
+                const { questionnaireId } = superAdminSchema_1.deleteQuestionnaireSchema.parse(req.body);
+                const result = yield superAdmin.deleteQuestionnaireServices(questionnaireId, BigInt(superAdminId));
+                return res.status(200).json(Object.assign({ success: true }, result));
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
     getQuestionnaireDashboard(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {

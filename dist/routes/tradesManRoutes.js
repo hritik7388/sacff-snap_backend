@@ -19,7 +19,7 @@ router.post("/register", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.
  * @access  Private (TradesMan)
  */
 router.get("/questionnaires", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getAllQuestionnairesForTradesman.bind(tradesManRoutes));
-router.get("/getQuestionByID", authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes));
+router.get("/getQuestionByID", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.getQuestionnaireByIdForTradesman.bind(tradesManRoutes));
 // Start or resume quiz
 router.post("/startQuiz", authMiddleware_1.authMiddleware, authMiddleware_1.isTradesMan, authMiddleware_2.clientAuthMiddleware, tradesManRoutes.startQuiz.bind(tradesManRoutes));
 // Get current question for an attempt

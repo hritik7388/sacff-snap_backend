@@ -5,12 +5,14 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import {
+  certificateImageGenerator,
   generateReadUrl,
   generateToken,
   pushNotificationDelhi,
   reqscaffHoldIdGenerator,
   scaffHoldIdGenerator,
 } from "../helpers/utils";
+import fs from "fs";
 import {
   RegisterTradesManDTO,
   LoginTradesManDTO,
@@ -31,214 +33,208 @@ import {
 } from "../schemas/tradesManSchema";
 import { MediaType, Priority, Prisma } from "@prisma/client";
 import { create } from "domain";
+import path from "path";
 
 type TradesmanQuestionnaireFilter = "ALL" | "INCOMPLETE" | "COMPLETED";
 
 export class tradesManServices {
- 
+  async getAllQuestionnairesForTradesmanServices(
+    tradesmanId: bigint,
+    filter: TradesmanQuestionnaireFilter = "ALL",
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ) {
+    try {
+      page = Number(page);
+      limit = Number(limit);
 
-
-
-async getAllQuestionnairesForTradesmanServices(
-  tradesmanId: bigint,
-  filter: TradesmanQuestionnaireFilter = "ALL",
-  page: number = 1,
-  limit: number = 10,
-  search?: string,
-) {
-  try {
-    page = Number(page);
-    limit = Number(limit);
-
-    if (
-      !Number.isInteger(page) ||
-      !Number.isInteger(limit) ||
-      page < 1 ||
-      limit < 1 ||
-      limit > 100
-    ) {
-      throw new CustomError(
-        "Invalid pagination",
-        400,
-        "Page must be >= 1 and limit must be between 1 and 100",
-      );
-    }
-
-    if (!["ALL", "INCOMPLETE", "COMPLETED"].includes(filter)) {
-      throw new CustomError(
-        "Invalid filter",
-        400,
-        "Filter must be ALL, INCOMPLETE, or COMPLETED",
-      );
-    }
-
-    // FIX 1:
-    // tradesmanId parameter contains User.id from Bearer Token.
-    // Fetch actual TradesMan.id for QuizAttempt queries.
-    const tradesman = await prisma.tradesMan.findUnique({
-      where: {
-        userId: tradesmanId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!tradesman) {
-      throw new CustomError(
-        "Tradesman not found",
-        404,
-        "Tradesman profile does not exist",
-      );
-    }
-
-    const actualTradesmanId = tradesman.id;
-
-    // 1. Fetch ALL ACTIVE questionnaires
-    // Enrollment filtering is done below for this Tradesman.
-    const questionnaires = await prisma.questionnaire.findMany({
-      where: {
-        status: "ACTIVE",
-      },
-
-      select: {
-        id: true,
-        uuid: true,
-        testName: true,
-        description: true,
-        videoUrl: true,
-        certificateTemplateUrl: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-
-        _count: {
-          select: {
-            questions: true,
-          },
-        },
-
-        attempts: {
-          where: {
-            // FIX 2:
-            // QuizAttempt.tradesmanId references TradesMan.id
-            tradesmanId: actualTradesmanId,
-          },
-          orderBy: [
-            { startedAt: "desc" },
-            { createdAt: "desc" },
-          ],
-          take: 1,
-          select: {
-            id: true,
-            uuid: true,
-            status: true,
-            totalQuestions: true,
-            correctAnswers: true,
-            wrongAnswerCount: true,
-            score: true,
-            currentQuestion: true,
-            startedAt: true,
-            completedAt: true,
-            updatedAt: true,
-          },
-        },
-
-        enrollments: {
-          where: {
-            // Enrollment.tradesmanId stores User.id
-            tradesmanId,
-          },
-          select: {
-            id: true,
-            isEnrolled: true,
-          },
-        },
-      },
-
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    // 2. Map questionnaires with enrollment status
-    const mappedQuestionnaires = await Promise.all(
-      questionnaires.map(async (quiz) => {
-        const latestAttempt = quiz.attempts[0] ?? null;
-
-        const isEnrolled = quiz.enrollments.some(
-          (enrollment) => enrollment.isEnrolled,
+      if (
+        !Number.isInteger(page) ||
+        !Number.isInteger(limit) ||
+        page < 1 ||
+        limit < 1 ||
+        limit > 100
+      ) {
+        throw new CustomError(
+          "Invalid pagination",
+          400,
+          "Page must be >= 1 and limit must be between 1 and 100",
         );
+      }
 
-        const isCompleted =
-          latestAttempt?.status === "PASSED" ||
-          latestAttempt?.status === "FAILED";
+      if (!["ALL", "INCOMPLETE", "COMPLETED"].includes(filter)) {
+        throw new CustomError(
+          "Invalid filter",
+          400,
+          "Filter must be ALL, INCOMPLETE, or COMPLETED",
+        );
+      }
 
-        const questionnaireProgress = isCompleted
-          ? "COMPLETED"
-          : isEnrolled
-            ? "INCOMPLETE"
-            : "NOT_STARTED";
+      // FIX 1:
+      // tradesmanId parameter contains User.id from Bearer Token.
+      // Fetch actual TradesMan.id for QuizAttempt queries.
+      const tradesman = await prisma.tradesMan.findUnique({
+        where: {
+          userId: tradesmanId,
+        },
+        select: {
+          id: true,
+        },
+      });
 
-        const videoUrl = quiz.videoUrl
-          ? await generateReadUrl(quiz.videoUrl)
-          : null;
+      if (!tradesman) {
+        throw new CustomError(
+          "Tradesman not found",
+          404,
+          "Tradesman profile does not exist",
+        );
+      }
 
-            const certificateTemplateUrl =
-          quiz.certificateTemplateUrl
-            ? await generateReadUrl(
-                quiz.certificateTemplateUrl,
-              )
+      const actualTradesmanId = tradesman.id;
+
+      // 1. Fetch ALL ACTIVE questionnaires
+      // Enrollment filtering is done below for this Tradesman.
+      const questionnaires = await prisma.questionnaire.findMany({
+        where: {
+          status: "ACTIVE",
+        },
+
+        select: {
+          id: true,
+          uuid: true,
+          testName: true,
+          description: true,
+          videoUrl: true,
+          certificateTemplateUrl: true,
+          certificateThumbnailUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+
+          _count: {
+            select: {
+              questions: true,
+            },
+          },
+
+          attempts: {
+            where: {
+              // FIX 2:
+              // QuizAttempt.tradesmanId references TradesMan.id
+              tradesmanId: actualTradesmanId,
+            },
+            orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
+            take: 1,
+            select: {
+              id: true,
+              uuid: true,
+              status: true,
+              totalQuestions: true,
+              correctAnswers: true,
+              wrongAnswerCount: true,
+              score: true,
+              currentQuestion: true,
+              startedAt: true,
+              completedAt: true,
+              updatedAt: true,
+            },
+          },
+
+          enrollments: {
+            where: {
+              // Enrollment.tradesmanId stores User.id
+              tradesmanId,
+            },
+            select: {
+              id: true,
+              isEnrolled: true,
+            },
+          },
+        },
+
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      // 2. Map questionnaires with enrollment status
+      const mappedQuestionnaires = await Promise.all(
+        questionnaires.map(async (quiz) => {
+          const latestAttempt = quiz.attempts[0] ?? null;
+
+          const isEnrolled = quiz.enrollments.some(
+            (enrollment) => enrollment.isEnrolled,
+          );
+
+          const isCompleted =
+            latestAttempt?.status === "PASSED" ||
+            latestAttempt?.status === "FAILED";
+
+          const questionnaireProgress = isCompleted
+            ? "COMPLETED"
+            : isEnrolled
+              ? "INCOMPLETE"
+              : "NOT_STARTED";
+
+          const videoUrl = quiz.videoUrl
+            ? await generateReadUrl(quiz.videoUrl)
             : null;
 
-        return {
-          id: quiz.id.toString(),
-          uuid: quiz.uuid,
-          testName: quiz.testName,
-          description: quiz.description,
+          const certificateTemplateUrl = quiz.certificateTemplateUrl
+            ? await generateReadUrl(quiz.certificateTemplateUrl)
+            : null;
 
-          videoKey: quiz.videoUrl,
-          videoUrl,
+          const certificateThumbnailUrl = quiz.certificateThumbnailUrl
+            ? await generateReadUrl(quiz.certificateThumbnailUrl)
+            : null;
 
-         certificateTemplateUrl,
+          return {
+            id: quiz.id.toString(),
+            uuid: quiz.uuid,
+            testName: quiz.testName,
+            description: quiz.description,
 
-          status: quiz.status,
+            videoKey: quiz.videoUrl,
+            videoUrl,
 
-          totalQuestions: quiz._count.questions,
+            certificateTemplateUrl,
+            certificateThumbnailUrl,
 
-          isEnrolled,
+            status: quiz.status,
 
-          questionnaireProgress,
+            totalQuestions: quiz._count.questions,
 
-          attempt: latestAttempt
-            ? {
-                id: latestAttempt.id.toString(),
-                uuid: latestAttempt.uuid,
-                status: latestAttempt.status,
-                totalQuestions: latestAttempt.totalQuestions,
-                correctAnswers: latestAttempt.correctAnswers,
-                wrongAnswerCount:
-                  latestAttempt.wrongAnswerCount,
-                score: latestAttempt.score,
-                currentQuestion:
-                  latestAttempt.currentQuestion,
-                startedAt: latestAttempt.startedAt,
-                completedAt: latestAttempt.completedAt,
-                updatedAt: latestAttempt.updatedAt,
-              }
-            : null,
+            isEnrolled,
 
-          createdAt: quiz.createdAt,
-          updatedAt: quiz.updatedAt,
-        };
-      }),
-    );
+            questionnaireProgress,
 
-    // 3. Apply ALL / INCOMPLETE / COMPLETED filters
-    const searchTerm = search?.trim().toLowerCase();
+            attempt: latestAttempt
+              ? {
+                  id: latestAttempt.id.toString(),
+                  uuid: latestAttempt.uuid,
+                  status: latestAttempt.status,
+                  totalQuestions: latestAttempt.totalQuestions,
+                  correctAnswers: latestAttempt.correctAnswers,
+                  wrongAnswerCount: latestAttempt.wrongAnswerCount,
+                  score: latestAttempt.score,
+                  currentQuestion: latestAttempt.currentQuestion,
+                  startedAt: latestAttempt.startedAt,
+                  completedAt: latestAttempt.completedAt,
+                  updatedAt: latestAttempt.updatedAt,
+                }
+              : null,
 
-    const filteredQuestionnaires = mappedQuestionnaires.filter(
-      (quiz) => {
+            createdAt: quiz.createdAt,
+            updatedAt: quiz.updatedAt,
+          };
+        }),
+      );
+
+      // 3. Apply ALL / INCOMPLETE / COMPLETED filters
+      const searchTerm = search?.trim().toLowerCase();
+
+      const filteredQuestionnaires = mappedQuestionnaires.filter((quiz) => {
         let matchesFilter = false;
 
         switch (filter) {
@@ -250,133 +246,115 @@ async getAllQuestionnairesForTradesmanServices(
 
           case "INCOMPLETE":
             matchesFilter =
-              quiz.isEnrolled &&
-              quiz.questionnaireProgress !== "COMPLETED";
+              quiz.isEnrolled && quiz.questionnaireProgress !== "COMPLETED";
             break;
 
           case "COMPLETED":
-            matchesFilter =
-              quiz.questionnaireProgress === "COMPLETED";
+            matchesFilter = quiz.questionnaireProgress === "COMPLETED";
             break;
         }
 
         const matchesSearch =
-          !searchTerm ||
-          quiz.testName.toLowerCase().includes(searchTerm);
+          !searchTerm || quiz.testName.toLowerCase().includes(searchTerm);
 
         return matchesFilter && matchesSearch;
-      },
-    );
+      });
 
-    // 4. RECENT:
-    // Always the latest 3 INCOMPLETE questionnaires,
-    // regardless of selected filter.
-    const recent = mappedQuestionnaires
-      .filter(
-        (quiz) =>
-          quiz.isEnrolled &&
-          quiz.questionnaireProgress === "INCOMPLETE",
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() -
-          new Date(a.updatedAt).getTime(),
-      )
-      .slice(0, 3);
+      // 4. RECENT:
+      // Always the latest 3 INCOMPLETE questionnaires,
+      // regardless of selected filter.
+      const recent = mappedQuestionnaires
+        .filter(
+          (quiz) =>
+            quiz.isEnrolled && quiz.questionnaireProgress === "INCOMPLETE",
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        )
+        .slice(0, 3);
 
-    // 5. Pagination
-    const total = filteredQuestionnaires.length;
-    const totalPages = Math.ceil(total / limit);
-    const skip = (page - 1) * limit;
+      // 5. Pagination
+      const total = filteredQuestionnaires.length;
+      const totalPages = Math.ceil(total / limit);
+      const skip = (page - 1) * limit;
 
-    const data = filteredQuestionnaires.slice(
-      skip,
-      skip + limit,
-    );
+      const data = filteredQuestionnaires.slice(skip, skip + limit);
 
-    // 6. Debug: identify why ALL may be empty
-    console.log("FILTER:", filter);
-    console.log("TRADESMAN ID:", tradesmanId.toString());
-    console.log("ACTIVE QUESTIONNAIRES:", questionnaires.length);
-    console.log("FILTERED RECORDS:", total);
-    console.log("RECENT RECORDS:", recent.length);
-    console.log("PAGE:", page);
+      // 6. Debug: identify why ALL may be empty
+      console.log("FILTER:", filter);
+      console.log("TRADESMAN ID:", tradesmanId.toString());
+      console.log("ACTIVE QUESTIONNAIRES:", questionnaires.length);
+      console.log("FILTERED RECORDS:", total);
+      console.log("RECENT RECORDS:", recent.length);
+      console.log("PAGE:", page);
 
-    console.log(
-      "QUESTIONNAIRE ENROLLMENT DEBUG:",
-      mappedQuestionnaires.map((quiz) => ({
-        id: quiz.id,
-        testName: quiz.testName,
-        isEnrolled: quiz.isEnrolled,
-        progress: quiz.questionnaireProgress,
-      })),
-    );
+      console.log(
+        "QUESTIONNAIRE ENROLLMENT DEBUG:",
+        mappedQuestionnaires.map((quiz) => ({
+          id: quiz.id,
+          testName: quiz.testName,
+          isEnrolled: quiz.isEnrolled,
+          progress: quiz.questionnaireProgress,
+        })),
+      );
 
-    // 7. Final response
-    return {
-      success: true,
-      message: "Questionnaires fetched successfully",
-      data,
-      recent,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-      },
-    };
-  } catch (error) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-
-    throw new CustomError(
-      "Failed to fetch questionnaires",
-      500,
-      error instanceof Error
-        ? error.message
-        : "Unknown error",
-    );
-  }
-}
-
-
-
-
-async getQuestionnaireByIdForTradesmanServices(
-  userId: bigint,
-  id: bigint,
-) {
-  try {
-    // 1. Fetch questionnaire
-    const questionnaire = await prisma.questionnaire.findUnique({
-      where: { id },
-      include: {
-        questions: {
-          include: {
-            options: true,
-          },
+      // 7. Final response
+      return {
+        success: true,
+        message: "Questionnaires fetched successfully",
+        data,
+        recent,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
         },
-        _count: {
-          select: {
-            questions: true,
-          },
-        },
-      },
-    });
+      };
+    } catch (error) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
 
-    if (!questionnaire) {
       throw new CustomError(
-        "Questionnaire not found",
-        404,
-        "No questionnaire found with this ID",
+        "Failed to fetch questionnaires",
+        500,
+        error instanceof Error ? error.message : "Unknown error",
       );
     }
+  }
 
-    // 2. Check enrollment for CURRENT logged-in user only
-    // QuestionnaireEnrollment.tradesmanId references TradesMan.userId
-    const enrollmentCount =
-      await prisma.questionnaireEnrollment.count({
+  async getQuestionnaireByIdForTradesmanServices(userId: bigint, id: bigint) {
+    try {
+      // 1. Fetch questionnaire
+      const questionnaire = await prisma.questionnaire.findUnique({
+        where: { id },
+        include: {
+          questions: {
+            include: {
+              options: true,
+            },
+          },
+          _count: {
+            select: {
+              questions: true,
+            },
+          },
+        },
+      });
+
+      if (!questionnaire) {
+        throw new CustomError(
+          "Questionnaire not found",
+          404,
+          "No questionnaire found with this ID",
+        );
+      }
+
+      // 2. Check enrollment for CURRENT logged-in user only
+      // QuestionnaireEnrollment.tradesmanId references TradesMan.userId
+      const enrollmentCount = await prisma.questionnaireEnrollment.count({
         where: {
           questionnaireId: id,
           tradesmanId: userId,
@@ -384,55 +362,54 @@ async getQuestionnaireByIdForTradesmanServices(
         },
       });
 
-    // 3. Generate video presigned URL
-    const videoUrl = questionnaire.videoUrl
-      ? await generateReadUrl(questionnaire.videoUrl)
-      : null;
-
-    // 4. Generate certificate template presigned URL
-    const certificateTemplateUrl =
-      questionnaire.certificateTemplateUrl
-        ? await generateReadUrl(
-            questionnaire.certificateTemplateUrl,
-          )
+      // 3. Generate video presigned URL
+      const videoUrl = questionnaire.videoUrl
+        ? await generateReadUrl(questionnaire.videoUrl)
         : null;
 
-    // 5. Existing response structure unchanged
-    return {
-      message: "Questionnaire fetched successfully",
-      data: {
-        ...questionnaire,
+      // 4. Generate certificate template presigned URL
+      const certificateTemplateUrl = questionnaire.certificateTemplateUrl
+        ? await generateReadUrl(questionnaire.certificateTemplateUrl)
+        : null;
 
-        id: questionnaire.id.toString(),
+      const certificateThumbnailUrl = questionnaire.certificateThumbnailUrl
+        ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+        : null;
 
-        videoKey: questionnaire.videoUrl,
-        videoUrl,
+      // 5. Existing response structure unchanged
+      return {
+        message: "Questionnaire fetched successfully",
+        data: {
+          ...questionnaire,
 
-        certificateTemplateUrl,
+          id: questionnaire.id.toString(),
+          description: questionnaire.description,
+          videoKey: questionnaire.videoUrl,
+          videoUrl,
 
-        questionsCount: questionnaire._count.questions,
+          certificateTemplateUrl,
 
-        isEnrolled: enrollmentCount > 0,
+          certificateThumbnailUrl,
 
-        enrollmentStatus:
-          enrollmentCount > 0
-            ? "ENROLLED"
-            : "NOT_ENROLLED",
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
+          questionsCount: questionnaire._count.questions,
+
+          isEnrolled: enrollmentCount > 0,
+
+          enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED",
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError(
+        "Failed to fetch questionnaire",
+        500,
+        error.message,
+      );
     }
-
-    throw new CustomError(
-      "Failed to fetch questionnaire",
-      500,
-      error.message,
-    );
   }
-}
-
 
   async startQuizService(questionnaireId: bigint, tradesmanId: bigint) {
     try {
@@ -596,221 +573,206 @@ async getQuestionnaireByIdForTradesmanServices(
     }
   }
 
-async getCurrentQuestionService(
-  attemptId: bigint,
-  userId: bigint,
-) {
-  try {
-    // attemptId parameter contains Questionnaire ID
+  async getCurrentQuestionService(attemptId: bigint, userId: bigint) {
+    try {
+      // attemptId parameter contains Questionnaire ID
 
-    // 1. Verify enrollment using User ID
-    const enrollment = await prisma.questionnaireEnrollment.findFirst({
-      where: {
-        questionnaireId: attemptId,
-        tradesmanId: userId,
-        isEnrolled: true,
-      },
-      select: {
-        questionnaireId: true,
-      },
-    });
-
-    if (!enrollment) {
-      throw new CustomError(
-        "Quiz attempt not found",
-        404,
-        "Invalid attempt ID",
-      );
-    }
-
-    // 2. Fetch questionnaire details
-    const questionnaire = await prisma.questionnaire.findUnique({
-      where: {
-        id: enrollment.questionnaireId,
-      },
-      select: {
-        id: true,
-        testName: true,
-        description: true,
-      },
-    });
-
-    if (!questionnaire) {
-      throw new CustomError(
-        "Questionnaire not found",
-        404,
-        "Questionnaire does not exist",
-      );
-    }
-
-    // 3. Fetch ALL questions with their options
-    const questions = await prisma.question.findMany({
-      where: {
-        questionnaireId: enrollment.questionnaireId,
-      },
-      include: {
-        options: true,
-      },
-      orderBy: {
-        sortOrder: "asc",
-      },
-    });
-
-    if (questions.length === 0) {
-      throw new CustomError(
-        "Questions not found",
-        404,
-        "No questions available for this questionnaire",
-      );
-    }
-
-    // 4. Fetch actual TradesMan ID for QuizAttempt
-    const tradesman = await prisma.tradesMan.findUnique({
-      where: {
-        userId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!tradesman) {
-      throw new CustomError(
-        "Tradesman not found",
-        404,
-        "Tradesman profile does not exist",
-      );
-    }
-
-    // 5. Get latest quiz attempt if available
-    // QuizAttempt.tradesmanId references TradesMan.id
-    const attempt = await prisma.quizAttempt.findFirst({
-      where: {
-        questionnaireId: enrollment.questionnaireId,
-        tradesmanId: tradesman.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    const currentQuestion = attempt
-      ? questions.find(
-          (question) =>
-            question.sortOrder === attempt.currentQuestion,
-        )
-      : questions[0];
-
-    const startedAt = attempt
-      ? attempt.currentQuestionStartedAt ?? attempt.startedAt
-      : null;
-
-    const elapsedSeconds = startedAt
-      ? Math.floor(
-          (Date.now() - startedAt.getTime()) / 1000,
-        )
-      : 0;
-
-    // 6. Return existing response unchanged
-    return {
-      message: "Current question fetched successfully",
-      data: {
-        attemptId: attemptId.toString(),
-
-        questionnaire: {
-          ...questionnaire,
-          id: questionnaire.id.toString(),
+      // 1. Verify enrollment using User ID
+      const enrollment = await prisma.questionnaireEnrollment.findFirst({
+        where: {
+          questionnaireId: attemptId,
+          tradesmanId: userId,
+          isEnrolled: true,
         },
+        select: {
+          questionnaireId: true,
+        },
+      });
 
-        // Return ALL questions in a single array
-        questions: questions.map((question) => ({
-          id: question.id.toString(),
-          questionnaireId: question.questionnaireId.toString(),
-          questionText: question.questionText,
-          sortOrder: question.sortOrder,
-          timeLimitSeconds: question.timeLimitSeconds,
-          createdAt: question.createdAt.toISOString(),
-          updatedAt: question.updatedAt.toISOString(),
+      if (!enrollment) {
+        throw new CustomError(
+          "Quiz attempt not found",
+          404,
+          "Invalid attempt ID",
+        );
+      }
 
-          options: question.options.map((option) => ({
-            id: option.id.toString(),
-            questionId: option.questionId.toString(),
-            optionText: option.optionText,
-            isCorrect: option.isCorrect,
-            createdAt: option.createdAt.toISOString(),
+      // 2. Fetch questionnaire details
+      const questionnaire = await prisma.questionnaire.findUnique({
+        where: {
+          id: enrollment.questionnaireId,
+        },
+        select: {
+          id: true,
+          testName: true,
+          description: true,
+        },
+      });
+
+      if (!questionnaire) {
+        throw new CustomError(
+          "Questionnaire not found",
+          404,
+          "Questionnaire does not exist",
+        );
+      }
+
+      // 3. Fetch ALL questions with their options
+      const questions = await prisma.question.findMany({
+        where: {
+          questionnaireId: enrollment.questionnaireId,
+        },
+        include: {
+          options: true,
+        },
+        orderBy: {
+          sortOrder: "asc",
+        },
+      });
+
+      if (questions.length === 0) {
+        throw new CustomError(
+          "Questions not found",
+          404,
+          "No questions available for this questionnaire",
+        );
+      }
+
+      // 4. Fetch actual TradesMan ID for QuizAttempt
+      const tradesman = await prisma.tradesMan.findUnique({
+        where: {
+          userId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!tradesman) {
+        throw new CustomError(
+          "Tradesman not found",
+          404,
+          "Tradesman profile does not exist",
+        );
+      }
+
+      // 5. Get latest quiz attempt if available
+      // QuizAttempt.tradesmanId references TradesMan.id
+      const attempt = await prisma.quizAttempt.findFirst({
+        where: {
+          questionnaireId: enrollment.questionnaireId,
+          tradesmanId: tradesman.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      const currentQuestion = attempt
+        ? questions.find(
+            (question) => question.sortOrder === attempt.currentQuestion,
+          )
+        : questions[0];
+
+      const startedAt = attempt
+        ? (attempt.currentQuestionStartedAt ?? attempt.startedAt)
+        : null;
+
+      const elapsedSeconds = startedAt
+        ? Math.floor((Date.now() - startedAt.getTime()) / 1000)
+        : 0;
+
+      // 6. Return existing response unchanged
+      return {
+        message: "Current question fetched successfully",
+        data: {
+          attemptId: attemptId.toString(),
+
+          questionnaire: {
+            ...questionnaire,
+            id: questionnaire.id.toString(),
+          },
+
+          // Return ALL questions in a single array
+          questions: questions.map((question) => ({
+            id: question.id.toString(),
+            questionnaireId: question.questionnaireId.toString(),
+            questionText: question.questionText,
+            sortOrder: question.sortOrder,
+            timeLimitSeconds: question.timeLimitSeconds,
+            createdAt: question.createdAt.toISOString(),
+            updatedAt: question.updatedAt.toISOString(),
+
+            options: question.options.map((option) => ({
+              id: option.id.toString(),
+              questionId: option.questionId.toString(),
+              optionText: option.optionText,
+              isCorrect: option.isCorrect,
+              createdAt: option.createdAt.toISOString(),
+            })),
           })),
-        })),
 
-        currentQuestion: attempt
-          ? attempt.currentQuestion + 1
-          : 1,
+          currentQuestion: attempt ? attempt.currentQuestion + 1 : 1,
 
-        totalQuestions: questions.length,
+          totalQuestions: questions.length,
 
-        remainingSeconds: currentQuestion
-          ? Math.max(
-              0,
-              currentQuestion.timeLimitSeconds - elapsedSeconds,
-            )
-          : 0,
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) throw error;
+          remainingSeconds: currentQuestion
+            ? Math.max(0, currentQuestion.timeLimitSeconds - elapsedSeconds)
+            : 0,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
 
-    throw new CustomError(
-      "Failed to fetch current questions",
-      500,
-      error.message,
-    );
-  }
-}
-
-
-
-
-async submitAllAnswersService(
-  attemptId: bigint,
-  userId: bigint,
-  answers: {
-    questionId: bigint;
-    selectedOptionId: bigint;
-  }[],
-) {
-  try {
-    // Bearer token contains User table ID
-    // Fetch actual TradesMan ID using User ID
-    const tradesman = await prisma.tradesMan.findUnique({
-      where: {
-        userId,
-      },
-      select: {
-        id: true,
-        userId: true,
-      },
-    });
-
-    if (!tradesman) {
       throw new CustomError(
-        "Tradesman not found",
-        404,
-        "Tradesman profile does not exist",
+        "Failed to fetch current questions",
+        500,
+        error.message,
       );
     }
+  }
 
-    // QuizAttempt and Certificate use TradesMan.id
-    const tradesmanId = tradesman.id;
+  async submitAllAnswersService(
+    attemptId: bigint,
+    userId: bigint,
+    answers: {
+      questionId: bigint;
+      selectedOptionId: bigint;
+    }[],
+  ) {
+    try {
+      // Bearer token contains User table ID
+      // Fetch actual TradesMan ID using User ID
+      const tradesman = await prisma.tradesMan.findUnique({
+        where: {
+          userId,
+        },
+        select: {
+          id: true,
+          userId: true,
+        },
+      });
 
-    // StartQuiz API removed:
-    // attemptId parameter contains Questionnaire ID
-    const questionnaireId = attemptId;
+      if (!tradesman) {
+        throw new CustomError(
+          "Tradesman not found",
+          404,
+          "Tradesman profile does not exist",
+        );
+      }
 
-    return await prisma.$transaction(
-      async (tx) => {
-        // 1. Verify enrollment
-        // Enrollment.tradesmanId references TradesMan.userId
-        const enrollment =
-          await tx.questionnaireEnrollment.findFirst({
+      // QuizAttempt and Certificate use TradesMan.id
+      const tradesmanId = tradesman.id;
+
+      // StartQuiz API removed:
+      // attemptId parameter contains Questionnaire ID
+      const questionnaireId = attemptId;
+
+      return await prisma.$transaction(
+        async (tx) => {
+          // 1. Verify enrollment
+          // Enrollment.tradesmanId references TradesMan.userId
+          const enrollment = await tx.questionnaireEnrollment.findFirst({
             where: {
               questionnaireId,
               tradesmanId: userId,
@@ -822,411 +784,417 @@ async submitAllAnswersService(
             },
           });
 
-        if (!enrollment) {
-          throw new CustomError(
-            "Quiz attempt not found",
-            404,
-            "Invalid attempt ID",
+          if (!enrollment) {
+            throw new CustomError(
+              "Quiz attempt not found",
+              404,
+              "Invalid attempt ID",
+            );
+          }
+
+          // 2. Fetch all questions
+          const questions = await tx.question.findMany({
+            where: {
+              questionnaireId: enrollment.questionnaireId,
+            },
+            include: {
+              options: true,
+            },
+            orderBy: {
+              sortOrder: "asc",
+            },
+          });
+
+          if (questions.length === 0) {
+            throw new CustomError(
+              "Questions not found",
+              404,
+              "No questions available",
+            );
+          }
+
+          // 3. All questions must be answered
+          if (!Array.isArray(answers) || answers.length !== questions.length) {
+            throw new CustomError(
+              "Incomplete answers",
+              400,
+              `All ${questions.length} questions must be answered`,
+            );
+          }
+
+          const answerMap = new Map(
+            answers.map((answer) => [
+              answer.questionId.toString(),
+              answer.selectedOptionId,
+            ]),
           );
-        }
 
-        // 2. Fetch all questions
-        const questions = await tx.question.findMany({
-          where: {
-            questionnaireId: enrollment.questionnaireId,
-          },
-          include: {
-            options: true,
-          },
-          orderBy: {
-            sortOrder: "asc",
-          },
-        });
+          if (answerMap.size !== answers.length) {
+            throw new CustomError(
+              "Duplicate questions",
+              400,
+              "Each question must be answered only once",
+            );
+          }
 
-        if (questions.length === 0) {
-          throw new CustomError(
-            "Questions not found",
-            404,
-            "No questions available",
-          );
-        }
-
-        // 3. All questions must be answered
-        if (
-          !Array.isArray(answers) ||
-          answers.length !== questions.length
-        ) {
-          throw new CustomError(
-            "Incomplete answers",
-            400,
-            `All ${questions.length} questions must be answered`,
-          );
-        }
-
-        const answerMap = new Map(
-          answers.map((answer) => [
-            answer.questionId.toString(),
-            answer.selectedOptionId,
-          ]),
-        );
-
-        if (answerMap.size !== answers.length) {
-          throw new CustomError(
-            "Duplicate questions",
-            400,
-            "Each question must be answered only once",
-          );
-        }
-
-        // 4. Fetch latest attempt for this questionnaire
-        // QuizAttempt.tradesmanId references TradesMan.id
-        const latestAttempt = await tx.quizAttempt.findFirst({
-          where: {
-            questionnaireId,
-            tradesmanId,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
-
-        // Preserve completed/re-watch states
-        if (
-          latestAttempt &&
-          latestAttempt.status !== "IN_PROGRESS" &&
-          latestAttempt.status !== "REWATCH_REQUIRED"
-        ) {
-          throw new CustomError(
-            "Quiz is not in progress",
-            400,
-            latestAttempt.status,
-          );
-        }
-
-        if (latestAttempt?.status === "REWATCH_REQUIRED") {
-          throw new CustomError(
-            "Video rewatch required",
-            400,
-            "Rewatch the video before retrying the quiz",
-          );
-        }
-
-        // 5. StartQuiz API removed:
-        // Create attempt automatically if none exists
-        const attempt =
-          latestAttempt ??
-          (await tx.quizAttempt.create({
-            data: {
-              uuid: uuidv4(),
+          // 4. Fetch latest attempt for this questionnaire
+          // QuizAttempt.tradesmanId references TradesMan.id
+          const latestAttempt = await tx.quizAttempt.findFirst({
+            where: {
               questionnaireId,
               tradesmanId,
-              status: "IN_PROGRESS",
-              totalQuestions: questions.length,
-              correctAnswers: 0,
-              wrongAnswerCount: 0,
-              score: 0,
-              currentQuestion: questions[0].sortOrder,
-              currentQuestionStartedAt: new Date(),
             },
-          }));
+            orderBy: {
+              createdAt: "desc",
+            },
+          });
 
-        if (attempt.status !== "IN_PROGRESS") {
-          throw new CustomError(
-            "Quiz is not in progress",
-            400,
-            attempt.status,
-          );
-        }
-
-        // 6. Check previously submitted answers
-        const existingAnswers = await tx.quizAnswer.count({
-          where: {
-            attemptId: attempt.id,
-          },
-        });
-
-        if (existingAnswers > 0) {
-          throw new CustomError(
-            "Answers already submitted",
-            409,
-            "This attempt already has submitted answers",
-          );
-        }
-
-        let wrongAnswerCount = attempt.wrongAnswerCount;
-        let correctAnswers = attempt.correctAnswers;
-
-        const answerResults: {
-          questionId: string;
-          selectedOptionId: string;
-          isCorrect: boolean;
-        }[] = [];
-
-        // 7. Validate and save all answers
-        for (const question of questions) {
-          const selectedOptionId = answerMap.get(
-            question.id.toString(),
-          );
-
-          if (selectedOptionId === undefined) {
+          // Preserve completed/re-watch states
+          if (
+            latestAttempt &&
+            latestAttempt.status !== "IN_PROGRESS" &&
+            latestAttempt.status !== "REWATCH_REQUIRED"
+          ) {
             throw new CustomError(
-              "Missing answer",
+              "Quiz is not in progress",
               400,
-              `Answer missing for question ${question.id}`,
+              latestAttempt.status,
             );
           }
 
-          const selectedOption = question.options.find(
-            (option) => option.id === selectedOptionId,
-          );
-
-          if (!selectedOption) {
+          if (latestAttempt?.status === "REWATCH_REQUIRED") {
             throw new CustomError(
-              "Invalid option",
+              "Video rewatch required",
               400,
-              `Invalid option for question ${question.id}`,
+              "Rewatch the video before retrying the quiz",
             );
           }
 
-          // Backend determines correctness
-          const isCorrect = selectedOption.isCorrect === true;
+          // 5. StartQuiz API removed:
+          // Create attempt automatically if none exists
+          const attempt =
+            latestAttempt ??
+            (await tx.quizAttempt.create({
+              data: {
+                uuid: uuidv4(),
+                questionnaireId,
+                tradesmanId,
+                status: "IN_PROGRESS",
+                totalQuestions: questions.length,
+                correctAnswers: 0,
+                wrongAnswerCount: 0,
+                score: 0,
+                currentQuestion: questions[0].sortOrder,
+                currentQuestionStartedAt: new Date(),
+              },
+            }));
 
-          if (isCorrect) {
-            correctAnswers++;
-          } else {
-            wrongAnswerCount++;
+          if (attempt.status !== "IN_PROGRESS") {
+            throw new CustomError(
+              "Quiz is not in progress",
+              400,
+              attempt.status,
+            );
           }
 
-          await tx.quizAnswer.create({
-            data: {
+          // 6. Check previously submitted answers
+          const existingAnswers = await tx.quizAnswer.count({
+            where: {
               attemptId: attempt.id,
-              questionId: question.id,
-              selectedOptionId,
-              isCorrect,
-              wasTimedOut: false,
             },
           });
 
-          answerResults.push({
-            questionId: question.id.toString(),
-            selectedOptionId: selectedOptionId.toString(),
-            isCorrect,
-          });
-        }
+          if (existingAnswers > 0) {
+            throw new CustomError(
+              "Answers already submitted",
+              409,
+              "This attempt already has submitted answers",
+            );
+          }
 
-        // 8. Two wrong answers require video rewatch
-        if (wrongAnswerCount >= 2) {
-          await tx.quizAttempt.update({
+          let wrongAnswerCount = attempt.wrongAnswerCount;
+          let correctAnswers = attempt.correctAnswers;
+
+          const answerResults: {
+            questionId: string;
+            selectedOptionId: string;
+            isCorrect: boolean;
+          }[] = [];
+
+          // 7. Validate and save all answers
+          for (const question of questions) {
+            const selectedOptionId = answerMap.get(question.id.toString());
+
+            if (selectedOptionId === undefined) {
+              throw new CustomError(
+                "Missing answer",
+                400,
+                `Answer missing for question ${question.id}`,
+              );
+            }
+
+            const selectedOption = question.options.find(
+              (option) => option.id === selectedOptionId,
+            );
+
+            if (!selectedOption) {
+              throw new CustomError(
+                "Invalid option",
+                400,
+                `Invalid option for question ${question.id}`,
+              );
+            }
+
+            // Backend determines correctness
+            const isCorrect = selectedOption.isCorrect === true;
+
+            if (isCorrect) {
+              correctAnswers++;
+            } else {
+              wrongAnswerCount++;
+            }
+
+            await tx.quizAnswer.create({
+              data: {
+                attemptId: attempt.id,
+                questionId: question.id,
+                selectedOptionId,
+                isCorrect,
+                wasTimedOut: false,
+              },
+            });
+
+            answerResults.push({
+              questionId: question.id.toString(),
+              selectedOptionId: selectedOptionId.toString(),
+              isCorrect,
+            });
+          }
+
+          // 8. Two wrong answers require video rewatch
+          if (wrongAnswerCount >= 2) {
+            await tx.quizAttempt.update({
+              where: {
+                id: attempt.id,
+              },
+              data: {
+                wrongAnswerCount,
+                correctAnswers,
+                status: "REWATCH_REQUIRED",
+              },
+            });
+
+            return {
+              message:
+                "Two wrong answers recorded. Rewatch the video to retry.",
+              data: {
+                status: "REWATCH_REQUIRED",
+                correctAnswers,
+                wrongAnswerCount,
+                totalQuestions: attempt.totalQuestions,
+                answers: answerResults,
+              },
+            };
+          }
+
+          // 9. Calculate score
+          const totalQuestions = attempt.totalQuestions;
+
+          const score =
+            totalQuestions > 0
+              ? Number(((correctAnswers / totalQuestions) * 100).toFixed(2))
+              : 0;
+
+          const passingScore = 70;
+
+          const status = score >= passingScore ? "PASSED" : "FAILED";
+
+          // 10. Complete attempt
+          const completedAttempt = await tx.quizAttempt.update({
             where: {
               id: attempt.id,
             },
             data: {
               wrongAnswerCount,
               correctAnswers,
-              status: "REWATCH_REQUIRED",
+              currentQuestion: questions[questions.length - 1].sortOrder,
+              score,
+              status,
+              completedAt: new Date(),
             },
           });
 
+          // 11. Generate certificate record if passed
+          let certificate = null;
+
+          if (status === "PASSED") {
+            certificate = await tx.certificate.create({
+              data: {
+                uuid: uuidv4(),
+                certificateNo: `CERT-${uuidv4()}`,
+                attemptId: attempt.id,
+                questionnaireId: attempt.questionnaireId,
+                tradesmanId,
+              },
+            });
+          }
+
+          let certificateTemplateUrl: string | null = null;
+
+          if (certificate) {
+            const questionnaire = await tx.questionnaire.findUnique({
+              where: {
+                id: questionnaireId,
+              },
+              select: {
+                certificateTemplateUrl: true,
+              },
+            });
+
+            certificateTemplateUrl = questionnaire?.certificateTemplateUrl
+              ? await generateReadUrl(questionnaire.certificateTemplateUrl)
+              : null;
+          }
+
+          let certificatethumbnailUrl: string | null = null;
+
+          if (certificate) {
+            const questionnaire = await tx.questionnaire.findUnique({
+              where: {
+                id: questionnaireId,
+              },
+              select: {
+                certificateThumbnailUrl: true,
+              },
+            });
+
+            certificatethumbnailUrl = questionnaire?.certificateThumbnailUrl
+              ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+              : null;
+          }
+
+          // 12. Existing response unchanged
           return {
             message:
-              "Two wrong answers recorded. Rewatch the video to retry.",
+              status === "PASSED"
+                ? "Quiz passed and certificate record created"
+                : "Quiz completed but failed",
             data: {
-              status: "REWATCH_REQUIRED",
+              status: completedAttempt.status,
+              score: completedAttempt.score,
               correctAnswers,
               wrongAnswerCount,
-              totalQuestions: attempt.totalQuestions,
+              totalQuestions,
               answers: answerResults,
+              certificate: certificate
+                ? {
+                    id: certificate.id.toString(),
+                    certificateNo: certificate.certificateNo,
+                    certificateUrl: certificate.certificateUrl,
+
+                    certificateTemplateUrl,
+                    certificateThumbnailUrl: certificatethumbnailUrl,
+                    issuedAt: certificate.issuedAt,
+                  }
+                : null,
             },
           };
-        }
+        },
+        {
+          maxWait: 10000,
+          timeout: 15000,
+        },
+      );
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
 
-        // 9. Calculate score
-        const totalQuestions = attempt.totalQuestions;
+      if (error.code === "P2002") {
+        throw new CustomError(
+          "Question already answered",
+          409,
+          "An answer has already been submitted",
+        );
+      }
 
-        const score =
-          totalQuestions > 0
-            ? Number(
-                (
-                  (correctAnswers / totalQuestions) *
-                  100
-                ).toFixed(2),
-              )
-            : 0;
-
-        const passingScore = 70;
-
-        const status =
-          score >= passingScore ? "PASSED" : "FAILED";
-
-        // 10. Complete attempt
-        const completedAttempt = await tx.quizAttempt.update({
-          where: {
-            id: attempt.id,
-          },
-          data: {
-            wrongAnswerCount,
-            correctAnswers,
-            currentQuestion:
-              questions[questions.length - 1].sortOrder,
-            score,
-            status,
-            completedAt: new Date(),
-          },
-        });
-
-        // 11. Generate certificate record if passed
-        let certificate = null;
-
-        if (status === "PASSED") {
-          certificate = await tx.certificate.create({
-            data: {
-              uuid: uuidv4(),
-              certificateNo: `CERT-${uuidv4()}`,
-              attemptId: attempt.id,
-              questionnaireId: attempt.questionnaireId,
-              tradesmanId,
-            },
-          });
-        }
-
-      let certificateTemplateUrl: string | null = null;
-
-        if (certificate) {
-          const questionnaire = await tx.questionnaire.findUnique({
-            where: {
-              id: questionnaireId,
-            },
-            select: {
-              certificateTemplateUrl: true,
-            },
-          });
-
-          certificateTemplateUrl =
-            questionnaire?.certificateTemplateUrl
-              ? await generateReadUrl(
-                  questionnaire.certificateTemplateUrl,
-                )
-              : null;
-        }
-
-        // 12. Existing response unchanged
-        return {
-          message:
-            status === "PASSED"
-              ? "Quiz passed and certificate record created"
-              : "Quiz completed but failed",
-          data: {
-            status: completedAttempt.status,
-            score: completedAttempt.score,
-            correctAnswers,
-            wrongAnswerCount,
-            totalQuestions,
-            answers: answerResults,
-            certificate: certificate
-              ? {
-                  id: certificate.id.toString(),
-                  certificateNo: certificate.certificateNo,
-                  certificateUrl: certificate.certificateUrl,
-                  certificateTemplateUrl,
-                  issuedAt: certificate.issuedAt,
-                }
-              : null,
-          },
-        };
-      },
-      {
-        maxWait: 10000,
-        timeout: 15000,
-      },
-    );
-  } catch (error: any) {
-    if (error instanceof CustomError) throw error;
-
-    if (error.code === "P2002") {
       throw new CustomError(
-        "Question already answered",
-        409,
-        "An answer has already been submitted",
+        "Failed to submit answers",
+        500,
+        error instanceof Error ? error.message : "Unknown error",
       );
     }
-
-    throw new CustomError(
-      "Failed to submit answers",
-      500,
-      error instanceof Error ? error.message : "Unknown error",
-    );
   }
-}
 
-
-
-
-
-async getCertificatesService(tradesmanId: bigint) {
-  try {
-    const certificates = await prisma.certificate.findMany({
-      where: { tradesmanId },
-      include: {
-        questionnaire: {
-          select: {
-            id: true,
-            testName: true,
-            certificateTemplateUrl: true,
+  async getCertificatesService(tradesmanId: bigint) {
+    try {
+      const certificates = await prisma.certificate.findMany({
+        where: { tradesmanId },
+        include: {
+          questionnaire: {
+            select: {
+              id: true,
+              testName: true,
+              description: true,
+              certificateTemplateUrl: true,
+              certificateThumbnailUrl: true,
+            },
+          },
+          attempt: {
+            select: {
+              score: true,
+              correctAnswers: true,
+              totalQuestions: true,
+              completedAt: true,
+              status: true,
+            },
           },
         },
-        attempt: {
-          select: {
-            score: true,
-            correctAnswers: true,
-            totalQuestions: true,
-            completedAt: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: { issuedAt: "desc" },
-    });
+        orderBy: { issuedAt: "desc" },
+      });
 
-    const data = await Promise.all(
-      certificates.map(async (certificate) => {
-        const certificateTemplateUrl =
-          certificate.questionnaire.certificateTemplateUrl
+      const data = await Promise.all(
+        certificates.map(async (certificate) => {
+          const certificateTemplateUrl = certificate.questionnaire
+            .certificateTemplateUrl
             ? await generateReadUrl(
                 certificate.questionnaire.certificateTemplateUrl,
               )
             : null;
 
-        return {
-          id: certificate.id.toString(),
-          uuid: certificate.uuid,
-          certificateNo: certificate.certificateNo,
-          certificateUrl: certificate.certificateUrl,
-          issuedAt: certificate.issuedAt,
-          questionnaire: {
-            ...certificate.questionnaire,
-            id: certificate.questionnaire.id.toString(),
-            certificateTemplateUrl,
-          },
-          quizResult: certificate.attempt,
-        };
-      }),
-    );
+          const certificateThumbnailUrl = certificate.questionnaire
+            .certificateThumbnailUrl
+            ? await generateReadUrl(
+                certificate.questionnaire.certificateThumbnailUrl,
+              )
+            : null;
 
-    return {
-      message: "Certificates fetched successfully",
-      data,
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) throw error;
+          return {
+            id: certificate.id.toString(),
+            uuid: certificate.uuid,
+            description: certificate.questionnaire.description,
+            certificateNo: certificate.certificateNo,
+            certificateUrl: certificate.certificateUrl,
+            issuedAt: certificate.issuedAt,
+            questionnaire: {
+              ...certificate.questionnaire,
+              id: certificate.questionnaire.id.toString(),
+              certificateTemplateUrl,
+              certificateThumbnailUrl,
+            },
+            quizResult: certificate.attempt,
+          };
+        }),
+      );
 
-    throw new CustomError(
-      "Failed to fetch certificates",
-      500,
-      error.message,
-    );
+      return {
+        message: "Certificates fetched successfully",
+        data,
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
+
+      throw new CustomError("Failed to fetch certificates", 500, error.message);
+    }
   }
-}
-
 
   async enrollQuestionnaireService(
     questionnaireId: bigint,
@@ -1329,7 +1297,7 @@ async getCertificatesService(tradesmanId: bigint) {
 
           attempts: {
             where: {
-              tradesmanId:tradesman.id,
+              tradesmanId: tradesman.id,
             },
 
             orderBy: {
@@ -1366,11 +1334,12 @@ async getCertificatesService(tradesmanId: bigint) {
 
       const videoUrl = videoKey ? await generateReadUrl(videoKey) : null;
 
-          const certificateTemplateUrl =
-      fullQuestionnaire.certificateTemplateUrl
-        ? await generateReadUrl(
-            fullQuestionnaire.certificateTemplateUrl,
-          )
+      const certificateTemplateUrl = fullQuestionnaire.certificateTemplateUrl
+        ? await generateReadUrl(fullQuestionnaire.certificateTemplateUrl)
+        : null;
+
+      const certificateThumbnailUrl = fullQuestionnaire.certificateThumbnailUrl
+        ? await generateReadUrl(fullQuestionnaire.certificateThumbnailUrl)
         : null;
 
       // 5. Get latest attempt
@@ -1394,10 +1363,13 @@ async getCertificatesService(tradesmanId: bigint) {
           ...questionnaireData,
 
           id: fullQuestionnaire.id.toString(),
+          descreption: fullQuestionnaire.description,
 
           videoKey,
           videoUrl,
-certificateTemplateUrl,
+          certificateTemplateUrl,
+
+          certificateThumbnailUrl,
           questionsCount: _count.questions,
 
           questions: questions.map((question: any) => ({
@@ -1450,10 +1422,48 @@ certificateTemplateUrl,
 
   async getCertificateByIdService(certificateId: bigint, tradesmanId: bigint) {
     try {
+      // ======================================================
+      // 1. FETCH AUTHENTICATED USER
+      // ======================================================
+
+      const tradesman = await prisma.user.findUnique({
+        where: {
+          id: tradesmanId,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          tradesman: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      if (!tradesman || !tradesman.tradesman) {
+        throw new CustomError(
+          "Tradesman not found",
+          404,
+          "The specified tradesman does not exist",
+        );
+      }
+
+      // ======================================================
+      // 2. ACTUAL TRADESMAN ID
+      // ======================================================
+
+      const actualTradesmanId = tradesman.tradesman.id;
+
+      // ======================================================
+      // 3. FETCH CERTIFICATE
+      // ======================================================
+
       const certificate = await prisma.certificate.findFirst({
         where: {
           id: certificateId,
-          tradesmanId,
+          tradesmanId: actualTradesmanId,
           attempt: {
             status: "PASSED",
           },
@@ -1463,7 +1473,9 @@ certificateTemplateUrl,
             select: {
               id: true,
               testName: true,
+              description: true,
               certificateTemplateUrl: true,
+              certificateThumbnailUrl: true,
             },
           },
           attempt: {
@@ -1486,31 +1498,113 @@ certificateTemplateUrl,
         );
       }
 
-         const certificateTemplateUrl =
-      certificate.questionnaire.certificateTemplateUrl
+      // ======================================================
+      // 4. CERTIFICATE TEMPLATE S3 URL
+      // ======================================================
+
+      const certificateTemplateUrl = certificate.questionnaire
+        .certificateTemplateUrl
         ? await generateReadUrl(
             certificate.questionnaire.certificateTemplateUrl,
           )
         : null;
 
+      const certificateThumbnailUrl = certificate.questionnaire
+        .certificateThumbnailUrl
+        ? await generateReadUrl(
+            certificate.questionnaire.certificateThumbnailUrl,
+          )
+        : null;
+
+      // ======================================================
+      // 5. GENERATE CERTIFICATE IMAGE
+      // ======================================================
+
+      const certificateImage = await certificateImageGenerator({
+        tradesmanName: tradesman.name,
+        email: tradesman.email,
+      });
+
+      if (!certificateImage || certificateImage.length === 0) {
+        throw new Error("Certificate image generation failed");
+      }
+
+      // ======================================================
+      // 6. UPLOADS FOLDER
+      // ======================================================
+
+      const uploadsPath = path.join(process.cwd(), "uploads");
+
+      if (!fs.existsSync(uploadsPath)) {
+        fs.mkdirSync(uploadsPath, {
+          recursive: true,
+        });
+      }
+
+      // ======================================================
+      // 7. FILE NAME
+      // ======================================================
+
+      const fileName = `certificate-${certificate.id.toString()}.png`;
+
+      const imagePath = path.join(uploadsPath, fileName);
+
+      // ======================================================
+      // 8. SAVE CERTIFICATE IMAGE
+      // ======================================================
+
+      fs.writeFileSync(imagePath, certificateImage);
+
+      // ======================================================
+      // 9. SERVER URL
+      // ======================================================
+
+      const SERVER_URL = process.env.SERVER_URL || "http://50.19.99.226:3001";
+
+      // ======================================================
+      // 10. CERTIFICATE IMAGE URL
+      // ======================================================
+
+      const certificateImageUrl = `${SERVER_URL}/uploads/${fileName}`;
+
+      // ======================================================
+      // 11. RESPONSE
+      // ======================================================
+
       return {
         message: "Certificate fetched successfully",
+
         data: {
           id: certificate.id.toString(),
           uuid: certificate.uuid,
+          description: certificate.questionnaire.description,
           certificateNo: certificate.certificateNo,
+
           certificateUrl: certificate.certificateUrl,
+
+          certificateImage: certificateImageUrl,
+          certificateThumbnailUrl: certificateThumbnailUrl,
+
           issuedAt: certificate.issuedAt,
+
+          tradesmanName: tradesman.name,
+          email: tradesman.email,
+
           questionnaire: {
             ...certificate.questionnaire,
             id: certificate.questionnaire.id.toString(),
-            certificateTemplateUrl
+            certificateTemplateUrl,
           },
+
           quizResult: certificate.attempt,
         },
       };
     } catch (error: any) {
-      if (error instanceof CustomError) throw error;
+      console.error("❌ GET CERTIFICATE ERROR:", error);
+
+      if (error instanceof CustomError) {
+        throw error;
+      }
 
       throw new CustomError("Failed to fetch certificate", 500, error.message);
     }

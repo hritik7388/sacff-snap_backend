@@ -47,6 +47,21 @@ class tradesManServices {
                 if (!["ALL", "INCOMPLETE", "COMPLETED"].includes(filter)) {
                     throw new customError_1.CustomError("Invalid filter", 400, "Filter must be ALL, INCOMPLETE, or COMPLETED");
                 }
+                // FIX 1:
+                // tradesmanId parameter contains User.id from Bearer Token.
+                // Fetch actual TradesMan.id for QuizAttempt queries.
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: {
+                        userId: tradesmanId,
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                if (!tradesman) {
+                    throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
+                }
+                const actualTradesmanId = tradesman.id;
                 // 1. Fetch ALL ACTIVE questionnaires
                 // Enrollment filtering is done below for this Tradesman.
                 const questionnaires = yield prismaClient_1.default.questionnaire.findMany({
@@ -70,12 +85,11 @@ class tradesManServices {
                         },
                         attempts: {
                             where: {
-                                tradesmanId,
+                                // FIX 2:
+                                // QuizAttempt.tradesmanId references TradesMan.id
+                                tradesmanId: actualTradesmanId,
                             },
-                            orderBy: [
-                                { startedAt: "desc" },
-                                { createdAt: "desc" },
-                            ],
+                            orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
                             take: 1,
                             select: {
                                 id: true,
@@ -93,6 +107,7 @@ class tradesManServices {
                         },
                         enrollments: {
                             where: {
+                                // Enrollment.tradesmanId stores User.id
                                 tradesmanId,
                             },
                             select: {
@@ -120,6 +135,9 @@ class tradesManServices {
                     const videoUrl = quiz.videoUrl
                         ? yield (0, utils_1.generateReadUrl)(quiz.videoUrl)
                         : null;
+                    const certificateTemplateUrl = quiz.certificateTemplateUrl
+                        ? yield (0, utils_1.generateReadUrl)(quiz.certificateTemplateUrl)
+                        : null;
                     return {
                         id: quiz.id.toString(),
                         uuid: quiz.uuid,
@@ -127,7 +145,7 @@ class tradesManServices {
                         description: quiz.description,
                         videoKey: quiz.videoUrl,
                         videoUrl,
-                        certificateTemplateUrl: quiz.certificateTemplateUrl,
+                        certificateTemplateUrl,
                         status: quiz.status,
                         totalQuestions: quiz._count.questions,
                         isEnrolled,
@@ -163,26 +181,21 @@ class tradesManServices {
                             break;
                         case "INCOMPLETE":
                             matchesFilter =
-                                quiz.isEnrolled &&
-                                    quiz.questionnaireProgress !== "COMPLETED";
+                                quiz.isEnrolled && quiz.questionnaireProgress !== "COMPLETED";
                             break;
                         case "COMPLETED":
-                            matchesFilter =
-                                quiz.questionnaireProgress === "COMPLETED";
+                            matchesFilter = quiz.questionnaireProgress === "COMPLETED";
                             break;
                     }
-                    const matchesSearch = !searchTerm ||
-                        quiz.testName.toLowerCase().includes(searchTerm);
+                    const matchesSearch = !searchTerm || quiz.testName.toLowerCase().includes(searchTerm);
                     return matchesFilter && matchesSearch;
                 });
                 // 4. RECENT:
                 // Always the latest 3 INCOMPLETE questionnaires,
                 // regardless of selected filter.
                 const recent = mappedQuestionnaires
-                    .filter((quiz) => quiz.isEnrolled &&
-                    quiz.questionnaireProgress === "INCOMPLETE")
-                    .sort((a, b) => new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime())
+                    .filter((quiz) => quiz.isEnrolled && quiz.questionnaireProgress === "INCOMPLETE")
+                    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
                     .slice(0, 3);
                 // 5. Pagination
                 const total = filteredQuestionnaires.length;
@@ -220,15 +233,14 @@ class tradesManServices {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw new customError_1.CustomError("Failed to fetch questionnaires", 500, error instanceof Error
-                    ? error.message
-                    : "Unknown error");
+                throw new customError_1.CustomError("Failed to fetch questionnaires", 500, error instanceof Error ? error.message : "Unknown error");
             }
         });
     }
-    getQuestionnaireByIdForTradesmanServices(id) {
+    getQuestionnaireByIdForTradesmanServices(userId, id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                // 1. Fetch questionnaire
                 const questionnaire = yield prismaClient_1.default.questionnaire.findUnique({
                     where: { id },
                     include: {
@@ -247,18 +259,28 @@ class tradesManServices {
                 if (!questionnaire) {
                     throw new customError_1.CustomError("Questionnaire not found", 404, "No questionnaire found with this ID");
                 }
-                // Check whether this questionnaire has been enrolled
+                // 2. Check enrollment for CURRENT logged-in user only
+                // QuestionnaireEnrollment.tradesmanId references TradesMan.userId
                 const enrollmentCount = yield prismaClient_1.default.questionnaireEnrollment.count({
                     where: {
                         questionnaireId: id,
+                        tradesmanId: userId,
+                        isEnrolled: true,
                     },
                 });
+                // 3. Generate video presigned URL
                 const videoUrl = questionnaire.videoUrl
                     ? yield (0, utils_1.generateReadUrl)(questionnaire.videoUrl)
                     : null;
+                // 4. Generate certificate template presigned URL
+                const certificateTemplateUrl = questionnaire.certificateTemplateUrl
+                    ? yield (0, utils_1.generateReadUrl)(questionnaire.certificateTemplateUrl)
+                    : null;
+                // 5. Existing response structure unchanged
                 return {
                     message: "Questionnaire fetched successfully",
-                    data: Object.assign(Object.assign({}, questionnaire), { id: questionnaire.id.toString(), videoKey: questionnaire.videoUrl, videoUrl, questionsCount: questionnaire._count.questions, isEnrolled: enrollmentCount > 0, enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED" }),
+                    data: Object.assign(Object.assign({}, questionnaire), { id: questionnaire.id.toString(), videoKey: questionnaire.videoUrl, videoUrl,
+                        certificateTemplateUrl, questionsCount: questionnaire._count.questions, isEnrolled: enrollmentCount > 0, enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED" }),
                 };
             }
             catch (error) {
@@ -391,15 +413,16 @@ class tradesManServices {
             }
         });
     }
-    getCurrentQuestionService(attemptId, tradesmanId) {
+    getCurrentQuestionService(attemptId, userId) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;
             try {
-                // attemptId parameter now contains Enrollment ID
+                // attemptId parameter contains Questionnaire ID
+                // 1. Verify enrollment using User ID
                 const enrollment = yield prismaClient_1.default.questionnaireEnrollment.findFirst({
                     where: {
                         questionnaireId: attemptId,
-                        tradesmanId,
+                        tradesmanId: userId,
                         isEnrolled: true,
                     },
                     select: {
@@ -409,7 +432,7 @@ class tradesManServices {
                 if (!enrollment) {
                     throw new customError_1.CustomError("Quiz attempt not found", 404, "Invalid attempt ID");
                 }
-                // Fetch questionnaire details
+                // 2. Fetch questionnaire details
                 const questionnaire = yield prismaClient_1.default.questionnaire.findUnique({
                     where: {
                         id: enrollment.questionnaireId,
@@ -423,7 +446,7 @@ class tradesManServices {
                 if (!questionnaire) {
                     throw new customError_1.CustomError("Questionnaire not found", 404, "Questionnaire does not exist");
                 }
-                // Fetch ALL questions with their options
+                // 3. Fetch ALL questions with their options
                 const questions = yield prismaClient_1.default.question.findMany({
                     where: {
                         questionnaireId: enrollment.questionnaireId,
@@ -438,11 +461,24 @@ class tradesManServices {
                 if (questions.length === 0) {
                     throw new customError_1.CustomError("Questions not found", 404, "No questions available for this questionnaire");
                 }
-                // Get latest quiz attempt if available
+                // 4. Fetch actual TradesMan ID for QuizAttempt
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: {
+                        userId,
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                if (!tradesman) {
+                    throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
+                }
+                // 5. Get latest quiz attempt if available
+                // QuizAttempt.tradesmanId references TradesMan.id
                 const attempt = yield prismaClient_1.default.quizAttempt.findFirst({
                     where: {
                         questionnaireId: enrollment.questionnaireId,
-                        tradesmanId,
+                        tradesmanId: tradesman.id,
                     },
                     orderBy: {
                         createdAt: "desc",
@@ -452,11 +488,12 @@ class tradesManServices {
                     ? questions.find((question) => question.sortOrder === attempt.currentQuestion)
                     : questions[0];
                 const startedAt = attempt
-                    ? (_a = attempt.currentQuestionStartedAt) !== null && _a !== void 0 ? _a : attempt.startedAt
+                    ? ((_a = attempt.currentQuestionStartedAt) !== null && _a !== void 0 ? _a : attempt.startedAt)
                     : null;
                 const elapsedSeconds = startedAt
                     ? Math.floor((Date.now() - startedAt.getTime()) / 1000)
                     : 0;
+                // 6. Return existing response unchanged
                 return {
                     message: "Current question fetched successfully",
                     data: {
@@ -479,9 +516,7 @@ class tradesManServices {
                                 createdAt: option.createdAt.toISOString(),
                             })),
                         })),
-                        currentQuestion: attempt
-                            ? attempt.currentQuestion + 1
-                            : 1,
+                        currentQuestion: attempt ? attempt.currentQuestion + 1 : 1,
                         totalQuestions: questions.length,
                         remainingSeconds: currentQuestion
                             ? Math.max(0, currentQuestion.timeLimitSeconds - elapsedSeconds)
@@ -500,27 +535,31 @@ class tradesManServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 // Bearer token contains User table ID
-                const tradesman = yield prismaClient_1.default.user.findUnique({
+                // Fetch actual TradesMan ID using User ID
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
                     where: {
-                        id: userId,
+                        userId,
                     },
                     select: {
                         id: true,
+                        userId: true,
                     },
                 });
                 if (!tradesman) {
                     throw new customError_1.CustomError("Tradesman not found", 404, "Tradesman profile does not exist");
                 }
-                const tradesmanId = userId;
-                // Same as getCurrentQuestionService:
-                // attemptId parameter now contains Questionnaire ID
+                // QuizAttempt and Certificate use TradesMan.id
+                const tradesmanId = tradesman.id;
+                // StartQuiz API removed:
+                // attemptId parameter contains Questionnaire ID
                 const questionnaireId = attemptId;
                 return yield prismaClient_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
                     // 1. Verify enrollment
+                    // Enrollment.tradesmanId references TradesMan.userId
                     const enrollment = yield tx.questionnaireEnrollment.findFirst({
                         where: {
                             questionnaireId,
-                            tradesmanId,
+                            tradesmanId: userId,
                             isEnrolled: true,
                         },
                         select: {
@@ -547,8 +586,7 @@ class tradesManServices {
                         throw new customError_1.CustomError("Questions not found", 404, "No questions available");
                     }
                     // 3. All questions must be answered
-                    if (!Array.isArray(answers) ||
-                        answers.length !== questions.length) {
+                    if (!Array.isArray(answers) || answers.length !== questions.length) {
                         throw new customError_1.CustomError("Incomplete answers", 400, `All ${questions.length} questions must be answered`);
                     }
                     const answerMap = new Map(answers.map((answer) => [
@@ -559,6 +597,7 @@ class tradesManServices {
                         throw new customError_1.CustomError("Duplicate questions", 400, "Each question must be answered only once");
                     }
                     // 4. Fetch latest attempt for this questionnaire
+                    // QuizAttempt.tradesmanId references TradesMan.id
                     const latestAttempt = yield tx.quizAttempt.findFirst({
                         where: {
                             questionnaireId,
@@ -579,7 +618,7 @@ class tradesManServices {
                     }
                     // 5. StartQuiz API removed:
                     // Create attempt automatically if none exists
-                    const attempt = latestAttempt !== null && latestAttempt !== void 0 ? latestAttempt : yield tx.quizAttempt.create({
+                    const attempt = latestAttempt !== null && latestAttempt !== void 0 ? latestAttempt : (yield tx.quizAttempt.create({
                         data: {
                             uuid: (0, uuid_1.v4)(),
                             questionnaireId,
@@ -592,7 +631,7 @@ class tradesManServices {
                             currentQuestion: questions[0].sortOrder,
                             currentQuestionStartedAt: new Date(),
                         },
-                    });
+                    }));
                     if (attempt.status !== "IN_PROGRESS") {
                         throw new customError_1.CustomError("Quiz is not in progress", 400, attempt.status);
                     }
@@ -667,8 +706,7 @@ class tradesManServices {
                     // 9. Calculate score
                     const totalQuestions = attempt.totalQuestions;
                     const score = totalQuestions > 0
-                        ? Number(((correctAnswers / totalQuestions) *
-                            100).toFixed(2))
+                        ? Number(((correctAnswers / totalQuestions) * 100).toFixed(2))
                         : 0;
                     const passingScore = 70;
                     const status = score >= passingScore ? "PASSED" : "FAILED";
@@ -699,6 +737,20 @@ class tradesManServices {
                             },
                         });
                     }
+                    let certificateTemplateUrl = null;
+                    if (certificate) {
+                        const questionnaire = yield tx.questionnaire.findUnique({
+                            where: {
+                                id: questionnaireId,
+                            },
+                            select: {
+                                certificateTemplateUrl: true,
+                            },
+                        });
+                        certificateTemplateUrl = (questionnaire === null || questionnaire === void 0 ? void 0 : questionnaire.certificateTemplateUrl)
+                            ? yield (0, utils_1.generateReadUrl)(questionnaire.certificateTemplateUrl)
+                            : null;
+                    }
                     // 12. Existing response unchanged
                     return {
                         message: status === "PASSED"
@@ -716,6 +768,7 @@ class tradesManServices {
                                     id: certificate.id.toString(),
                                     certificateNo: certificate.certificateNo,
                                     certificateUrl: certificate.certificateUrl,
+                                    certificateTemplateUrl,
                                     issuedAt: certificate.issuedAt,
                                 }
                                 : null,
@@ -732,7 +785,7 @@ class tradesManServices {
                 if (error.code === "P2002") {
                     throw new customError_1.CustomError("Question already answered", 409, "An answer has already been submitted");
                 }
-                throw new customError_1.CustomError("Failed to submit answers", 500, error.message);
+                throw new customError_1.CustomError("Failed to submit answers", 500, error instanceof Error ? error.message : "Unknown error");
             }
         });
     }
@@ -761,17 +814,24 @@ class tradesManServices {
                     },
                     orderBy: { issuedAt: "desc" },
                 });
-                return {
-                    message: "Certificates fetched successfully",
-                    data: certificates.map((certificate) => ({
+                const data = yield Promise.all(certificates.map((certificate) => __awaiter(this, void 0, void 0, function* () {
+                    const certificateTemplateUrl = certificate.questionnaire
+                        .certificateTemplateUrl
+                        ? yield (0, utils_1.generateReadUrl)(certificate.questionnaire.certificateTemplateUrl)
+                        : null;
+                    return {
                         id: certificate.id.toString(),
                         uuid: certificate.uuid,
                         certificateNo: certificate.certificateNo,
                         certificateUrl: certificate.certificateUrl,
                         issuedAt: certificate.issuedAt,
-                        questionnaire: Object.assign(Object.assign({}, certificate.questionnaire), { id: certificate.questionnaire.id.toString() }),
+                        questionnaire: Object.assign(Object.assign({}, certificate.questionnaire), { id: certificate.questionnaire.id.toString(), certificateTemplateUrl }),
                         quizResult: certificate.attempt,
-                    })),
+                    };
+                })));
+                return {
+                    message: "Certificates fetched successfully",
+                    data,
                 };
             }
             catch (error) {
@@ -887,6 +947,9 @@ class tradesManServices {
                 // 4. Generate video URL from stored S3 key
                 const videoKey = fullQuestionnaire.videoUrl;
                 const videoUrl = videoKey ? yield (0, utils_1.generateReadUrl)(videoKey) : null;
+                const certificateTemplateUrl = fullQuestionnaire.certificateTemplateUrl
+                    ? yield (0, utils_1.generateReadUrl)(fullQuestionnaire.certificateTemplateUrl)
+                    : null;
                 // 5. Get latest attempt
                 const latestAttempt = (_a = fullQuestionnaire.attempts[0]) !== null && _a !== void 0 ? _a : null;
                 // 6. Remove internal fields
@@ -896,7 +959,8 @@ class tradesManServices {
                     success: true,
                     message: "Questionnaire enrolled successfully",
                     data: Object.assign(Object.assign({}, questionnaireData), { id: fullQuestionnaire.id.toString(), videoKey,
-                        videoUrl, questionsCount: _count.questions, questions: questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))), 
+                        videoUrl,
+                        certificateTemplateUrl, questionsCount: _count.questions, questions: questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))), 
                         // Enrollment details
                         enrollment: {
                             id: enrollment.id.toString(),
@@ -922,10 +986,30 @@ class tradesManServices {
     getCertificateByIdService(certificateId, tradesmanId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                // 1. Bearer token se User fetch karo
+                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                    where: {
+                        userId: tradesmanId,
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        tradesman: {
+                            select: {
+                                id: true,
+                            },
+                        },
+                    },
+                });
+                if (!tradesman || !tradesman.tradesman) {
+                    throw new customError_1.CustomError("Tradesman not found", 404, "The specified tradesman does not exist");
+                }
+                // 2. Certificate ko actual TradesMan ID se fetch karo
                 const certificate = yield prismaClient_1.default.certificate.findFirst({
                     where: {
                         id: certificateId,
-                        tradesmanId,
+                        tradesmanId: tradesmanId,
                         attempt: {
                             status: "PASSED",
                         },
@@ -952,6 +1036,14 @@ class tradesManServices {
                 if (!certificate) {
                     throw new customError_1.CustomError("Certificate not found", 404, "Certificate does not exist or does not belong to this tradesman");
                 }
+                const certificateTemplateUrl = certificate.questionnaire
+                    .certificateTemplateUrl
+                    ? yield (0, utils_1.generateReadUrl)(certificate.questionnaire.certificateTemplateUrl)
+                    : null;
+                const certificateImage = yield (0, utils_1.certificateImageGenerator)({
+                    tradesmanName: tradesman.name,
+                    email: tradesman.email,
+                });
                 return {
                     message: "Certificate fetched successfully",
                     data: {
@@ -959,8 +1051,11 @@ class tradesManServices {
                         uuid: certificate.uuid,
                         certificateNo: certificate.certificateNo,
                         certificateUrl: certificate.certificateUrl,
+                        certificateImage: certificateImage.toString("base64"),
                         issuedAt: certificate.issuedAt,
-                        questionnaire: Object.assign(Object.assign({}, certificate.questionnaire), { id: certificate.questionnaire.id.toString() }),
+                        tradesmanName: tradesman.name,
+                        email: tradesman.email,
+                        questionnaire: Object.assign(Object.assign({}, certificate.questionnaire), { id: certificate.questionnaire.id.toString(), certificateTemplateUrl }),
                         quizResult: certificate.attempt,
                     },
                 };

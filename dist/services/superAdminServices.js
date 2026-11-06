@@ -56,6 +56,97 @@ class superAdminServices {
             }
         });
     }
+    generateQuestionnaireImageUploadService(filename, contentType) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const result = yield (0, utils_1.generateImageUploadUrl)(filename, contentType);
+                return {
+                    message: "Image upload URL generated successfully",
+                    data: {
+                        uploadUrl: result.uploadUrl,
+                        imageKey: result.key,
+                        expiresIn: result.expiresIn,
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to generate image upload URL", 500, error.message);
+            }
+        });
+    }
+    deleteQuestionnaireServices(questionnaireId, superAdminId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                // 1. Verify SuperAdmin
+                const superAdmin = yield prismaClient_1.default.user.findFirst({
+                    where: {
+                        id: superAdminId,
+                        user_type: "SUPER_ADMIN",
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                if (!superAdmin) {
+                    throw new customError_1.CustomError("Unauthorized SuperAdmin", 403, "SuperAdmin access required");
+                }
+                // 2. Validate questionnaire ID
+                if (!questionnaireId) {
+                    throw new customError_1.CustomError("Invalid questionnaire ID", 400, "Valid questionnaire ID is required");
+                }
+                // 3. Check questionnaire exists
+                const questionnaire = yield prismaClient_1.default.questionnaire.findUnique({
+                    where: {
+                        id: questionnaireId,
+                    },
+                    select: {
+                        id: true,
+                        uuid: true,
+                        testName: true,
+                    },
+                });
+                if (!questionnaire) {
+                    throw new customError_1.CustomError("Questionnaire not found", 404, "Questionnaire does not exist");
+                }
+                // 4. Delete questionnaire
+                // Requires appropriate ON DELETE CASCADE relations
+                yield prismaClient_1.default.questionnaire.delete({
+                    where: {
+                        id: questionnaireId,
+                    },
+                });
+                // 5. Return response
+                return {
+                    status: 200,
+                    message: "Questionnaire deleted successfully",
+                    data: {
+                        id: questionnaire.id.toString(),
+                        uuid: questionnaire.uuid,
+                        testName: questionnaire.testName,
+                    },
+                };
+            }
+            catch (error) {
+                console.error("DELETE QUESTIONNAIRE ERROR:", {
+                    code: error === null || error === void 0 ? void 0 : error.code,
+                    message: error === null || error === void 0 ? void 0 : error.message,
+                    meta: error === null || error === void 0 ? void 0 : error.meta,
+                });
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                if (error.code === "P2003") {
+                    throw new customError_1.CustomError("Failed to delete questionnaire", 409, "Questionnaire has related records that prevent deletion");
+                }
+                throw new customError_1.CustomError("Failed to delete questionnaire", 500, error.message);
+            }
+        });
+    }
     createQuestionnaireServices(data, superAdminId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
