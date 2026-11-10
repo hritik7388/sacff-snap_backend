@@ -204,13 +204,15 @@ export class SubscriptionServices {
                 stripeCustomerId = customer.id;
             }
 
+            const frontendBaseUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
+
             const successUrl =
                 data.successUrl ||
-                `${process.env.FRONTEND_URL || "https://scaffsnapp.com"}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+                `${frontendBaseUrl}/`;
 
             const cancelUrl =
                 data.cancelUrl ||
-                `${process.env.FRONTEND_URL || "https://scaffsnapp.com"}/pricing?canceled=true`;
+                `${frontendBaseUrl}/pricing?canceled=true`;
 
             // 3. Create Stripe Checkout Session
             const session = await stripe.checkout.sessions.create({
