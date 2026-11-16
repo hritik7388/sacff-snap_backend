@@ -31,6 +31,8 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const uuid_1 = require("uuid");
 const responseMessages_1 = require("../constants/responseMessages");
 const utils_1 = require("../helpers/utils");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 class tradesManServices {
     getAllQuestionnairesForTradesmanServices(tradesmanId_1) {
         return __awaiter(this, arguments, void 0, function* (tradesmanId, filter = "ALL", page = 1, limit = 10, search) {
@@ -75,6 +77,7 @@ class tradesManServices {
                         description: true,
                         videoUrl: true,
                         certificateTemplateUrl: true,
+                        // certificateThumbnailUrl: true,
                         status: true,
                         createdAt: true,
                         updatedAt: true,
@@ -138,6 +141,9 @@ class tradesManServices {
                     const certificateTemplateUrl = quiz.certificateTemplateUrl
                         ? yield (0, utils_1.generateReadUrl)(quiz.certificateTemplateUrl)
                         : null;
+                    // const certificateThumbnailUrl = quiz.certificateThumbnailUrl
+                    //   ? await generateReadUrl(quiz.certificateThumbnailUrl)
+                    //   : null;
                     return {
                         id: quiz.id.toString(),
                         uuid: quiz.uuid,
@@ -146,6 +152,7 @@ class tradesManServices {
                         videoKey: quiz.videoUrl,
                         videoUrl,
                         certificateTemplateUrl,
+                        // certificateThumbnailUrl,
                         status: quiz.status,
                         totalQuestions: quiz._count.questions,
                         isEnrolled,
@@ -202,19 +209,6 @@ class tradesManServices {
                 const totalPages = Math.ceil(total / limit);
                 const skip = (page - 1) * limit;
                 const data = filteredQuestionnaires.slice(skip, skip + limit);
-                // 6. Debug: identify why ALL may be empty
-                console.log("FILTER:", filter);
-                console.log("TRADESMAN ID:", tradesmanId.toString());
-                console.log("ACTIVE QUESTIONNAIRES:", questionnaires.length);
-                console.log("FILTERED RECORDS:", total);
-                console.log("RECENT RECORDS:", recent.length);
-                console.log("PAGE:", page);
-                console.log("QUESTIONNAIRE ENROLLMENT DEBUG:", mappedQuestionnaires.map((quiz) => ({
-                    id: quiz.id,
-                    testName: quiz.testName,
-                    isEnrolled: quiz.isEnrolled,
-                    progress: quiz.questionnaireProgress,
-                })));
                 // 7. Final response
                 return {
                     success: true,
@@ -276,11 +270,16 @@ class tradesManServices {
                 const certificateTemplateUrl = questionnaire.certificateTemplateUrl
                     ? yield (0, utils_1.generateReadUrl)(questionnaire.certificateTemplateUrl)
                     : null;
+                // const certificateThumbnailUrl = questionnaire.certificateThumbnailUrl
+                //   ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+                //   : null;
                 // 5. Existing response structure unchanged
                 return {
                     message: "Questionnaire fetched successfully",
-                    data: Object.assign(Object.assign({}, questionnaire), { id: questionnaire.id.toString(), videoKey: questionnaire.videoUrl, videoUrl,
-                        certificateTemplateUrl, questionsCount: questionnaire._count.questions, isEnrolled: enrollmentCount > 0, enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED" }),
+                    data: Object.assign(Object.assign({}, questionnaire), { id: questionnaire.id.toString(), description: questionnaire.description, videoKey: questionnaire.videoUrl, videoUrl,
+                        certificateTemplateUrl, 
+                        // certificateThumbnailUrl,
+                        questionsCount: questionnaire._count.questions, isEnrolled: enrollmentCount > 0, enrollmentStatus: enrollmentCount > 0 ? "ENROLLED" : "NOT_ENROLLED" }),
                 };
             }
             catch (error) {
@@ -751,6 +750,20 @@ class tradesManServices {
                             ? yield (0, utils_1.generateReadUrl)(questionnaire.certificateTemplateUrl)
                             : null;
                     }
+                    let certificatethumbnailUrl = null;
+                    if (certificate) {
+                        const questionnaire = yield tx.questionnaire.findUnique({
+                            where: {
+                                id: questionnaireId,
+                            },
+                            select: {
+                            // certificateThumbnailUrl: true,
+                            },
+                        });
+                        // certificatethumbnailUrl = questionnaire?.certificateThumbnailUrl
+                        //   ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+                        //   : null;
+                    }
                     // 12. Existing response unchanged
                     return {
                         message: status === "PASSED"
@@ -769,6 +782,7 @@ class tradesManServices {
                                     certificateNo: certificate.certificateNo,
                                     certificateUrl: certificate.certificateUrl,
                                     certificateTemplateUrl,
+                                    certificateThumbnailUrl: certificatethumbnailUrl,
                                     issuedAt: certificate.issuedAt,
                                 }
                                 : null,
@@ -799,7 +813,9 @@ class tradesManServices {
                             select: {
                                 id: true,
                                 testName: true,
+                                description: true,
                                 certificateTemplateUrl: true,
+                                // certificateThumbnailUrl: true,
                             },
                         },
                         attempt: {
@@ -819,9 +835,16 @@ class tradesManServices {
                         .certificateTemplateUrl
                         ? yield (0, utils_1.generateReadUrl)(certificate.questionnaire.certificateTemplateUrl)
                         : null;
+                    // const certificateThumbnailUrl = certificate.questionnaire
+                    //   .certificateThumbnailUrl
+                    //   ? await generateReadUrl(
+                    //       certificate.questionnaire.certificateThumbnailUrl,
+                    //     )
+                    //   : null;
                     return {
                         id: certificate.id.toString(),
                         uuid: certificate.uuid,
+                        description: certificate.questionnaire.description,
                         certificateNo: certificate.certificateNo,
                         certificateUrl: certificate.certificateUrl,
                         issuedAt: certificate.issuedAt,
@@ -950,6 +973,9 @@ class tradesManServices {
                 const certificateTemplateUrl = fullQuestionnaire.certificateTemplateUrl
                     ? yield (0, utils_1.generateReadUrl)(fullQuestionnaire.certificateTemplateUrl)
                     : null;
+                // const certificateThumbnailUrl = fullQuestionnaire.certificateThumbnailUrl
+                //   ? await generateReadUrl(fullQuestionnaire.certificateThumbnailUrl)
+                //   : null;
                 // 5. Get latest attempt
                 const latestAttempt = (_a = fullQuestionnaire.attempts[0]) !== null && _a !== void 0 ? _a : null;
                 // 6. Remove internal fields
@@ -958,9 +984,11 @@ class tradesManServices {
                 return {
                     success: true,
                     message: "Questionnaire enrolled successfully",
-                    data: Object.assign(Object.assign({}, questionnaireData), { id: fullQuestionnaire.id.toString(), videoKey,
+                    data: Object.assign(Object.assign({}, questionnaireData), { id: fullQuestionnaire.id.toString(), descreption: fullQuestionnaire.description, videoKey,
                         videoUrl,
-                        certificateTemplateUrl, questionsCount: _count.questions, questions: questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))), 
+                        certificateTemplateUrl, 
+                        // certificateThumbnailUrl,
+                        questionsCount: _count.questions, questions: questions.map((question) => (Object.assign(Object.assign({}, question), { id: question.id.toString(), questionnaireId: question.questionnaireId.toString(), options: question.options.map((option) => (Object.assign(Object.assign({}, option), { id: option.id.toString(), questionId: option.questionId.toString() }))) }))), 
                         // Enrollment details
                         enrollment: {
                             id: enrollment.id.toString(),
@@ -986,10 +1014,12 @@ class tradesManServices {
     getCertificateByIdService(certificateId, tradesmanId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                // 1. Bearer token se User fetch karo
-                const tradesman = yield prismaClient_1.default.tradesMan.findUnique({
+                // ======================================================
+                // 1. FETCH AUTHENTICATED USER
+                // ======================================================
+                const tradesman = yield prismaClient_1.default.user.findUnique({
                     where: {
-                        userId: tradesmanId,
+                        id: tradesmanId,
                     },
                     select: {
                         id: true,
@@ -1005,11 +1035,17 @@ class tradesManServices {
                 if (!tradesman || !tradesman.tradesman) {
                     throw new customError_1.CustomError("Tradesman not found", 404, "The specified tradesman does not exist");
                 }
-                // 2. Certificate ko actual TradesMan ID se fetch karo
+                // ======================================================
+                // 2. ACTUAL TRADESMAN ID
+                // ======================================================
+                const actualTradesmanId = tradesman.tradesman.id;
+                // ======================================================
+                // 3. FETCH CERTIFICATE
+                // ======================================================
                 const certificate = yield prismaClient_1.default.certificate.findFirst({
                     where: {
                         id: certificateId,
-                        tradesmanId: tradesmanId,
+                        tradesmanId: actualTradesmanId,
                         attempt: {
                             status: "PASSED",
                         },
@@ -1019,7 +1055,9 @@ class tradesManServices {
                             select: {
                                 id: true,
                                 testName: true,
+                                description: true,
                                 certificateTemplateUrl: true,
+                                // certificateThumbnailUrl: true,
                             },
                         },
                         attempt: {
@@ -1036,22 +1074,68 @@ class tradesManServices {
                 if (!certificate) {
                     throw new customError_1.CustomError("Certificate not found", 404, "Certificate does not exist or does not belong to this tradesman");
                 }
+                // ======================================================
+                // 4. CERTIFICATE TEMPLATE S3 URL
+                // ======================================================
                 const certificateTemplateUrl = certificate.questionnaire
                     .certificateTemplateUrl
                     ? yield (0, utils_1.generateReadUrl)(certificate.questionnaire.certificateTemplateUrl)
                     : null;
+                // const certificateThumbnailUrl = certificate.questionnaire
+                //   .certificateThumbnailUrl
+                //   ? await generateReadUrl(
+                //       certificate.questionnaire.certificateThumbnailUrl,
+                //     )
+                //   : null;
+                // ======================================================
+                // 5. GENERATE CERTIFICATE IMAGE
+                // ======================================================
                 const certificateImage = yield (0, utils_1.certificateImageGenerator)({
                     tradesmanName: tradesman.name,
                     email: tradesman.email,
                 });
+                if (!certificateImage || certificateImage.length === 0) {
+                    throw new Error("Certificate image generation failed");
+                }
+                // ======================================================
+                // 6. UPLOADS FOLDER
+                // ======================================================
+                const uploadsPath = path_1.default.join(process.cwd(), "uploads");
+                if (!fs_1.default.existsSync(uploadsPath)) {
+                    fs_1.default.mkdirSync(uploadsPath, {
+                        recursive: true,
+                    });
+                }
+                // ======================================================
+                // 7. FILE NAME
+                // ======================================================
+                const fileName = `certificate-${certificate.id.toString()}.png`;
+                const imagePath = path_1.default.join(uploadsPath, fileName);
+                // ======================================================
+                // 8. SAVE CERTIFICATE IMAGE
+                // ======================================================
+                fs_1.default.writeFileSync(imagePath, certificateImage);
+                // ======================================================
+                // 9. SERVER URL
+                // ======================================================
+                const SERVER_URL = process.env.SERVER_URL || "http://50.19.99.226:3001";
+                // ======================================================
+                // 10. CERTIFICATE IMAGE URL
+                // ======================================================
+                const certificateImageUrl = `${SERVER_URL}/uploads/${fileName}`;
+                // ======================================================
+                // 11. RESPONSE
+                // ======================================================
                 return {
                     message: "Certificate fetched successfully",
                     data: {
                         id: certificate.id.toString(),
                         uuid: certificate.uuid,
+                        description: certificate.questionnaire.description,
                         certificateNo: certificate.certificateNo,
                         certificateUrl: certificate.certificateUrl,
-                        certificateImage: certificateImage.toString("base64"),
+                        certificateImage: certificateImageUrl,
+                        // certificateThumbnailUrl: certificateThumbnailUrl,
                         issuedAt: certificate.issuedAt,
                         tradesmanName: tradesman.name,
                         email: tradesman.email,
@@ -1061,8 +1145,10 @@ class tradesManServices {
                 };
             }
             catch (error) {
-                if (error instanceof customError_1.CustomError)
+                console.error("❌ GET CERTIFICATE ERROR:", error);
+                if (error instanceof customError_1.CustomError) {
                     throw error;
+                }
                 throw new customError_1.CustomError("Failed to fetch certificate", 500, error.message);
             }
         });

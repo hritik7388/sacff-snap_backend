@@ -171,6 +171,7 @@ class superAdminServices {
                         status: data.status,
                         videoUrl: data.videoUrl,
                         certificateTemplateUrl: data.certificateTemplateUrl,
+                        // certificateThumbnailUrl: data.certificateThumbnailUrl,
                         createdById: superAdmin.id,
                         questions: {
                             create: data.questions.map((question, index) => ({
@@ -374,6 +375,7 @@ class superAdminServices {
                             description: true,
                             videoUrl: true,
                             certificateTemplateUrl: true,
+                            // certificateThumbnailUrl: true,
                             status: true,
                             createdById: true,
                             createdAt: true,

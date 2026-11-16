@@ -1917,14 +1917,17 @@ const yellowpdfTemplate = (data) => {
 `;
 };
 exports.yellowpdfTemplate = yellowpdfTemplate;
-const certifictae = (data) => {
-    var _a;
-    const tradesmanName = String((_a = data.tradesmanName) !== null && _a !== void 0 ? _a : "")
+const escapeHtml = (value) => {
+    return String(value !== null && value !== void 0 ? value : "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
+};
+const certifictae = (data) => {
+    const tradesmanName = escapeHtml(data.tradesmanName);
+    const email = escapeHtml(data.email);
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2544,7 +2547,7 @@ const certifictae = (data) => {
       <!-- Left: Tradesman Email -->
       <div class="grid-cell left-col">
         <span class="meta-label">Tradesman Email:</span>
-        <span class="meta-value">${data.email}</span>
+        <span class="meta-value">${email}</span>
       </div>
       <!-- Right: Status -->
       <div class="grid-cell">

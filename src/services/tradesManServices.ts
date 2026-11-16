@@ -107,7 +107,7 @@ export class tradesManServices {
           description: true,
           videoUrl: true,
           certificateTemplateUrl: true,
-          certificateThumbnailUrl: true,
+          // certificateThumbnailUrl: true,
           status: true,
           createdAt: true,
           updatedAt: true,
@@ -185,9 +185,9 @@ export class tradesManServices {
             ? await generateReadUrl(quiz.certificateTemplateUrl)
             : null;
 
-          const certificateThumbnailUrl = quiz.certificateThumbnailUrl
-            ? await generateReadUrl(quiz.certificateThumbnailUrl)
-            : null;
+          // const certificateThumbnailUrl = quiz.certificateThumbnailUrl
+          //   ? await generateReadUrl(quiz.certificateThumbnailUrl)
+          //   : null;
 
           return {
             id: quiz.id.toString(),
@@ -199,7 +199,7 @@ export class tradesManServices {
             videoUrl,
 
             certificateTemplateUrl,
-            certificateThumbnailUrl,
+            // certificateThumbnailUrl,
 
             status: quiz.status,
 
@@ -281,23 +281,9 @@ export class tradesManServices {
 
       const data = filteredQuestionnaires.slice(skip, skip + limit);
 
-      // 6. Debug: identify why ALL may be empty
-      console.log("FILTER:", filter);
-      console.log("TRADESMAN ID:", tradesmanId.toString());
-      console.log("ACTIVE QUESTIONNAIRES:", questionnaires.length);
-      console.log("FILTERED RECORDS:", total);
-      console.log("RECENT RECORDS:", recent.length);
-      console.log("PAGE:", page);
+     
 
-      console.log(
-        "QUESTIONNAIRE ENROLLMENT DEBUG:",
-        mappedQuestionnaires.map((quiz) => ({
-          id: quiz.id,
-          testName: quiz.testName,
-          isEnrolled: quiz.isEnrolled,
-          progress: quiz.questionnaireProgress,
-        })),
-      );
+      
 
       // 7. Final response
       return {
@@ -372,9 +358,9 @@ export class tradesManServices {
         ? await generateReadUrl(questionnaire.certificateTemplateUrl)
         : null;
 
-      const certificateThumbnailUrl = questionnaire.certificateThumbnailUrl
-        ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
-        : null;
+      // const certificateThumbnailUrl = questionnaire.certificateThumbnailUrl
+      //   ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+      //   : null;
 
       // 5. Existing response structure unchanged
       return {
@@ -389,7 +375,7 @@ export class tradesManServices {
 
           certificateTemplateUrl,
 
-          certificateThumbnailUrl,
+          // certificateThumbnailUrl,
 
           questionsCount: questionnaire._count.questions,
 
@@ -1056,22 +1042,22 @@ export class tradesManServices {
               : null;
           }
 
-          let certificatethumbnailUrl: string | null = null;
+          // let certificatethumbnailUrl: string | null = null;
 
-          if (certificate) {
-            const questionnaire = await tx.questionnaire.findUnique({
-              where: {
-                id: questionnaireId,
-              },
-              select: {
-                certificateThumbnailUrl: true,
-              },
-            });
+          // if (certificate) {
+          //   const questionnaire = await tx.questionnaire.findUnique({
+          //     where: {
+          //       id: questionnaireId,
+          //     },
+          //     select: {
+          //       // certificateThumbnailUrl: true,
+          //     },
+          //   });
 
-            certificatethumbnailUrl = questionnaire?.certificateThumbnailUrl
-              ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
-              : null;
-          }
+          //   // certificatethumbnailUrl = questionnaire?.certificateThumbnailUrl
+          //   //   ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+          //   //   : null;
+          // }
 
           // 12. Existing response unchanged
           return {
@@ -1093,7 +1079,7 @@ export class tradesManServices {
                     certificateUrl: certificate.certificateUrl,
 
                     certificateTemplateUrl,
-                    certificateThumbnailUrl: certificatethumbnailUrl,
+                    // certificateThumbnailUrl: certificatethumbnailUrl,
                     issuedAt: certificate.issuedAt,
                   }
                 : null,
@@ -1135,7 +1121,7 @@ export class tradesManServices {
               testName: true,
               description: true,
               certificateTemplateUrl: true,
-              certificateThumbnailUrl: true,
+              // certificateThumbnailUrl: true,
             },
           },
           attempt: {
@@ -1160,12 +1146,12 @@ export class tradesManServices {
               )
             : null;
 
-          const certificateThumbnailUrl = certificate.questionnaire
-            .certificateThumbnailUrl
-            ? await generateReadUrl(
-                certificate.questionnaire.certificateThumbnailUrl,
-              )
-            : null;
+          // const certificateThumbnailUrl = certificate.questionnaire
+          //   .certificateThumbnailUrl
+          //   ? await generateReadUrl(
+          //       certificate.questionnaire.certificateThumbnailUrl,
+          //     )
+          //   : null;
 
           return {
             id: certificate.id.toString(),
@@ -1178,7 +1164,7 @@ export class tradesManServices {
               ...certificate.questionnaire,
               id: certificate.questionnaire.id.toString(),
               certificateTemplateUrl,
-              certificateThumbnailUrl,
+              // certificateThumbnailUrl,
             },
             quizResult: certificate.attempt,
           };
@@ -1338,9 +1324,9 @@ export class tradesManServices {
         ? await generateReadUrl(fullQuestionnaire.certificateTemplateUrl)
         : null;
 
-      const certificateThumbnailUrl = fullQuestionnaire.certificateThumbnailUrl
-        ? await generateReadUrl(fullQuestionnaire.certificateThumbnailUrl)
-        : null;
+      // const certificateThumbnailUrl = fullQuestionnaire.certificateThumbnailUrl
+      //   ? await generateReadUrl(fullQuestionnaire.certificateThumbnailUrl)
+      //   : null;
 
       // 5. Get latest attempt
       const latestAttempt = fullQuestionnaire.attempts[0] ?? null;
@@ -1369,7 +1355,7 @@ export class tradesManServices {
           videoUrl,
           certificateTemplateUrl,
 
-          certificateThumbnailUrl,
+          // certificateThumbnailUrl,
           questionsCount: _count.questions,
 
           questions: questions.map((question: any) => ({
@@ -1475,7 +1461,7 @@ export class tradesManServices {
               testName: true,
               description: true,
               certificateTemplateUrl: true,
-              certificateThumbnailUrl: true,
+              // certificateThumbnailUrl: true,
             },
           },
           attempt: {
@@ -1509,12 +1495,12 @@ export class tradesManServices {
           )
         : null;
 
-      const certificateThumbnailUrl = certificate.questionnaire
-        .certificateThumbnailUrl
-        ? await generateReadUrl(
-            certificate.questionnaire.certificateThumbnailUrl,
-          )
-        : null;
+      // const certificateThumbnailUrl = certificate.questionnaire
+      //   .certificateThumbnailUrl
+      //   ? await generateReadUrl(
+      //       certificate.questionnaire.certificateThumbnailUrl,
+      //     )
+      //   : null;
 
       // ======================================================
       // 5. GENERATE CERTIFICATE IMAGE
@@ -1583,7 +1569,7 @@ export class tradesManServices {
           certificateUrl: certificate.certificateUrl,
 
           certificateImage: certificateImageUrl,
-          certificateThumbnailUrl: certificateThumbnailUrl,
+          // certificateThumbnailUrl: certificateThumbnailUrl,
 
           issuedAt: certificate.issuedAt,
 

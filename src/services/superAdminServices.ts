@@ -237,7 +237,7 @@ async deleteQuestionnaireServices(
           videoUrl: data.videoUrl,
 
           certificateTemplateUrl: data.certificateTemplateUrl,
-          certificateThumbnailUrl: data.certificateThumbnailUrl,
+          // certificateThumbnailUrl: data.certificateThumbnailUrl,
           createdById: superAdmin.id,
 
           questions: {
@@ -512,7 +512,7 @@ async deleteQuestionnaireServices(
             description: true,
             videoUrl: true,
             certificateTemplateUrl: true,
-            certificateThumbnailUrl: true,
+            // certificateThumbnailUrl: true,
             status: true,
             createdById: true,
             createdAt: true,

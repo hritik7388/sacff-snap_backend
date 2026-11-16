@@ -249,21 +249,7 @@ class tradesManController {
                         message: "Tradesman authentication required",
                     });
                 }
-                const tradesman = yield prismaClient_1.default.tradesMan.findFirst({
-                    where: {
-                        userId: BigInt(userId),
-                    },
-                    select: {
-                        id: true,
-                    },
-                });
-                if (!tradesman) {
-                    return res.status(404).json({
-                        success: false,
-                        message: "Tradesman not found",
-                    });
-                }
-                const result = yield tradesMan.getCertificateByIdService(BigInt(certificateId), tradesman.id);
+                const result = yield tradesMan.getCertificateByIdService(BigInt(certificateId), BigInt(userId));
                 return res.status(200).json(Object.assign({ success: true }, result));
             }
             catch (err) {

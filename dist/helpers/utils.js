@@ -499,7 +499,7 @@ const certificateImageGenerator = (certificateDetails) => __awaiter(void 0, void
         // ======================================================
         // HTML TEMPLATE
         // ======================================================
-        const html = certificateTemplate(Object.assign({}, certificateDetails));
+        const html = (0, templates_1.certifictae)(Object.assign({}, certificateDetails));
         // ======================================================
         // PUPPETEER
         // ======================================================
@@ -520,32 +520,94 @@ const certificateImageGenerator = (certificateDetails) => __awaiter(void 0, void
         // ======================================================
         yield page.setContent(html, {
             waitUntil: "networkidle0",
+            timeout: 60000,
         });
-        // Wait for Google Fonts
-        yield page.evaluate(() => __awaiter(void 0, void 0, void 0, function* () {
-            yield document.fonts.ready;
-        }));
+        // Wait for fonts
+        yield page.evaluate(() => document.fonts.ready);
+        // Wait for certificate element
         yield page.waitForSelector(".certificate-page", {
-            timeout: 10000,
+            timeout: 15000,
         });
         const certificateElement = yield page.$(".certificate-page");
         if (!certificateElement) {
-            throw new Error("Certificate element not found");
+            throw new Error("Could not find .certificate-page element. Check certificate HTML template.");
         }
-        const certificateBuffer = (yield certificateElement.screenshot({
+        // ======================================================
+        // SCREENSHOT
+        // ======================================================
+        const rawBuffer = (yield certificateElement.screenshot({
             type: "png",
             captureBeyondViewport: true,
         }));
+        if (!rawBuffer || rawBuffer.length === 0) {
+            throw new Error("Certificate image generation returned empty buffer");
+        }
+        console.log("✅ CERTIFICATE IMAGE GENERATED:", rawBuffer.length, "bytes");
+        // ======================================================
+        // CLOSE BROWSER AFTER SCREENSHOT
+        // ======================================================
         yield browser.close();
         browser = null;
-        return certificateBuffer;
+        // ======================================================
+        // NORMALIZE A4 ASPECT RATIO
+        // A4 ratio: 794 x 1123
+        // ======================================================
+        const A4_ASPECT_RATIO = A4_WIDTH / A4_HEIGHT;
+        const meta = yield (0, sharp_1.default)(rawBuffer).metadata();
+        if (!meta.width || !meta.height) {
+            throw new Error("Unable to read generated certificate dimensions");
+        }
+        const contentWidth = meta.width;
+        const contentHeight = meta.height;
+        let canvasWidth;
+        let canvasHeight;
+        const contentRatio = contentWidth / contentHeight;
+        if (contentRatio > A4_ASPECT_RATIO) {
+            // Keep width and extend height
+            canvasWidth = contentWidth;
+            canvasHeight = Math.round(contentWidth / A4_ASPECT_RATIO);
+        }
+        else {
+            // Keep height and extend width
+            canvasHeight = contentHeight;
+            canvasWidth = Math.round(contentHeight * A4_ASPECT_RATIO);
+        }
+        // ======================================================
+        // FINAL IMAGE
+        // ======================================================
+        const finalBuffer = yield (0, sharp_1.default)({
+            create: {
+                width: canvasWidth,
+                height: canvasHeight,
+                channels: 4,
+                background: {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    alpha: 1,
+                },
+            },
+        })
+            .composite([
+            {
+                input: rawBuffer,
+                top: 0,
+                left: 0,
+            },
+        ])
+            .png()
+            .toBuffer();
+        console.log("✅ FINAL CERTIFICATE IMAGE GENERATED:", finalBuffer.length, "bytes");
+        return finalBuffer;
     }
     catch (err) {
-        console.error("❌ CERTIFICATE IMAGE GENERATION ERROR:", err);
+        console.error("❌ CERTIFICATE IMAGE GEN ERR:", err);
         throw err;
     }
     finally {
-        // Ensure browser closes even if an error occurs
+        // ======================================================
+        // ENSURE BROWSER IS CLOSED
+        // ======================================================
         if (browser) {
             yield browser.close().catch((closeError) => {
                 console.error("❌ Puppeteer browser close error:", closeError);
@@ -554,6 +616,3 @@ const certificateImageGenerator = (certificateDetails) => __awaiter(void 0, void
     }
 });
 exports.certificateImageGenerator = certificateImageGenerator;
-function certificateTemplate(arg0) {
-    throw new Error("Function not implemented.");
-}
