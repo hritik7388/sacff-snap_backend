@@ -510,7 +510,7 @@ export const imageGenerator = async (
     // PUPPETEER
     // ======================================================
 
-    const RENDER_WIDTH = 610;
+    const RENDER_WIDTH = 620;
 
     browser = await puppeteer.launch({
       headless: true,
@@ -521,7 +521,7 @@ export const imageGenerator = async (
 
     await page.setViewport({
       width: RENDER_WIDTH,
-      height: 975,
+      height: 950,
       deviceScaleFactor: 3,
     });
 

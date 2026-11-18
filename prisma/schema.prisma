@@ -121,7 +121,7 @@ model Company {
   user_type        String            @default("COMPANY")
   otp              String?
   otpExpireTime    DateTime?
-  isVerified       Boolean           @default(true)
+  isVerified       Boolean           @default(false)
   CMPId            String?
   image            String
   lastLogin        DateTime?

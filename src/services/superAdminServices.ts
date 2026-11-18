@@ -1177,8 +1177,7 @@ async updateQuestionnaireServices(
         newCompany.email,
         "Welcome to ScaffSnapp Team!",
         html,
-      );
-      console.log("mail====================>>>", mail);
+      ); 
 
       const superAdmins = await prisma.user.findMany({
         where: { user_type: "SUPER_ADMIN" },

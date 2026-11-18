@@ -23,7 +23,7 @@ export class subAdminServices {
             });
 
             if (!subAdminData) {
-                throw new CustomError(RESPONSE_MESSAGES.SUB_ADMIN.NOT_FOUND, 500, "The provided  email do not match");
+                throw new CustomError(RESPONSE_MESSAGES.SUB_ADMIN.NOT_FOUND, 404, "The provided  email didn't verify or not found");
             }
 
 

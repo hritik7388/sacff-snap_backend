@@ -5,8 +5,9 @@ import prisma from "../config/prismaClient";
 import { CustomError } from "../types/customError";
 import { v4 as uuidv4 } from "uuid";
 import { CreateCheckoutSessionDTO, AdminSubscriptionQueryDTO, UpdateSubscriptionStatusDTO } from "../schemas/subscriptionSchema";
-import { generateCompanyId, pushNotificationDelhi } from "../helpers/utils";
+import { generateCompanyId, pushNotificationDelhi, sendMail } from "../helpers/utils";
 import { SubscriptionPlan, SubscriptionStatus, Prisma } from "@prisma/client";
+import { companyAddTemplate } from "../helpers/templates";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2026-09-30.endive" as any,
@@ -272,6 +273,19 @@ export class SubscriptionServices {
                     currentPeriodEnd: endDate,
                 },
             });
+
+            const html = companyAddTemplate(
+                    company.name,
+                    company.user_type,
+                    company.email,
+                    data.password,
+                  );
+            
+                  const mail = await sendMail(
+                    company.email,
+                    "Welcome to ScaffSnapp Team!",
+                    html,
+                  );
 
             return {
                 success: true,
