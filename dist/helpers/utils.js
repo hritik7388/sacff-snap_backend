@@ -398,7 +398,7 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
         // ======================================================
         // PUPPETEER
         // ======================================================
-        const RENDER_WIDTH = 610;
+        const RENDER_WIDTH = 620;
         browser = yield puppeteer_1.default.launch({
             headless: true,
             args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -406,7 +406,7 @@ const imageGenerator = (scaffholdDetails) => __awaiter(void 0, void 0, void 0, f
         const page = yield browser.newPage();
         yield page.setViewport({
             width: RENDER_WIDTH,
-            height: 975,
+            height: 950,
             deviceScaleFactor: 3,
         });
         // Render HTML before locating #tag

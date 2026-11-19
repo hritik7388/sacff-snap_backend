@@ -873,7 +873,6 @@ class superAdminServices {
                 });
                 const html = (0, templates_1.companyAddTemplate)(newCompany.name, newCompany.user_type, newCompany.email, data.password);
                 const mail = yield (0, utils_1.sendMail)(newCompany.email, "Welcome to ScaffSnapp Team!", html);
-                console.log("mail====================>>>", mail);
                 const superAdmins = yield prismaClient_1.default.user.findMany({
                     where: { user_type: "SUPER_ADMIN" },
                     select: { id: true },

@@ -21,6 +21,7 @@ const customError_1 = require("../types/customError");
 const uuid_1 = require("uuid");
 const utils_1 = require("../helpers/utils");
 const client_1 = require("@prisma/client");
+const templates_1 = require("../helpers/templates");
 const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2026-09-30.endive",
 });
@@ -261,6 +262,8 @@ class SubscriptionServices {
                         currentPeriodEnd: endDate,
                     },
                 });
+                const html = (0, templates_1.companyAddTemplate)(company.name, company.user_type, company.email, data.password);
+                const mail = yield (0, utils_1.sendMail)(company.email, "Welcome to ScaffSnapp Team!", html);
                 return {
                     success: true,
                     statusCode: 200,

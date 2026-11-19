@@ -34,7 +34,7 @@ class subAdminServices {
                     },
                 });
                 if (!subAdminData) {
-                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.NOT_FOUND, 500, "The provided  email do not match");
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.NOT_FOUND, 404, "The provided  email didn't verify or not found");
                 }
                 if (subAdminData.status === "SUSPENDED") {
                     throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.SUB_ADMIN.SUSPENDED, 500, "Your account has been suspended. Please contact support for assistance.");

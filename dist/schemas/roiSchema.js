@@ -1,16 +1,45 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateRoiStatusSchema = exports.roiLeadIdSchema = exports.adminRoiQuerySchema = exports.submitRoiLeadSchema = void 0;
+exports.updateRoiStatusSchema = exports.roiLeadIdSchema = exports.adminRoiQuerySchema = exports.submitRoiLeadSchema = exports.generateGuestUserName = void 0;
 // src/schemas/roiSchema.ts
 const zod_1 = require("zod");
+// Helper to generate guest user with random unique digits
+const generateGuestUserName = () => {
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    return `Guest User ${randomDigits}`;
+};
+exports.generateGuestUserName = generateGuestUserName;
 // Submission schema (Operation inputs + Lead details)
 exports.submitRoiLeadSchema = zod_1.z.object({
-    // Lead details (Modal Popup in screenshot 2)
-    firstName: zod_1.z.string().min(1, "First Name is required").trim(),
-    email: zod_1.z.string().email("Valid work email is required").trim().toLowerCase(),
-    company: zod_1.z.string().min(1, "Company is required").trim(),
-    state: zod_1.z.string().min(1, "State is required").trim(),
-    notes: zod_1.z.string().optional(),
+    // Lead details (Modal Popup in screenshot 2 - optional with auto-guest fallback)
+    firstName: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .transform((val) => (val && val.trim().length > 0 ? val.trim() : (0, exports.generateGuestUserName)())),
+    email: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .transform((val) => (val ? val.trim().toLowerCase() : ""))
+        .refine((val) => !val || zod_1.z.string().email().safeParse(val).success, {
+        message: "Valid work email is required",
+    }),
+    company: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .transform((val) => (val ? val.trim() : "")),
+    state: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .transform((val) => (val ? val.trim() : "")),
+    notes: zod_1.z
+        .string()
+        .nullable()
+        .optional()
+        .transform((val) => (val ? val.trim() : "")),
     // Operation inputs (Fields in screenshot 1)
     annualScaffoldCount: zod_1.z.coerce.number().min(0).default(120),
     avgRentalDurationDays: zod_1.z.coerce.number().min(0).default(18),
