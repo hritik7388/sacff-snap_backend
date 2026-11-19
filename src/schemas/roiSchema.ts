@@ -1,14 +1,43 @@
 // src/schemas/roiSchema.ts
 import { z } from "zod";
 
+// Helper to generate guest user with random unique digits
+export const generateGuestUserName = (): string => {
+  const randomDigits = Math.floor(100000 + Math.random() * 900000);
+  return `Guest User ${randomDigits}`;
+};
+
 // Submission schema (Operation inputs + Lead details)
 export const submitRoiLeadSchema = z.object({
-  // Lead details (Modal Popup in screenshot 2)
-  firstName: z.string().min(1, "First Name is required").trim(),
-  email: z.string().email("Valid work email is required").trim().toLowerCase(),
-  company: z.string().min(1, "Company is required").trim(),
-  state: z.string().min(1, "State is required").trim(),
-  notes: z.string().optional(),
+  // Lead details (Modal Popup in screenshot 2 - optional with auto-guest fallback)
+  firstName: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => (val && val.trim().length > 0 ? val.trim() : generateGuestUserName())),
+  email: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val.trim().toLowerCase() : ""))
+    .refine((val) => !val || z.string().email().safeParse(val).success, {
+      message: "Valid work email is required",
+    }),
+  company: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val.trim() : "")),
+  state: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val.trim() : "")),
+  notes: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => (val ? val.trim() : "")),
 
   // Operation inputs (Fields in screenshot 1)
   annualScaffoldCount: z.coerce.number().min(0).default(120),
