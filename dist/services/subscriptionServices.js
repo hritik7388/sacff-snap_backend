@@ -202,8 +202,8 @@ class SubscriptionServices {
                     stripeCustomerId = customer.id;
                 }
                 const frontendBaseUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
-                const successUrl = data.successUrl || `${frontendBaseUrl}/`;
-                const cancelUrl = data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
+                const successUrl = `${frontendBaseUrl}/`;
+                const cancelUrl = `${frontendBaseUrl}/pricing?canceled=true`;
                 // 3. Create Stripe Checkout Session
                 const session = yield stripe.checkout.sessions.create({
                     customer: stripeCustomerId,
@@ -1615,15 +1615,17 @@ class SubscriptionServices {
                         quantity: 1,
                     });
                 }
-                // 11. Frontend URLs
-                const frontendUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
+                const frontendBaseUrl = (process.env.FRONTEND_URL ||
+                    "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
+                const successUrl = data.successUrl || `${frontendBaseUrl}/store`;
+                const cancelUrl = data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
                 // 12. Create Stripe Checkout Session
                 const session = yield stripe.checkout.sessions.create({
                     mode: "payment",
                     customer_email: data.customerEmail,
                     line_items: lineItems,
-                    success_url: `${frontendUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
-                    cancel_url: `${frontendUrl}/store/checkout?canceled=true`,
+                    success_url: successUrl,
+                    cancel_url: cancelUrl,
                     metadata: {
                         orderType: "PRINTER_ORDER",
                         orderId: order.id.toString(),

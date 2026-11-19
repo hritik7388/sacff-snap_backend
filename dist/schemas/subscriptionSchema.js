@@ -67,6 +67,8 @@ exports.createPrinterCheckoutSchema = zod_1.z.object({
     billing: addressSchema,
     sameAsBilling: zod_1.z.boolean().default(false),
     shipping: addressSchema.optional(),
+    successUrl: zod_1.z.string().url("successUrl must be a valid URL").optional(),
+    cancelUrl: zod_1.z.string().url("cancelUrl must be a valid URL").optional(),
 }).superRefine((data, ctx) => {
     const ids = data.items.map(item => item.printerId);
     if (new Set(ids).size !== ids.length) {

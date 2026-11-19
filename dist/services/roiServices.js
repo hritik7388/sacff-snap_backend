@@ -144,18 +144,14 @@ class RoiServices {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const calculation = this.computeCalculation(data);
-                const resolvedFirstName = data.firstName && data.firstName.trim().length > 0
-                    ? data.firstName.trim()
-                    : `Guest User ${Math.floor(100000 + Math.random() * 900000)}`;
-                data.firstName = resolvedFirstName;
                 // Create record in database
                 const roiLead = yield prismaClient_1.default.roiLead.create({
                     data: {
                         uuid: (0, uuid_1.v4)(),
-                        firstName: resolvedFirstName,
-                        email: data.email || "",
-                        company: data.company || "",
-                        state: data.state || "",
+                        firstName: data.firstName,
+                        email: data.email,
+                        company: data.company,
+                        state: data.state,
                         notes: data.notes || null,
                         // Operation inputs
                         annualScaffoldCount: calculation.operationInputs.annualScaffoldCount,
@@ -508,14 +504,13 @@ class RoiServices {
     sendLeadEmails(data, calc, leadUuid) {
         return __awaiter(this, void 0, void 0, function* () {
             const LOGO_URL = "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
-            // 1. Email to Lead (Customer - only sent if email is provided)
-            if (data.email && data.email.trim().length > 0) {
-                const leadHtml = `
+            // 1. Email to Lead (Customer)
+            const leadHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 28px; border-radius: 12px; border: 1px solid #334155;">
         <div style="text-align: center; margin-bottom: 24px;">
           <img src="${LOGO_URL}" alt="ScaffSnapp" style="height: 48px;" />
           <h2 style="color: #fbbf24; margin: 12px 0 4px;">Your ScaffSnapp Custom Savings Estimate</h2>
-          <p style="color: #94a3b8; font-size: 14px; margin: 0;">Prepared for ${data.firstName} at ${data.company || "Your Company"}</p>
+          <p style="color: #94a3b8; font-size: 14px; margin: 0;">Prepared for ${data.firstName} at ${data.company}</p>
         </div>
 
         <div style="background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #fbbf24;">
@@ -538,28 +533,15 @@ class RoiServices {
         </div>
       </div>
     `;
-                try {
-                    yield utils_1.mailTransporter.sendMail({
-                        from: `"ScaffSnapp" <${process.env.SMTP_USER}>`,
-                        to: data.email.trim(),
-                        subject: `Your Scaffolding ROI Savings Projection — ${data.company || "Estimate"}`,
-                        html: leadHtml,
-                    });
-                }
-                catch (custErr) {
-                    console.error("Non-critical error sending customer ROI email:", custErr);
-                }
-            }
             // 2. Email to Admin
             const adminEmail = process.env.SMTP_USER || "admin@scaffsnapp.com";
             const adminHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
         <h2 style="color: #0284c7; margin-top: 0;">🚀 New ROI Calculator Lead Captured</h2>
         <p><strong>Name:</strong> ${data.firstName}</p>
-        <p><strong>Email:</strong> ${data.email || "N/A"}</p>
-        <p><strong>Company:</strong> ${data.company || "N/A"}</p>
-        <p><strong>State:</strong> ${data.state || "N/A"}</p>
-        <p><strong>Notes:</strong> ${data.notes || "N/A"}</p>
+        <p><strong>Email:</strong> ${data.email}</p>
+        <p><strong>Company:</strong> ${data.company}</p>
+        <p><strong>State:</strong> ${data.state}</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
         <h3>Operational Profile</h3>
         <ul>
@@ -580,19 +562,21 @@ class RoiServices {
         <p style="font-size: 12px; color: #64748b;">Lead UUID: ${leadUuid}</p>
       </div>
     `;
+            // Send customer email
+            yield utils_1.mailTransporter.sendMail({
+                from: `"ScaffSnapp" <${process.env.SMTP_USER}>`,
+                to: data.email,
+                subject: `Your Scaffolding ROI Savings Projection — ${data.company}`,
+                html: leadHtml,
+            });
             // Send admin notification
             if (adminEmail) {
-                try {
-                    yield utils_1.mailTransporter.sendMail({
-                        from: `"ScaffSnapp System" <${process.env.SMTP_USER}>`,
-                        to: adminEmail,
-                        subject: `[New Lead] ${data.company || data.firstName || "Guest Lead"} — ${calc.formattedMetrics.potentialRecoverableValue} Potential Recovery`,
-                        html: adminHtml,
-                    });
-                }
-                catch (adminErr) {
-                    console.error("Non-critical error sending admin ROI notification email:", adminErr);
-                }
+                yield utils_1.mailTransporter.sendMail({
+                    from: `"ScaffSnapp System" <${process.env.SMTP_USER}>`,
+                    to: adminEmail,
+                    subject: `[New Lead] ${data.company} — ${calc.formattedMetrics.potentialRecoverableValue} Potential Recovery`,
+                    html: adminHtml,
+                });
             }
         });
     }
