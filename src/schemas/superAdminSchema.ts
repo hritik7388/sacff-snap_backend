@@ -2,10 +2,9 @@
 import z, { date } from "zod";
 
 export const superAdminSchema = z.object({
-    email: z.string().email(),
-    password: z.string(),
-
-})  
+  email: z.string().email(),
+  password: z.string(),
+});
 
 export const searchQuestionnaireSchema = z.object({
   search: z.string().optional(),
@@ -14,29 +13,17 @@ export const searchQuestionnaireSchema = z.object({
   endDate: z.string().optional(),
 });
 
-export type SearchQuestionnaireDTO = z.infer<
-  typeof searchQuestionnaireSchema
->; 
+export type SearchQuestionnaireDTO = z.infer<typeof searchQuestionnaireSchema>;
 
 export const generateVideoUploadSchema = z.object({
   filename: z.string().trim().min(1, "Filename is required"),
-  contentType: z.enum([
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-  ]),
+  contentType: z.enum(["video/mp4", "video/webm", "video/quicktime"]),
 });
-
 
 export const generateImageUploadSchema = z.object({
   filename: z.string().trim().min(1, "Filename is required"),
 
-  contentType: z.enum([
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-  ]),
+  contentType: z.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"]),
 });
 export const deleteQuestionnaireSchema = z.object({
   questionnaireId: z.coerce
@@ -45,154 +32,178 @@ export const deleteQuestionnaireSchema = z.object({
 });
 
 export const createQuestionnaireSchema = z.object({
-    testName: z.string().trim().min(1, "Test title is required"),
-    description: z.string().trim().min(1, "Description is required"),
-    status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
-    videoUrl: z.string().min(1,"Valid video URL is required"),
-    certificateTemplateUrl: z.string().min(1,"Valid certificate URL is required"),
-    // certificateThumbnailUrl: z.string().min(1,"Valid certificate thumbnail URL is required"),
+  testName: z.string().trim().min(1, "Test title is required"),
+  description: z.string().trim().min(1, "Description is required"),
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
+  videoUrl: z.string().min(1, "Valid video URL is required"),
+  certificateTemplateUrl: z
+    .string()
+    .min(1, "Valid certificate URL is required"),
+  // certificateThumbnailUrl: z.string().min(1,"Valid certificate thumbnail URL is required"),
 
-    questions: z.array(
-        z.object({
-            questionText: z.string().trim().min(1, "Question is required"),
-            options: z.array(
-                z.object({
-                    optionText: z.string().trim().min(1, "Option text is required"),
-                    isCorrect: z.boolean(),
-                })
-            ).length(4, "Each question must have exactly 4 options"),
-        }).superRefine((question, ctx) => {
-            const correctCount = question.options.filter(
-                (option) => option.isCorrect
-            ).length;
-
-            if (correctCount !== 1) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: "Exactly one option must be correct",
-                    path: ["options"],
-                });
-            }
+  questions: z
+    .array(
+      z
+        .object({
+          questionText: z.string().trim().min(1, "Question is required"),
+          options: z
+            .array(
+              z.object({
+                optionText: z.string().trim().min(1, "Option text is required"),
+                isCorrect: z.boolean(),
+              }),
+            )
+            .length(4, "Each question must have exactly 4 options"),
         })
-    ).min(1, "At least one question is required"),
+        .superRefine((question, ctx) => {
+          const correctCount = question.options.filter(
+            (option) => option.isCorrect,
+          ).length;
+
+          if (correctCount !== 1) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Exactly one option must be correct",
+              path: ["options"],
+            });
+          }
+        }),
+    )
+    .min(1, "At least one question is required"),
 });
 
-export type CreateQuestionnaireDTO = z.infer<
-    typeof createQuestionnaireSchema
->;
-
+export type CreateQuestionnaireDTO = z.infer<typeof createQuestionnaireSchema>;
 
 export const approveCompanyRequestSchema = z.object({
-    id: z.number(),
+  id: z.number(),
 });
 export const rejectCompanyRequestSchema = z.object({
-    id: z.number(),
+  id: z.number(),
 });
 
 export const companyStatus = z.object({
-    id: z.number(),
+  id: z.number(),
 });
 
-export const updateQuestionnaireSchema =
-  createQuestionnaireSchema.partial();
+export const updateQuestionnaireSchema = createQuestionnaireSchema.partial();
 
 export const changeQuestionnaireStatusSchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
 });
 
-export type UpdateQuestionnaireDTO = z.infer<
-  typeof updateQuestionnaireSchema
->;
+export type UpdateQuestionnaireDTO = z.infer<typeof updateQuestionnaireSchema>;
 
 export type ChangeQuestionnaireStatusDTO = z.infer<
   typeof changeQuestionnaireStatusSchema
 >;
 
 export const addNewCompanySchema = z.object({
-    name: z.string().min(1, "Company Name is required"),
-    email: z.string().email("Invalid email format").min(1, "Email is required"),
-    image: z.string(),
-    password: z.string().min(8, "Password must be at least 8 characters long"),
-    mobileNumber: z
-        .string()
-        .min(8, "Phone number mustbe at least 10 characters long")
-        .max(16, "Phone number cannot exceed 15 characters"),
-    countryCode: z.string().min(1, "Country code is required").optional(),
-    address: z.string().min(1, "Address is required"),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
+  name: z.string().min(1, "Company Name is required"),
+  email: z.string().email("Invalid email format").min(1, "Email is required"),
+  image: z.string(),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+  mobileNumber: z
+    .string()
+    .min(8, "Phone number mustbe at least 10 characters long")
+    .max(16, "Phone number cannot exceed 15 characters"),
+  countryCode: z.string().min(1, "Country code is required").optional(),
+  address: z.string().min(1, "Address is required"),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
 
+export const addPrinterSchema = z.object({
+  image: z.string().min(1, "Printer image is required"),
+  name: z.string().min(1, "Printer name is required"),
+  model: z.string().optional(),
+  price: z.number().min(0, "Price cannot be negative"),
+  quantity: z.number().int().min(0, "Quantity cannot be negative"),
+  description: z.string().min(1, "Product description is required"),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional().default("ACTIVE"),
+});
 
+// UPDATE PRINTER
+export const updatePrinterSchema = z
+  .object({
+    image: z.string().min(1, "Printer image is required").optional(),
+    name: z.string().min(1, "Printer name is required").optional(),
+    model: z.string().optional(),
+    price: z.number().min(0, "Price cannot be negative").optional(),
+    description: z
+      .string()
+      .min(1, "Product description is required")
+      .optional(),
+    quantity: z.number().int().min(0, "Quantity cannot be negative"),
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required to update printer",
+  });
 
 export const notifictaion = z.object({
-    id: z.number(),
+  id: z.number(),
 });
 
 export const blogSchema = z.object({
-
-    blogTitle: z.string(),
-    category: z.string(),
-    publishDate: z.string(),
-    image: z.string(),
-    blogBody: z.string(),
-    status: z.string()
-
-})
+  blogTitle: z.string(),
+  category: z.string(),
+  publishDate: z.string(),
+  image: z.string(),
+  blogBody: z.string(),
+  status: z.string(),
+});
 export const publishblogSchema = z.object({
-    id: z.number(),
-    blogTitle: z.string(),
-    category: z.string(),
-    publishDate: z.string(),
-    image: z.string(),
-    blogBody: z.string(),
-    status: z.string()
-
-})
+  id: z.number(),
+  blogTitle: z.string(),
+  category: z.string(),
+  publishDate: z.string(),
+  image: z.string(),
+  blogBody: z.string(),
+  status: z.string(),
+});
 export const deleteblogSchema = z.object({
-    id: z.coerce.number(),
-
-})
+  id: z.coerce.number(),
+});
 
 export const contact = z.object({
-    name: z.string().min(1, "Company Name is required"),
-    email: z.string().email("Invalid email format").min(1, "Email is required"),
-    mobileNumber: z
-        .string()
-        .min(10, "Phone number mustbe at least 10 characters long")
-        .max(15, "Phone number cannot exceed 15 characters"),
-    countryCode: z.string().min(1, "Country code is required").optional(),
-    message: z.string().min(1, "Message is required"),
-    submittedAt: z.string().optional(),
-})
+  name: z.string().min(1, "Company Name is required"),
+  email: z.string().email("Invalid email format").min(1, "Email is required"),
+  mobileNumber: z
+    .string()
+    .min(10, "Phone number mustbe at least 10 characters long")
+    .max(15, "Phone number cannot exceed 15 characters"),
+  countryCode: z.string().min(1, "Country code is required").optional(),
+  message: z.string().min(1, "Message is required"),
+  submittedAt: z.string().optional(),
+});
 
 export const deleteContact = z.object({
-    id: z.coerce.number(),
-
-})
+  id: z.coerce.number(),
+});
 
 export const Contactinfo = z.object({
-    id: z.coerce.number(),
-
-})
+  id: z.coerce.number(),
+});
 export const blogByIdSchema = z.object({
-    id: z.coerce.number(),
-
-})
+  id: z.coerce.number(),
+});
 
 export const updateProfileImageSchema = z.object({
-    profileImage: z.string(),
-})
-
+  profileImage: z.string(),
+});
 
 export const logout = z.object({
-    deviceToken: z.string()
-})
+  deviceToken: z.string(),
+});
 export type UpdateProfileImageDTO = z.infer<typeof updateProfileImageSchema>;
 
 export type SuperAdminDTO = z.infer<typeof superAdminSchema>;
-export type ApproveCompanyRequestDTO = z.infer<typeof approveCompanyRequestSchema>;
-export type RejectCompanyRequestDTO = z.infer<typeof rejectCompanyRequestSchema>;
+export type ApproveCompanyRequestDTO = z.infer<
+  typeof approveCompanyRequestSchema
+>;
+export type RejectCompanyRequestDTO = z.infer<
+  typeof rejectCompanyRequestSchema
+>;
 
 export type CompanyStatusDTO = z.infer<typeof companyStatus>;
 export type AddNewCompanyDTO = z.infer<typeof addNewCompanySchema>;
@@ -208,3 +219,7 @@ export type ContactinfochemaDTO = z.infer<typeof Contactinfo>;
 
 export type blogByIdDTO = z.infer<typeof blogByIdSchema>;
 export type LogoutDTO = z.infer<typeof logout>;
+
+export type AddPrinterDTO = z.infer<typeof addPrinterSchema>;
+
+export type UpdatePrinterDTO = z.infer<typeof updatePrinterSchema>;

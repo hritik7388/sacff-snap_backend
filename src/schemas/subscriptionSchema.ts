@@ -53,5 +53,58 @@ export const updateSubscriptionStatusSchema = z.object({
 export type CreateCheckoutSessionDTO = z.infer<typeof createCheckoutSessionSchema>;
 export type CancelSubscriptionDTO = z.infer<typeof cancelSubscriptionSchema>;
 export type AdminSubscriptionQueryDTO = z.infer<typeof adminSubscriptionQuerySchema>;
-export type UpdateSubscriptionStatusDTO = z.infer<typeof updateSubscriptionStatusSchema>;
+export type UpdateSubscriptionStatusDTO = z.infer<typeof updateSubscriptionStatusSchema>;   
+const addressSchema = z.object({
+    company: z.string().optional().default(""),
+    contactName: z.string().min(1, "Contact name is required"),
+    email: z.string().email("Invalid email address"),
+    phone: z.string().min(8).max(16),
+    address: z.string().min(1, "Address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().min(1, "State is required"),
+    zipCode: z.string().min(1, "ZIP code is required"),
+});
 
+export const createPrinterCheckoutSchema = z.object({
+    customerName: z.string().min(1, "Customer name is required"),
+    customerEmail: z.string().email("Invalid email address"),
+    customerPhone: z.string().min(8).max(16),
+
+    items: z.array(
+        z.object({
+            printerId: z.number().int().positive(),
+            quantity: z.number().int().min(1).max(100),
+        })
+    ).min(1, "At least one printer is required"),
+
+    billing: addressSchema,
+
+    sameAsBilling: z.boolean().default(false),
+
+    shipping: addressSchema.optional(),
+
+    successUrl: z.string().url("successUrl must be a valid URL").optional(),
+    cancelUrl: z.string().url("cancelUrl must be a valid URL").optional(),
+}).superRefine((data, ctx) => {
+    const ids = data.items.map(item => item.printerId);
+
+    if (new Set(ids).size !== ids.length) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Duplicate printer IDs are not allowed",
+            path: ["items"],
+        });
+    }
+
+    if (!data.sameAsBilling && !data.shipping) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Shipping address is required",
+            path: ["shipping"],
+        });
+    }
+});
+
+export type CreatePrinterCheckoutDTO = z.infer<
+    typeof createPrinterCheckoutSchema
+>;

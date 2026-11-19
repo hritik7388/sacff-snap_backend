@@ -25,6 +25,8 @@ import {
   generateVideoUploadSchema,
   generateImageUploadSchema,
   deleteQuestionnaireSchema,
+  updatePrinterSchema,
+  addPrinterSchema,
 } from "../schemas/superAdminSchema";
 import { AuthenticatedRequest } from "../types/index";
 import { SubscriptionServices } from "../services/subscriptionServices";
@@ -624,4 +626,112 @@ async updateQuestionnaire(
       next(err);
     }
   }
+
+  async addPrinterBySuperAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const data = addPrinterSchema.parse(req.body);
+
+    const printer = await superAdmin.addPrinterBySuperAdmin(data);
+
+    res.status(201).json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// UPDATE PRINTER
+async updatePrinterBySuperAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+
+      const userId = Number(req.user?.id!);
+    const id = Number(req.params.id);
+
+   
+
+    const data = updatePrinterSchema.parse(req.body);
+
+    const printer = await superAdmin.updatePrinterBySuperAdmin(
+      userId,
+      id,
+      data,
+    );
+
+    res.status(200).json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE PRINTER
+async deletePrinterBySuperAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+
+
+      const userId = Number(req.user?.id!);
+    
+    const id = Number(req.params.id);
+
+    
+
+    const printer = await superAdmin.deletePrinterBySuperAdmin(userId, id);
+
+    res.status(200).json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET ALL PRINTERS
+async getAllPrintersBySuperAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try {
+    const search = req.query.search ? String(req.query.search) : undefined;
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 10;
+
+      const category = req.query.category ? String(req.query.category) : undefined;
+
+    const printers = await superAdmin.getAllPrintersBySuperAdmin(search,page, limit, category);
+
+    res.status(200).json(printers);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET PRINTER BY ID
+async getPrinterByIdBySuperAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: Function,
+) {
+  try { 
+    const id = Number(req.params.id);
+
+  
+
+    const printer = await superAdmin.getPrinterByIdBySuperAdmin( id);
+
+    res.status(200).json(printer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+
 }

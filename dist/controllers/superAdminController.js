@@ -541,5 +541,77 @@ class superAdminController {
             }
         });
     }
+    addPrinterBySuperAdmin(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = superAdminSchema_1.addPrinterSchema.parse(req.body);
+                const printer = yield superAdmin.addPrinterBySuperAdmin(data);
+                res.status(201).json(printer);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // UPDATE PRINTER
+    updatePrinterBySuperAdmin(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const userId = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
+                const id = Number(req.params.id);
+                const data = superAdminSchema_1.updatePrinterSchema.parse(req.body);
+                const printer = yield superAdmin.updatePrinterBySuperAdmin(userId, id, data);
+                res.status(200).json(printer);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // DELETE PRINTER
+    deletePrinterBySuperAdmin(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const userId = Number((_a = req.user) === null || _a === void 0 ? void 0 : _a.id);
+                const id = Number(req.params.id);
+                const printer = yield superAdmin.deletePrinterBySuperAdmin(userId, id);
+                res.status(200).json(printer);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // GET ALL PRINTERS
+    getAllPrintersBySuperAdmin(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const search = req.query.search ? String(req.query.search) : undefined;
+                const page = req.query.page ? Number(req.query.page) : 1;
+                const limit = req.query.limit ? Number(req.query.limit) : 10;
+                const category = req.query.category ? String(req.query.category) : undefined;
+                const printers = yield superAdmin.getAllPrintersBySuperAdmin(search, page, limit, category);
+                res.status(200).json(printers);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    // GET PRINTER BY ID
+    getPrinterByIdBySuperAdmin(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const id = Number(req.params.id);
+                const printer = yield superAdmin.getPrinterByIdBySuperAdmin(id);
+                res.status(200).json(printer);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
 }
 exports.superAdminController = superAdminController;

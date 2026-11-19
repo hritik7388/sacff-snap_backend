@@ -873,7 +873,6 @@ class superAdminServices {
                 });
                 const html = (0, templates_1.companyAddTemplate)(newCompany.name, newCompany.user_type, newCompany.email, data.password);
                 const mail = yield (0, utils_1.sendMail)(newCompany.email, "Welcome to ScaffSnapp Team!", html);
-                console.log("mail====================>>>", mail);
                 const superAdmins = yield prismaClient_1.default.user.findMany({
                     where: { user_type: "SUPER_ADMIN" },
                     select: { id: true },
@@ -1015,6 +1014,7 @@ class superAdminServices {
                             isApproved: "APPROVED",
                             status: "ACTIVE",
                             isDeleted: false,
+                            isVerified: true,
                         },
                         skip,
                         take: limit,
@@ -1863,6 +1863,198 @@ class superAdminServices {
                     throw error;
                 }
                 throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.AUTH.LOGOUT_FAIL, 500, error.message);
+            }
+        });
+    }
+    addPrinterBySuperAdmin(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const printer = yield prismaClient_1.default.printer.create({
+                    data: {
+                        uuid: (0, uuid_1.v4)(),
+                        image: data.image,
+                        name: data.name,
+                        model: data.model,
+                        price: data.price,
+                        description: data.description,
+                        status: data.status,
+                    },
+                });
+                return {
+                    message: "Printer added successfully",
+                    data: Object.assign(Object.assign({}, printer), { id: printer.id.toString() }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw error instanceof customError_1.CustomError
+                    ? error
+                    : new customError_1.CustomError("Failed to add printer", 500, error.message);
+            }
+        });
+    }
+    // UPDATE PRINTER
+    updatePrinterBySuperAdmin(userId, id, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError("User not found", 404, "User does not exist");
+                }
+                const printerId = BigInt(id);
+                const existingPrinter = yield prismaClient_1.default.printer.findUnique({
+                    where: { id: printerId },
+                });
+                if (!existingPrinter) {
+                    throw new customError_1.CustomError("Printer not found", 404, "Printer does not exist");
+                }
+                const updatedPrinter = yield prismaClient_1.default.printer.update({
+                    where: { id: printerId },
+                    data: Object.assign({}, data),
+                });
+                return {
+                    message: "Printer updated successfully",
+                    data: Object.assign(Object.assign({}, updatedPrinter), { id: updatedPrinter.id.toString() }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to update printer", 500, error.message);
+            }
+        });
+    }
+    // DELETE PRINTER
+    deletePrinterBySuperAdmin(userId, id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError("User not found", 404, "User does not exist");
+                }
+                const printerId = BigInt(id);
+                const existingPrinter = yield prismaClient_1.default.printer.findUnique({
+                    where: { id: printerId },
+                });
+                if (!existingPrinter) {
+                    throw new customError_1.CustomError("Printer not found", 404, "Printer does not exist");
+                }
+                yield prismaClient_1.default.printer.delete({
+                    where: { id: printerId },
+                });
+                return {
+                    message: "Printer deleted successfully",
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to delete printer", 500, error.message);
+            }
+        });
+    }
+    // GET ALL PRINTERS
+    getAllPrintersBySuperAdmin(search_1) {
+        return __awaiter(this, arguments, void 0, function* (search, page = 1, limit = 10, category) {
+            try {
+                const skip = (page - 1) * limit;
+                const whereClause = Object.assign(Object.assign(Object.assign({}, (search && {
+                    OR: [
+                        { name: { contains: search } },
+                        { model: { contains: search } },
+                        { description: { contains: search } },
+                    ],
+                })), (category === "printer" && {
+                    NOT: [
+                        { model: null },
+                        { model: "" },
+                    ],
+                })), (category === "paper" && {
+                    OR: [
+                        { model: null },
+                        { model: "" },
+                    ],
+                }));
+                const [printers, totalRecords] = yield prismaClient_1.default.$transaction([
+                    prismaClient_1.default.printer.findMany({
+                        where: whereClause,
+                        orderBy: {
+                            createdAt: "desc",
+                        },
+                        skip,
+                        take: limit,
+                    }),
+                    prismaClient_1.default.printer.count({
+                        where: whereClause,
+                    }),
+                ]);
+                const totalPages = Math.ceil(totalRecords / limit);
+                const formattedPrinters = yield Promise.all(printers.map((printer) => __awaiter(this, void 0, void 0, function* () {
+                    return (Object.assign(Object.assign({}, printer), { id: printer.id.toString(), image: yield (0, utils_1.generateReadUrl)(printer.image), stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK", isAvailable: printer.status === "ACTIVE" && printer.quantity > 0 }));
+                })));
+                return {
+                    message: "Printer list fetched successfully",
+                    pagination: {
+                        currentPage: page,
+                        limit,
+                        totalRecords,
+                        totalPages,
+                        hasNextPage: page < totalPages,
+                        hasPreviousPage: page > 1,
+                    },
+                    data: formattedPrinters,
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch printers", 500, error.message);
+            }
+        });
+    }
+    // GET PRINTER BY ID
+    getPrinterByIdBySuperAdmin(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const printerId = BigInt(id);
+                const printer = yield prismaClient_1.default.printer.findUnique({
+                    where: {
+                        id: printerId,
+                    },
+                });
+                if (!printer) {
+                    throw new customError_1.CustomError("Printer not found", 404, "Printer does not exist");
+                }
+                const imageUrl = yield (0, utils_1.generateReadUrl)(printer.image);
+                return {
+                    message: "Printer fetched successfully",
+                    data: Object.assign(Object.assign({}, printer), { id: printer.id.toString(), image: imageUrl, stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK", isAvailable: printer.status === "ACTIVE" && printer.quantity > 0 }),
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch printer", 500, error.message);
             }
         });
     }

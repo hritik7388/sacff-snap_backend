@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.updateProfileImageSchema = exports.blogByIdSchema = exports.Contactinfo = exports.deleteContact = exports.contact = exports.deleteblogSchema = exports.publishblogSchema = exports.blogSchema = exports.notifictaion = exports.addNewCompanySchema = exports.changeQuestionnaireStatusSchema = exports.updateQuestionnaireSchema = exports.companyStatus = exports.rejectCompanyRequestSchema = exports.approveCompanyRequestSchema = exports.createQuestionnaireSchema = exports.deleteQuestionnaireSchema = exports.generateImageUploadSchema = exports.generateVideoUploadSchema = exports.searchQuestionnaireSchema = exports.superAdminSchema = void 0;
+exports.logout = exports.updateProfileImageSchema = exports.blogByIdSchema = exports.Contactinfo = exports.deleteContact = exports.contact = exports.deleteblogSchema = exports.publishblogSchema = exports.blogSchema = exports.notifictaion = exports.updatePrinterSchema = exports.addPrinterSchema = exports.addNewCompanySchema = exports.changeQuestionnaireStatusSchema = exports.updateQuestionnaireSchema = exports.companyStatus = exports.rejectCompanyRequestSchema = exports.approveCompanyRequestSchema = exports.createQuestionnaireSchema = exports.deleteQuestionnaireSchema = exports.generateImageUploadSchema = exports.generateVideoUploadSchema = exports.searchQuestionnaireSchema = exports.superAdminSchema = void 0;
 // src/schemas/superAdminSchema.ts
 const zod_1 = __importDefault(require("zod"));
 exports.superAdminSchema = zod_1.default.object({
@@ -18,20 +18,11 @@ exports.searchQuestionnaireSchema = zod_1.default.object({
 });
 exports.generateVideoUploadSchema = zod_1.default.object({
     filename: zod_1.default.string().trim().min(1, "Filename is required"),
-    contentType: zod_1.default.enum([
-        "video/mp4",
-        "video/webm",
-        "video/quicktime",
-    ]),
+    contentType: zod_1.default.enum(["video/mp4", "video/webm", "video/quicktime"]),
 });
 exports.generateImageUploadSchema = zod_1.default.object({
     filename: zod_1.default.string().trim().min(1, "Filename is required"),
-    contentType: zod_1.default.enum([
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-    ]),
+    contentType: zod_1.default.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"]),
 });
 exports.deleteQuestionnaireSchema = zod_1.default.object({
     questionnaireId: zod_1.default.coerce
@@ -43,15 +34,22 @@ exports.createQuestionnaireSchema = zod_1.default.object({
     description: zod_1.default.string().trim().min(1, "Description is required"),
     status: zod_1.default.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]),
     videoUrl: zod_1.default.string().min(1, "Valid video URL is required"),
-    certificateTemplateUrl: zod_1.default.string().min(1, "Valid certificate URL is required"),
+    certificateTemplateUrl: zod_1.default
+        .string()
+        .min(1, "Valid certificate URL is required"),
     // certificateThumbnailUrl: z.string().min(1,"Valid certificate thumbnail URL is required"),
-    questions: zod_1.default.array(zod_1.default.object({
+    questions: zod_1.default
+        .array(zod_1.default
+        .object({
         questionText: zod_1.default.string().trim().min(1, "Question is required"),
-        options: zod_1.default.array(zod_1.default.object({
+        options: zod_1.default
+            .array(zod_1.default.object({
             optionText: zod_1.default.string().trim().min(1, "Option text is required"),
             isCorrect: zod_1.default.boolean(),
-        })).length(4, "Each question must have exactly 4 options"),
-    }).superRefine((question, ctx) => {
+        }))
+            .length(4, "Each question must have exactly 4 options"),
+    })
+        .superRefine((question, ctx) => {
         const correctCount = question.options.filter((option) => option.isCorrect).length;
         if (correctCount !== 1) {
             ctx.addIssue({
@@ -60,7 +58,8 @@ exports.createQuestionnaireSchema = zod_1.default.object({
                 path: ["options"],
             });
         }
-    })).min(1, "At least one question is required"),
+    }))
+        .min(1, "At least one question is required"),
 });
 exports.approveCompanyRequestSchema = zod_1.default.object({
     id: zod_1.default.number(),
@@ -89,6 +88,32 @@ exports.addNewCompanySchema = zod_1.default.object({
     latitude: zod_1.default.number().optional(),
     longitude: zod_1.default.number().optional(),
 });
+exports.addPrinterSchema = zod_1.default.object({
+    image: zod_1.default.string().min(1, "Printer image is required"),
+    name: zod_1.default.string().min(1, "Printer name is required"),
+    model: zod_1.default.string().optional(),
+    price: zod_1.default.number().min(0, "Price cannot be negative"),
+    quantity: zod_1.default.number().int().min(0, "Quantity cannot be negative"),
+    description: zod_1.default.string().min(1, "Product description is required"),
+    status: zod_1.default.enum(["ACTIVE", "INACTIVE"]).optional().default("ACTIVE"),
+});
+// UPDATE PRINTER
+exports.updatePrinterSchema = zod_1.default
+    .object({
+    image: zod_1.default.string().min(1, "Printer image is required").optional(),
+    name: zod_1.default.string().min(1, "Printer name is required").optional(),
+    model: zod_1.default.string().optional(),
+    price: zod_1.default.number().min(0, "Price cannot be negative").optional(),
+    description: zod_1.default
+        .string()
+        .min(1, "Product description is required")
+        .optional(),
+    quantity: zod_1.default.number().int().min(0, "Quantity cannot be negative"),
+    status: zod_1.default.enum(["ACTIVE", "INACTIVE"]).optional(),
+})
+    .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required to update printer",
+});
 exports.notifictaion = zod_1.default.object({
     id: zod_1.default.number(),
 });
@@ -98,7 +123,7 @@ exports.blogSchema = zod_1.default.object({
     publishDate: zod_1.default.string(),
     image: zod_1.default.string(),
     blogBody: zod_1.default.string(),
-    status: zod_1.default.string()
+    status: zod_1.default.string(),
 });
 exports.publishblogSchema = zod_1.default.object({
     id: zod_1.default.number(),
@@ -107,7 +132,7 @@ exports.publishblogSchema = zod_1.default.object({
     publishDate: zod_1.default.string(),
     image: zod_1.default.string(),
     blogBody: zod_1.default.string(),
-    status: zod_1.default.string()
+    status: zod_1.default.string(),
 });
 exports.deleteblogSchema = zod_1.default.object({
     id: zod_1.default.coerce.number(),
@@ -136,5 +161,5 @@ exports.updateProfileImageSchema = zod_1.default.object({
     profileImage: zod_1.default.string(),
 });
 exports.logout = zod_1.default.object({
-    deviceToken: zod_1.default.string()
+    deviceToken: zod_1.default.string(),
 });

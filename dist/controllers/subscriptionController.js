@@ -191,5 +191,17 @@ class SubscriptionController {
             }
         });
     }
+    createPrinterCheckoutSession(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const validatedData = subscriptionSchema_1.createPrinterCheckoutSchema.parse(req.body);
+                const result = yield subscriptionService.createPrinterCheckoutSession(validatedData);
+                return res.status(result.statusCode).json(result);
+            }
+            catch (error) {
+                next(error);
+            }
+        });
+    }
 }
 exports.SubscriptionController = SubscriptionController;

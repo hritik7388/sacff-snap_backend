@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateSubscriptionStatusSchema = exports.adminSubscriptionQuerySchema = exports.cancelSubscriptionSchema = exports.webhookPayloadSchema = exports.createCheckoutSessionSchema = void 0;
+exports.createPrinterCheckoutSchema = exports.updateSubscriptionStatusSchema = exports.adminSubscriptionQuerySchema = exports.cancelSubscriptionSchema = exports.webhookPayloadSchema = exports.createCheckoutSessionSchema = void 0;
 // src/schemas/subscriptionSchema.ts
 const zod_1 = require("zod");
 exports.createCheckoutSessionSchema = zod_1.z.object({
@@ -45,4 +45,42 @@ exports.updateSubscriptionStatusSchema = zod_1.z.object({
     id: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
     subscriptionId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
     status: zod_1.z.string().min(1, "Status is required"),
+});
+const addressSchema = zod_1.z.object({
+    company: zod_1.z.string().optional().default(""),
+    contactName: zod_1.z.string().min(1, "Contact name is required"),
+    email: zod_1.z.string().email("Invalid email address"),
+    phone: zod_1.z.string().min(8).max(16),
+    address: zod_1.z.string().min(1, "Address is required"),
+    city: zod_1.z.string().min(1, "City is required"),
+    state: zod_1.z.string().min(1, "State is required"),
+    zipCode: zod_1.z.string().min(1, "ZIP code is required"),
+});
+exports.createPrinterCheckoutSchema = zod_1.z.object({
+    customerName: zod_1.z.string().min(1, "Customer name is required"),
+    customerEmail: zod_1.z.string().email("Invalid email address"),
+    customerPhone: zod_1.z.string().min(8).max(16),
+    items: zod_1.z.array(zod_1.z.object({
+        printerId: zod_1.z.number().int().positive(),
+        quantity: zod_1.z.number().int().min(1).max(100),
+    })).min(1, "At least one printer is required"),
+    billing: addressSchema,
+    sameAsBilling: zod_1.z.boolean().default(false),
+    shipping: addressSchema.optional(),
+}).superRefine((data, ctx) => {
+    const ids = data.items.map(item => item.printerId);
+    if (new Set(ids).size !== ids.length) {
+        ctx.addIssue({
+            code: zod_1.z.ZodIssueCode.custom,
+            message: "Duplicate printer IDs are not allowed",
+            path: ["items"],
+        });
+    }
+    if (!data.sameAsBilling && !data.shipping) {
+        ctx.addIssue({
+            code: zod_1.z.ZodIssueCode.custom,
+            message: "Shipping address is required",
+            path: ["shipping"],
+        });
+    }
 });

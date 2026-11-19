@@ -11,35 +11,37 @@ enum FAQStatus {
   ACTIVE
   INACTIVE
 }
+
 model QuestionnaireEnrollment {
   id              BigInt   @id @default(autoincrement())
   uuid            String   @unique
   questionnaireId BigInt
   tradesmanId     BigInt
   isEnrolled      Boolean  @default(true)
-  enrolledAt      DateTime @default(now()) 
+  enrolledAt      DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  questionnaire Questionnaire @relation(   fields: [questionnaireId],    references: [id],    onDelete: Cascade  )
+  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
 
-  tradesman TradesMan @relation(    fields: [tradesmanId],    references: [userId],    onDelete: Cascade  )
+  tradesman TradesMan @relation(fields: [tradesmanId], references: [userId], onDelete: Cascade)
 
   @@unique([tradesmanId, questionnaireId])
   @@index([questionnaireId])
   @@index([tradesmanId])
 }
-model FAQ {
-  id          BigInt    @id @default(autoincrement())
-  uuid        String    @unique
-  question    String    @db.VarChar(500)
-  answer      String    @db.Text
-  status      FAQStatus @default(ACTIVE)
-  sortOrder   Int       @default(0) 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 
-  @@index([status, sortOrder]) 
+model FAQ {
+  id        BigInt    @id @default(autoincrement())
+  uuid      String    @unique
+  question  String    @db.VarChar(500)
+  answer    String    @db.Text
+  status    FAQStatus @default(ACTIVE)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, sortOrder])
   @@map("faqs")
 }
 
@@ -67,13 +69,13 @@ model Questionnaire {
   createdBy User       @relation("QuestionnaireCreatedBy", fields: [createdById], references: [id])
   questions Question[]
 
-  attempts QuizAttempt[]
+  attempts     QuizAttempt[]
+  certificates Certificate[]
+  enrollments  QuestionnaireEnrollment[]
 
   @@index([status])
   @@index([createdById])
-  @@index([createdAt]) 
-certificates  Certificate[]
-enrollments QuestionnaireEnrollment[]
+  @@index([createdAt])
 }
 
 model Question {
@@ -88,9 +90,9 @@ model Question {
 
   questionnaire Questionnaire    @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
   options       QuestionOption[]
+  answers       QuizAnswer[]
 
   @@index([questionnaireId, sortOrder])
-  answers QuizAnswer[]
 }
 
 model QuestionOption {
@@ -101,36 +103,36 @@ model QuestionOption {
 
   createdAt DateTime @default(now())
 
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question          Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedInAnswers QuizAnswer[]
 
   @@index([questionId])
-  selectedInAnswers QuizAnswer[]
 }
 
 model Company {
-  id               BigInt            @id @default(autoincrement())
-  uuid             String            @unique
+  id               BigInt               @id @default(autoincrement())
+  uuid             String               @unique
   name             String
-  email            String            @unique
+  email            String               @unique
   address          String?
   latitude         Float?
   longitude        Float?
   password         String
   mobileNumber     String
-  countryCode      String            @default("+91")
-  user_type        String            @default("COMPANY")
+  countryCode      String               @default("+91")
+  user_type        String               @default("COMPANY")
   otp              String?
   otpExpireTime    DateTime?
-  isVerified       Boolean           @default(false)
+  isVerified       Boolean              @default(false)
   CMPId            String?
   image            String
   lastLogin        DateTime?
-  status           CompanyStatus     @default(ACTIVE)
-  isDeleted        Boolean           @default(false)
-  isApproved       CompmnayApproval  @default(PENDING)
-  createdAt        DateTime          @default(now())
+  status           CompanyStatus        @default(ACTIVE)
+  isDeleted        Boolean              @default(false)
+  isApproved       CompmnayApproval     @default(PENDING)
+  createdAt        DateTime             @default(now())
   createdById      BigInt?
-  createdBy        User?             @relation("CompanyCreatedBy", fields: [createdById], references: [id])
+  createdBy        User?                @relation("CompanyCreatedBy", fields: [createdById], references: [id])
   competentPersons CompetentPerson[]
   projects         Project[]
   projectManagers  ProjectManager[]
@@ -217,11 +219,11 @@ model TradesMan {
   projects                    TradesManOnProject[]
   projectContexts             TradesmanProjectContext[]
 
-  @@index([craftId], map: "TradesMan_craftId_fkey")
+  quizAttempts QuizAttempt[]
+  certificates Certificate[]
+  enrollments  QuestionnaireEnrollment[]
 
-  quizAttempts QuizAttempt[] 
-certificates  Certificate[]
-enrollments QuestionnaireEnrollment[]
+  @@index([craftId], map: "TradesMan_craftId_fkey")
 }
 
 enum QuizAttemptStatus {
@@ -247,14 +249,14 @@ model QuizAttempt {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  questionnaire Questionnaire @relation(fields: [questionnaireId], references: [id])
-  tradesman     TradesMan     @relation(fields: [tradesmanId], references: [id])
-  answers       QuizAnswer[]
+  questionnaire            Questionnaire @relation(fields: [questionnaireId], references: [id])
+  tradesman                TradesMan     @relation(fields: [tradesmanId], references: [id])
+  answers                  QuizAnswer[]
+  currentQuestionStartedAt DateTime?
+  certificate              Certificate?
 
   @@index([tradesmanId, questionnaireId])
   @@index([tradesmanId, status])
-  currentQuestionStartedAt DateTime?
-certificate              Certificate?
 }
 
 model QuizAnswer {
@@ -272,10 +274,9 @@ model QuizAnswer {
   selectedOption QuestionOption? @relation(fields: [selectedOptionId], references: [id])
 
   @@unique([attemptId, questionId])
-  @@index([questionId]) 
+  @@index([questionId])
 }
 
- 
 model Certificate {
   id              BigInt   @id @default(autoincrement())
   uuid            String   @unique
@@ -293,7 +294,7 @@ model Certificate {
 
   @@index([tradesmanId, issuedAt])
 }
- 
+
 model Device {
   id          BigInt    @id @default(autoincrement())
   userId      BigInt
@@ -751,23 +752,23 @@ enum ScaffholdTags {
   YELLOW
 }
 
-// ─── Subscription ────────────────────────────────────────────────────────────
+// ─── Subscription ────────────────────────────────────────────────────────────//
 
 model CompanySubscription {
-  id                     BigInt             @id @default(autoincrement())
-  uuid                   String             @unique
-  companyId              BigInt             @unique
-  planType               SubscriptionPlan   @default(MONTHLY)
-  status                 SubscriptionStatus @default(PENDING)
-  stripeCustomerId       String?
-  stripeSessionId        String?
-  stripeSubscriptionId   String?
-  currentPeriodStart     DateTime?
-  currentPeriodEnd       DateTime?
-  cancelAtPeriodEnd      Boolean            @default(false)
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-  company                Company            @relation(fields: [companyId], references: [id])
+  id                   BigInt             @id @default(autoincrement())
+  uuid                 String             @unique
+  companyId            BigInt             @unique
+  planType             SubscriptionPlan   @default(MONTHLY)
+  status               SubscriptionStatus @default(PENDING)
+  stripeCustomerId     String?
+  stripeSessionId      String?
+  stripeSubscriptionId String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  company              Company            @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
 }
@@ -796,44 +797,156 @@ enum RoiLeadStatus {
 }
 
 model RoiLead {
-  id                        BigInt        @id @default(autoincrement())
-  uuid                      String        @unique
-  firstName                 String
-  email                     String
-  company                   String
-  state                     String
-  status                    RoiLeadStatus @default(NEW)
-  notes                     String?       @db.Text
+  id        BigInt        @id @default(autoincrement())
+  uuid      String        @unique
+  firstName String
+  email     String
+  company   String
+  state     String
+  status    RoiLeadStatus @default(NEW)
+  notes     String?       @db.Text
 
   // Operation Inputs
-  annualScaffoldCount       Int           @default(0)
-  avgRentalDurationDays     Float         @default(0)
-  dailyRentalCost           Float         @default(0)
-  crewSizePerBuild          Int           @default(0)
-  hourlyLaborRate           Float         @default(0)
-  standbyHours              Float         @default(0)
+  annualScaffoldCount   Int   @default(0)
+  avgRentalDurationDays Float @default(0)
+  dailyRentalCost       Float @default(0)
+  crewSizePerBuild      Int   @default(0)
+  hourlyLaborRate       Float @default(0)
+  standbyHours          Float @default(0)
 
   // Calculated Results
-  ghostRentalExposure       Float         @default(0)
-  standbyLaborLeakage       Float         @default(0)
-  totalAnnualLeakage        Float         @default(0)
-  potentialRecoverableValue Float         @default(0)
+  ghostRentalExposure       Float @default(0)
+  standbyLaborLeakage       Float @default(0)
+  totalAnnualLeakage        Float @default(0)
+  potentialRecoverableValue Float @default(0)
 
   // Breakdown & Plan Recommendation
-  ghostRentalRecovery       Float         @default(0)
-  standbyLaborRecovery      Float         @default(0)
-  adminRecovery             Float         @default(0)
-  recommendedPlan           String?
-  recommendedPlanPrice      Float?
-  recommendedPlanAnnual     Float?
+  ghostRentalRecovery   Float   @default(0)
+  standbyLaborRecovery  Float   @default(0)
+  adminRecovery         Float   @default(0)
+  recommendedPlan       String?
+  recommendedPlanPrice  Float?
+  recommendedPlanAnnual Float?
 
-  ipAddress                 String?
-  userAgent                 String?
+  ipAddress String?
+  userAgent String?
 
-  createdAt                 DateTime      @default(now())
-  updatedAt                 DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([email])
   @@index([createdAt])
+}
+
+enum PrinterStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Printer {
+  id          BigInt        @id @default(autoincrement())
+  uuid        String        @unique
+  image       String
+  name        String
+  model       String?
+  price       Float
+  quantity    Int           @default(0)
+  description String        @db.Text
+  status      PrinterStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  orderItems  PrinterOrderItem[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PrinterOrderStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  INVENTORY_ISSUE
+  REFUNDED
+}
+
+model PrinterOrder {
+  id                    BigInt             @id @default(autoincrement())
+  uuid                  String             @unique
+  orderNumber           String             @unique
+
+  customerName          String
+  customerEmail         String
+  customerPhone         String
+
+  // Billing address
+  billingCompany        String?
+  billingContactName    String
+  billingEmail          String
+  billingPhone          String
+  billingAddress        String
+  billingCity           String
+  billingState          String
+  billingZipCode        String
+
+  // Shipping address
+  sameAsBilling         Boolean            @default(false)
+  shippingCompany       String?
+  shippingContactName   String
+  shippingEmail         String
+  shippingPhone         String
+  shippingAddress       String
+  shippingCity          String
+  shippingState         String
+  shippingZipCode       String
+
+  // All amounts stored in cents
+  subtotalCents         Int
+  shippingCents         Int                @default(0)
+  taxCents              Int                @default(0)
+  totalCents            Int
+
+  currency              String             @default("usd")
+  status                PrinterOrderStatus @default(PENDING)
+
+  stripeSessionId       String?            @unique
+  stripePaymentIntentId String?
+
+  customerEmailSentAt   DateTime?
+  adminEmailSentAt      DateTime?
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  items                 PrinterOrderItem[]
+
+  @@index([status])
+  @@index([customerEmail])
+  @@index([createdAt])
+}
+
+model PrinterOrderItem {
+  id                BigInt        @id @default(autoincrement())
+
+  orderId           BigInt
+  printerId         BigInt?
+
+  // Product snapshot at checkout time
+  productName       String
+  model             String?
+  image             String?
+
+  quantity          Int
+  unitPriceCents    Int
+  totalPriceCents   Int
+
+  createdAt         DateTime      @default(now())
+
+  order             PrinterOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  printer           Printer?      @relation(fields: [printerId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([printerId])
 }

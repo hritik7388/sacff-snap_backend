@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "../types/index";
 import { SubscriptionServices } from "../services/subscriptionServices";
-import { createCheckoutSessionSchema, adminSubscriptionQuerySchema, updateSubscriptionStatusSchema } from "../schemas/subscriptionSchema";
+import { createCheckoutSessionSchema, adminSubscriptionQuerySchema, updateSubscriptionStatusSchema, createPrinterCheckoutSchema } from "../schemas/subscriptionSchema";
 
 const subscriptionService = new SubscriptionServices();
 
@@ -164,4 +164,20 @@ export class SubscriptionController {
             next(err);
         }
     }
+
+    async createPrinterCheckoutSession(req: Request, res: Response, next: Function) {
+         try {
+        const validatedData = createPrinterCheckoutSchema.parse(req.body);
+
+        const result =
+            await subscriptionService.createPrinterCheckoutSession(
+                validatedData
+            );
+
+        return res.status(result.statusCode).json(result);
+
+    } catch (error) {
+        next(error);
+    }
+}
 }

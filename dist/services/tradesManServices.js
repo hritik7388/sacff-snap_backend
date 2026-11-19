@@ -750,20 +750,20 @@ class tradesManServices {
                             ? yield (0, utils_1.generateReadUrl)(questionnaire.certificateTemplateUrl)
                             : null;
                     }
-                    let certificatethumbnailUrl = null;
-                    if (certificate) {
-                        const questionnaire = yield tx.questionnaire.findUnique({
-                            where: {
-                                id: questionnaireId,
-                            },
-                            select: {
-                            // certificateThumbnailUrl: true,
-                            },
-                        });
-                        // certificatethumbnailUrl = questionnaire?.certificateThumbnailUrl
-                        //   ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
-                        //   : null;
-                    }
+                    // let certificatethumbnailUrl: string | null = null;
+                    // if (certificate) {
+                    //   const questionnaire = await tx.questionnaire.findUnique({
+                    //     where: {
+                    //       id: questionnaireId,
+                    //     },
+                    //     select: {
+                    //       // certificateThumbnailUrl: true,
+                    //     },
+                    //   });
+                    //   // certificatethumbnailUrl = questionnaire?.certificateThumbnailUrl
+                    //   //   ? await generateReadUrl(questionnaire.certificateThumbnailUrl)
+                    //   //   : null;
+                    // }
                     // 12. Existing response unchanged
                     return {
                         message: status === "PASSED"
@@ -782,7 +782,7 @@ class tradesManServices {
                                     certificateNo: certificate.certificateNo,
                                     certificateUrl: certificate.certificateUrl,
                                     certificateTemplateUrl,
-                                    certificateThumbnailUrl: certificatethumbnailUrl,
+                                    // certificateThumbnailUrl: certificatethumbnailUrl,
                                     issuedAt: certificate.issuedAt,
                                 }
                                 : null,

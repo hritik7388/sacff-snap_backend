@@ -21,6 +21,7 @@ const customError_1 = require("../types/customError");
 const uuid_1 = require("uuid");
 const utils_1 = require("../helpers/utils");
 const client_1 = require("@prisma/client");
+const templates_1 = require("../helpers/templates");
 const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2026-09-30.endive",
 });
@@ -58,7 +59,8 @@ function getSubscriptionIdFromInvoice(invoice) {
     const parent = invoice.parent;
     if (!parent)
         return null;
-    if (parent.type === "subscription_details" && ((_a = parent.subscription_details) === null || _a === void 0 ? void 0 : _a.subscription)) {
+    if (parent.type === "subscription_details" &&
+        ((_a = parent.subscription_details) === null || _a === void 0 ? void 0 : _a.subscription)) {
         return parent.subscription_details.subscription;
     }
     return null;
@@ -200,10 +202,8 @@ class SubscriptionServices {
                     stripeCustomerId = customer.id;
                 }
                 const frontendBaseUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
-                const successUrl = data.successUrl ||
-                    `${frontendBaseUrl}/`;
-                const cancelUrl = data.cancelUrl ||
-                    `${frontendBaseUrl}/pricing?canceled=true`;
+                const successUrl = data.successUrl || `${frontendBaseUrl}/`;
+                const cancelUrl = data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
                 // 3. Create Stripe Checkout Session
                 const session = yield stripe.checkout.sessions.create({
                     customer: stripeCustomerId,
@@ -261,6 +261,8 @@ class SubscriptionServices {
                         currentPeriodEnd: endDate,
                     },
                 });
+                const html = (0, templates_1.companyAddTemplate)(company.name, company.user_type, company.email, data.password);
+                const mail = yield (0, utils_1.sendMail)(company.email, "Welcome to ScaffSnapp Team!", html);
                 return {
                     success: true,
                     statusCode: 200,
@@ -343,7 +345,7 @@ class SubscriptionServices {
                 const facilitiesCount = (_b = (_a = company._count) === null || _a === void 0 ? void 0 : _a.projects) !== null && _b !== void 0 ? _b : 0;
                 const companyIdNum = Number(company.id);
                 const subCode = company.CMPId
-                    ? `SUB-${company.CMPId.replace(/\D/g, "").slice(0, 4) || (1000 + companyIdNum)}`
+                    ? `SUB-${company.CMPId.replace(/\D/g, "").slice(0, 4) || 1000 + companyIdNum}`
                     : `SUB-${1000 + companyIdNum}`;
                 const invoiceRef = `INV-${1000 + companyIdNum}`;
                 const formatDisplayDate = (d) => {
@@ -352,7 +354,20 @@ class SubscriptionServices {
                     const dt = new Date(d);
                     if (isNaN(dt.getTime()))
                         return "";
-                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const months = [
+                        "Jan",
+                        "Feb",
+                        "Mar",
+                        "Apr",
+                        "May",
+                        "Jun",
+                        "Jul",
+                        "Aug",
+                        "Sep",
+                        "Oct",
+                        "Nov",
+                        "Dec",
+                    ];
                     return `${months[dt.getUTCMonth()]} ${dt.getUTCDate()}, ${dt.getUTCFullYear()}`;
                 };
                 const formatIsoDate = (d) => {
@@ -390,7 +405,9 @@ class SubscriptionServices {
                         ]);
                         if (pmList.data.length > 0 && pmList.data[0].card) {
                             const card = pmList.data[0].card;
-                            const brandName = card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "Card";
+                            const brandName = card.brand
+                                ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1)
+                                : "Card";
                             paymentMethod = {
                                 brand: brandName,
                                 last4: card.last4 || "4242",
@@ -418,7 +435,11 @@ class SubscriptionServices {
                                     amount: `$${(((_a = inv.amount_paid) !== null && _a !== void 0 ? _a : 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                                     amountNumeric: ((_b = inv.amount_paid) !== null && _b !== void 0 ? _b : 0) / 100,
                                     currency: ((_c = inv.currency) === null || _c === void 0 ? void 0 : _c.toUpperCase()) || "USD",
-                                    status: inv.status === "paid" ? "Paid" : (inv.status ? inv.status.charAt(0).toUpperCase() + inv.status.slice(1) : "Paid"),
+                                    status: inv.status === "paid"
+                                        ? "Paid"
+                                        : inv.status
+                                            ? inv.status.charAt(0).toUpperCase() + inv.status.slice(1)
+                                            : "Paid",
                                     statusRaw: inv.status,
                                     receiptUrl: inv.hosted_invoice_url || inv.invoice_pdf || null,
                                     downloadUrl: inv.invoice_pdf || inv.hosted_invoice_url || null,
@@ -589,7 +610,9 @@ class SubscriptionServices {
                     throw new customError_1.CustomError("Session not found", 404, "Checkout session not found");
                 }
                 // Validate if companyId is provided
-                if (companyId && ((_a = session.metadata) === null || _a === void 0 ? void 0 : _a.companyId) && session.metadata.companyId !== companyId.toString()) {
+                if (companyId &&
+                    ((_a = session.metadata) === null || _a === void 0 ? void 0 : _a.companyId) &&
+                    session.metadata.companyId !== companyId.toString()) {
                     throw new customError_1.CustomError("Unauthorized", 403, "Session does not belong to this company");
                 }
                 const sub = session.subscription;
@@ -599,7 +622,7 @@ class SubscriptionServices {
                     const planType = ((_c = session.metadata.planType) !== null && _c !== void 0 ? _c : "MONTHLY");
                     const stripeSubId = typeof session.subscription === "string"
                         ? session.subscription
-                        : (_e = (_d = session.subscription) === null || _d === void 0 ? void 0 : _d.id) !== null && _e !== void 0 ? _e : null;
+                        : ((_e = (_d = session.subscription) === null || _d === void 0 ? void 0 : _d.id) !== null && _e !== void 0 ? _e : null);
                     let periodStart = null;
                     let periodEnd = null;
                     if (sub) {
@@ -623,7 +646,9 @@ class SubscriptionServices {
                             data: {
                                 status: "ACTIVE",
                                 planType,
-                                stripeCustomerId: typeof session.customer === "string" ? session.customer : undefined,
+                                stripeCustomerId: typeof session.customer === "string"
+                                    ? session.customer
+                                    : undefined,
                                 stripeSessionId: session.id,
                                 stripeSubscriptionId: stripeSubId,
                                 currentPeriodStart: periodStart,
@@ -728,7 +753,7 @@ class SubscriptionServices {
             }
             const stripeSubId = typeof session.subscription === "string"
                 ? session.subscription
-                : (_e = (_d = session.subscription) === null || _d === void 0 ? void 0 : _d.id) !== null && _e !== void 0 ? _e : null;
+                : ((_e = (_d = session.subscription) === null || _d === void 0 ? void 0 : _d.id) !== null && _e !== void 0 ? _e : null);
             let periodStart = null;
             let periodEnd = null;
             if (stripeSubId) {
@@ -950,7 +975,7 @@ class SubscriptionServices {
         const statusDisplay = this.getStatusDisplay(sub.status);
         const companyIdStr = (_e = (_c = (_b = (_a = sub.company) === null || _a === void 0 ? void 0 : _a.id) === null || _b === void 0 ? void 0 : _b.toString()) !== null && _c !== void 0 ? _c : (_d = sub.companyId) === null || _d === void 0 ? void 0 : _d.toString()) !== null && _e !== void 0 ? _e : "";
         const subCode = ((_f = sub.company) === null || _f === void 0 ? void 0 : _f.CMPId)
-            ? `SUB-${sub.company.CMPId.replace(/\D/g, "").slice(0, 4) || (1000 + Number(companyIdStr))}`
+            ? `SUB-${sub.company.CMPId.replace(/\D/g, "").slice(0, 4) || 1000 + Number(companyIdStr)}`
             : `SUB-${1000 + Number(companyIdStr || sub.id)}`;
         const renewalDate = sub.currentPeriodEnd
             ? new Date(sub.currentPeriodEnd).toISOString().split("T")[0]
@@ -1257,15 +1282,17 @@ class SubscriptionServices {
                             collectionMethod: stripeSub.collection_method,
                             created: new Date(stripeSub.created * 1000),
                             currentPeriodStart: new Date(stripeSub.billing_cycle_anchor * 1000),
-                            latestInvoice: invoice && typeof invoice === "object" ? {
-                                id: invoice.id,
-                                amountPaid: ((_a = invoice.amount_paid) !== null && _a !== void 0 ? _a : 0) / 100,
-                                currency: (_b = invoice.currency) === null || _b === void 0 ? void 0 : _b.toUpperCase(),
-                                status: invoice.status,
-                                hostedInvoiceUrl: invoice.hosted_invoice_url,
-                                invoicePdf: invoice.invoice_pdf,
-                                number: invoice.number,
-                            } : null,
+                            latestInvoice: invoice && typeof invoice === "object"
+                                ? {
+                                    id: invoice.id,
+                                    amountPaid: ((_a = invoice.amount_paid) !== null && _a !== void 0 ? _a : 0) / 100,
+                                    currency: (_b = invoice.currency) === null || _b === void 0 ? void 0 : _b.toUpperCase(),
+                                    status: invoice.status,
+                                    hostedInvoiceUrl: invoice.hosted_invoice_url,
+                                    invoicePdf: invoice.invoice_pdf,
+                                    number: invoice.number,
+                                }
+                                : null,
                         };
                     }
                     catch (stripeErr) {
@@ -1274,7 +1301,7 @@ class SubscriptionServices {
                 }
                 const companyIdNum = Number(subscription.companyId);
                 const subCode = ((_c = subscription.company) === null || _c === void 0 ? void 0 : _c.CMPId)
-                    ? `SUB-${subscription.company.CMPId.replace(/\D/g, "").slice(0, 4) || (1000 + companyIdNum)}`
+                    ? `SUB-${subscription.company.CMPId.replace(/\D/g, "").slice(0, 4) || 1000 + companyIdNum}`
                     : `SUB-${1000 + companyIdNum}`;
                 const invoiceCode = `INV-${1000 + companyIdNum}`;
                 const planInfo = this.getPlanDisplayDetails(subscription.planType);
@@ -1290,7 +1317,7 @@ class SubscriptionServices {
                 const invoice = stripeDetails === null || stripeDetails === void 0 ? void 0 : stripeDetails.latestInvoice;
                 const isInvoiceConnected = Boolean((invoice === null || invoice === void 0 ? void 0 : invoice.hostedInvoiceUrl) || (invoice === null || invoice === void 0 ? void 0 : invoice.invoicePdf));
                 const invoiceLinkText = isInvoiceConnected
-                    ? (invoice.hostedInvoiceUrl || invoice.invoicePdf)
+                    ? invoice.hostedInvoiceUrl || invoice.invoicePdf
                     : "Provider invoice link not connected";
                 return {
                     success: true,
@@ -1310,7 +1337,9 @@ class SubscriptionServices {
                             isConnected: isInvoiceConnected,
                             linkText: invoiceLinkText,
                             displayText: invoiceLinkText,
-                            statusText: isInvoiceConnected ? "Connected" : "Provider invoice link not connected",
+                            statusText: isInvoiceConnected
+                                ? "Connected"
+                                : "Provider invoice link not connected",
                         }, invoiceNumber: (invoice === null || invoice === void 0 ? void 0 : invoice.number) || invoiceCode, invoiceReference: "Invoice / receipt reference", invoiceUrl: (invoice === null || invoice === void 0 ? void 0 : invoice.hostedInvoiceUrl) || null, invoicePdf: (invoice === null || invoice === void 0 ? void 0 : invoice.invoicePdf) || null, isInvoiceConnected, invoiceStatusText: invoiceLinkText, 
                         // Modal Administrative status preview
                         administrativeStatus: statusDisplay, administrativeStatusValue: subscription.status, allowedStatuses: [
@@ -1393,7 +1422,9 @@ class SubscriptionServices {
                     where: { id: sub.id },
                     data: {
                         status: targetStatus,
-                        cancelAtPeriodEnd: targetStatus === client_1.SubscriptionStatus.CANCELLED ? true : sub.cancelAtPeriodEnd,
+                        cancelAtPeriodEnd: targetStatus === client_1.SubscriptionStatus.CANCELLED
+                            ? true
+                            : sub.cancelAtPeriodEnd,
                     },
                 });
                 if (targetStatus === client_1.SubscriptionStatus.ACTIVE) {
@@ -1426,6 +1457,234 @@ class SubscriptionServices {
                 if (error instanceof customError_1.CustomError)
                     throw error;
                 throw new customError_1.CustomError(error.message || "Failed to update subscription status", 500, "Subscription status update failed");
+            }
+        });
+    }
+    createPrinterCheckoutSession(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let createdOrderId = null;
+            try {
+                // 1. Fetch printers from database
+                const printerIds = data.items.map((item) => BigInt(item.printerId));
+                const printers = yield prismaClient_1.default.printer.findMany({
+                    where: {
+                        id: { in: printerIds },
+                        status: "ACTIVE",
+                    },
+                });
+                if (printers.length !== data.items.length) {
+                    throw new customError_1.CustomError("One or more printers are unavailable", 400, "Invalid printer selection");
+                }
+                // 2. Validate prices and calculate subtotal
+                let calculatedSubtotal = 0;
+                const orderItems = data.items.map((item) => {
+                    const printer = printers.find((p) => p.id === BigInt(item.printerId));
+                    if (!printer) {
+                        throw new customError_1.CustomError("Printer not found", 404, "Printer not found");
+                    }
+                    if (printer.quantity < item.quantity) {
+                        throw new customError_1.CustomError(`Insufficient stock for ${printer.name}`, 400, "Insufficient inventory");
+                    }
+                    const databasePrice = Math.round(printer.price * 100);
+                    const totalPriceCents = databasePrice * item.quantity;
+                    calculatedSubtotal += totalPriceCents;
+                    return {
+                        printerId: printer.id,
+                        productName: printer.name,
+                        model: printer.model,
+                        image: printer.image,
+                        quantity: item.quantity,
+                        unitPriceCents: databasePrice,
+                        totalPriceCents,
+                    };
+                });
+                // 3. Calculate amounts from trusted printer prices. The checkout
+                // DTO does not include client-supplied subtotal, shipping, or tax.
+                const subtotalCents = calculatedSubtotal;
+                const shippingCents = 0;
+                const taxCents = 0;
+                const totalCents = subtotalCents + shippingCents + taxCents;
+                // 5. Prepare shipping information
+                const shipping = data.sameAsBilling ? data.billing : data.shipping;
+                // 6. Generate order number
+                const orderNumber = `PRN-${Date.now()}-${(0, uuid_1.v4)().slice(0, 6).toUpperCase()}`;
+                // 7. Save order in database
+                const order = yield prismaClient_1.default.printerOrder.create({
+                    data: {
+                        uuid: (0, uuid_1.v4)(),
+                        orderNumber,
+                        customerName: data.customerName,
+                        customerEmail: data.customerEmail,
+                        customerPhone: data.customerPhone,
+                        // Billing
+                        billingCompany: data.billing.company,
+                        billingContactName: data.billing.contactName,
+                        billingEmail: data.billing.email,
+                        billingPhone: data.billing.phone,
+                        billingAddress: data.billing.address,
+                        billingCity: data.billing.city,
+                        billingState: data.billing.state,
+                        billingZipCode: data.billing.zipCode,
+                        // Shipping
+                        sameAsBilling: data.sameAsBilling,
+                        shippingCompany: shipping.company,
+                        shippingContactName: shipping.contactName,
+                        shippingEmail: shipping.email,
+                        shippingPhone: shipping.phone,
+                        shippingAddress: shipping.address,
+                        shippingCity: shipping.city,
+                        shippingState: shipping.state,
+                        shippingZipCode: shipping.zipCode,
+                        // Amounts
+                        subtotalCents,
+                        shippingCents,
+                        taxCents,
+                        totalCents,
+                        currency: "usd",
+                        status: "PENDING",
+                        items: {
+                            create: orderItems,
+                        },
+                    },
+                });
+                createdOrderId = order.id;
+                // Decrease printer quantity
+                yield prismaClient_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                    for (const item of orderItems) {
+                        const updatedPrinter = yield tx.printer.updateMany({
+                            where: {
+                                id: item.printerId,
+                                status: "ACTIVE",
+                                quantity: {
+                                    gte: item.quantity,
+                                },
+                            },
+                            data: {
+                                quantity: {
+                                    decrement: item.quantity,
+                                },
+                            },
+                        });
+                        if (updatedPrinter.count === 0) {
+                            throw new customError_1.CustomError(`Insufficient stock for ${item.productName}`, 400, "Insufficient inventory");
+                        }
+                    }
+                }));
+                // 8. Prepare Stripe products
+                const lineItems = orderItems.map((item) => {
+                    var _a;
+                    const printer = printers.find((p) => p.id === item.printerId);
+                    return {
+                        price_data: {
+                            currency: "usd",
+                            product_data: {
+                                name: item.productName,
+                                description: item.model || undefined,
+                                images: ((_a = printer.image) === null || _a === void 0 ? void 0 : _a.startsWith("https://"))
+                                    ? [printer.image]
+                                    : undefined,
+                            },
+                            unit_amount: item.unitPriceCents,
+                        },
+                        quantity: item.quantity,
+                    };
+                });
+                // 9. Add shipping charges
+                if (shippingCents > 0) {
+                    lineItems.push({
+                        price_data: {
+                            currency: "usd",
+                            product_data: {
+                                name: "Shipping Charges",
+                            },
+                            unit_amount: shippingCents,
+                        },
+                        quantity: 1,
+                    });
+                }
+                // 10. Add tax
+                if (taxCents > 0) {
+                    lineItems.push({
+                        price_data: {
+                            currency: "usd",
+                            product_data: {
+                                name: "Estimated Tax",
+                            },
+                            unit_amount: taxCents,
+                        },
+                        quantity: 1,
+                    });
+                }
+                // 11. Frontend URLs
+                const frontendUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
+                // 12. Create Stripe Checkout Session
+                const session = yield stripe.checkout.sessions.create({
+                    mode: "payment",
+                    customer_email: data.customerEmail,
+                    line_items: lineItems,
+                    success_url: `${frontendUrl}/store/success?session_id={CHECKOUT_SESSION_ID}`,
+                    cancel_url: `${frontendUrl}/store/checkout?canceled=true`,
+                    metadata: {
+                        orderType: "PRINTER_ORDER",
+                        orderId: order.id.toString(),
+                        orderNumber: order.orderNumber,
+                    },
+                    payment_intent_data: {
+                        metadata: {
+                            orderType: "PRINTER_ORDER",
+                            orderId: order.id.toString(),
+                            orderNumber: order.orderNumber,
+                        },
+                    },
+                });
+                // 13. Save Stripe Session ID
+                yield prismaClient_1.default.printerOrder.update({
+                    where: {
+                        id: order.id,
+                    },
+                    data: {
+                        stripeSessionId: session.id,
+                    },
+                });
+                // 14. Return response
+                return {
+                    success: true,
+                    statusCode: 200,
+                    message: "Printer checkout session created successfully",
+                    data: {
+                        orderId: order.id.toString(),
+                        orderNumber: order.orderNumber,
+                        stripeSessionId: session.id,
+                        checkoutUrl: session.url,
+                        amount: totalCents / 100,
+                        currency: "USD",
+                        status: "PENDING",
+                    },
+                };
+            }
+            catch (error) {
+                // Mark order failed if Stripe session creation fails
+                if (createdOrderId) {
+                    try {
+                        yield prismaClient_1.default.printerOrder.updateMany({
+                            where: {
+                                id: createdOrderId,
+                                status: "PENDING",
+                                stripeSessionId: null,
+                            },
+                            data: {
+                                status: "FAILED",
+                            },
+                        });
+                    }
+                    catch (dbError) {
+                        console.error("Order failure update error:", dbError);
+                    }
+                }
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError(error.message, 500, "Failed to create printer checkout session");
             }
         });
     }

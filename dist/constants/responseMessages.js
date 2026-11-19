@@ -92,7 +92,7 @@ exports.RESPONSE_MESSAGES = {
     },
     SUB_ADMIN: {
         SUSPENDED: "Your account has been suspended. Please contact support for assistance.",
-        NOT_FOUND: "The provided  email do not match",
+        NOT_FOUND: "The provided  email didn't verify or not found",
         INVALID_PASSWORD: "Invalid password",
         UNAUTHORIZED: "You are not authorized as a sub-admin",
         NOT_APPROVED: "Your company is not approved yet",

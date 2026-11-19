@@ -506,6 +506,7 @@ const unusualActivityTemplate = (name, deviceName, deviceType, osVersion, lastLo
 };
 exports.unusualActivityTemplate = unusualActivityTemplate;
 const greenpdfTemplate = (data) => {
+    var _a;
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -545,7 +546,7 @@ const greenpdfTemplate = (data) => {
             width: 100%;
             max-width: 480px;
             background-color: #ffffff;
-            border: 2px solid var(--safety-black);
+            // border: 2px solid var(--safety-black);
             padding: 24px 18px 26px;
 
         }
@@ -1000,7 +1001,7 @@ const greenpdfTemplate = (data) => {
             }
             .tag-container {
                 box-shadow: none !important;
-                border: 2px solid #000 !important;
+                // border: 2px solid #000 !important;
             }
         }
     </style>
@@ -1129,12 +1130,12 @@ const greenpdfTemplate = (data) => {
                     <div class="contact-row-val">${data.clientName}</div>
 
                     <div class="contact-row-label">PHONE</div>
-                    <div class="contact-row-val">${data.clientMobile}</div>
+                    <div class="contact-row-val">${((_a = data.clientMobile) === null || _a === void 0 ? void 0 : _a.replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{4})$/, "($1) $2-$3")) || ""}</div>
 
                     <div class="contact-row-label">Radio Channel</div>
                     <div class="contact-channel-space"></div>
 
-                    <div class="contact-osha-text">Compliant with OSHA 29 CFR 1926.451 & ANSI A10.8.</div>
+                    <div class="contact-osha-text">Ref: OSHA 29 CFR 1926.451 & ANSI A10.8</div>
                 </div>
                 <a href="https://www.scaffsnapp.com" target="_blank" rel="noopener noreferrer" class="footer-website-link">www.scaffsnapp.com</a>
             </div>
@@ -1164,6 +1165,7 @@ const checkedIcon = `
 />
 `;
 const yellowpdfTemplate = (data) => {
+    var _a;
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1202,7 +1204,7 @@ const yellowpdfTemplate = (data) => {
            width: 100%;
             max-width: 488px;
             background-color: #ffffff;
-            border: 2px solid var(--safety-black);
+            /* border: 2px solid var(--safety-black); */
             padding: 24px 18px 26px;
         }
 
@@ -1481,7 +1483,7 @@ const yellowpdfTemplate = (data) => {
 
         /* Heavy separator bar */
         .heavy-bar {
-            height: 5px;
+            height: 4px;
             background-color: var(--safety-black);
             margin: 6px 0;
         }
@@ -1609,7 +1611,7 @@ const yellowpdfTemplate = (data) => {
 
         /* Heavy separator bar below note */
         .heavy-bar-footer {
-            height: 6px;
+            height: 4px;
             background-color: var(--safety-black);
             margin: 6px 0 10px 0;
         }
@@ -1689,8 +1691,8 @@ const yellowpdfTemplate = (data) => {
         }
 
         .qr-image-wrapper {
-            width: 148px;
-            height: 148px;
+            width: 146px;
+            height: 146px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1716,7 +1718,7 @@ const yellowpdfTemplate = (data) => {
             }
             .tag-container {
                 box-shadow: none !important;
-                border: 2px solid #000 !important;
+                /* border: 2px solid #000 !important; */
             }
         }
     </style>
@@ -1891,12 +1893,11 @@ const yellowpdfTemplate = (data) => {
                     <div class="contact-row-val">${data.clientName}</div>
 
                     <div class="contact-row-label">PHONE</div>
-                    <div class="contact-row-val">${data.clientMobile}</div>
-
+                  <div class="contact-row-val">${((_a = data.clientMobile) === null || _a === void 0 ? void 0 : _a.replace(/\D/g, "").replace(/^(\d{3})(\d{3})(\d{4})$/, "($1) $2-$3")) || ""}</div>
                     <div class="contact-row-label">Radio Channel</div>
                     <div class="contact-channel-space"></div>
 
-                    <div class="contact-osha-text">Compliant with OSHA 29 CFR 1926.451 & ANSI A10.8.</div>
+                    <div class="contact-osha-text">Ref: OSHA 29 CFR 1926.451 & ANSI A10.8</div>
                 </div>
                 <a href="https://www.scaffsnapp.com" target="_blank" rel="noopener noreferrer" class="footer-website-link">www.scaffsnapp.com</a>
             </div>

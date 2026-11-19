@@ -21,6 +21,7 @@ import {
 import dotenv from "dotenv";
 import {
   AddNewCompanyDTO,
+  AddPrinterDTO,
   ApproveCompanyRequestDTO,
   blogByIdDTO,
   blogDTO,
@@ -36,6 +37,7 @@ import {
   RejectCompanyRequestDTO,
   SearchQuestionnaireDTO,
   SuperAdminDTO,
+  UpdatePrinterDTO,
   UpdateProfileImageDTO,
   UpdateQuestionnaireDTO,
 } from "../schemas/superAdminSchema";
@@ -536,6 +538,7 @@ async deleteQuestionnaireServices(
       ]);
 
       const totalPages = Math.ceil(totalCount / limit);
+      
 
    const responseData = await Promise.all(
   questionnaires.map(async (quiz) => ({
@@ -1341,6 +1344,7 @@ async updateQuestionnaireServices(
             isApproved: "APPROVED",
             status: "ACTIVE",
             isDeleted: false,
+            isVerified: true,
           },
           skip,
           take: limit,
@@ -2342,6 +2346,294 @@ async updateQuestionnaireServices(
       );
     }
   }
+
+
+  async addPrinterBySuperAdmin(data: AddPrinterDTO) {
+  try {
+    const printer = await prisma.printer.create({
+      data: {
+        uuid: uuidv4(),
+        image: data.image,
+        name: data.name,
+        model: data.model,
+        price: data.price,
+        description: data.description,
+        status: data.status,
+      },
+    });
+
+    return {
+      message: "Printer added successfully",
+      data: {
+        ...printer,
+        id: printer.id.toString(),
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+        throw error;
+      }
+    throw error instanceof CustomError
+      ? error
+      : new CustomError(
+          "Failed to add printer",
+          500,
+          error.message,
+        );
+  }
+}
+
+// UPDATE PRINTER
+async updatePrinterBySuperAdmin(
+  userId: number,
+  id: number,
+  data: UpdatePrinterDTO,
+) {
+  try {
+    const userData = await prisma.user.findUnique({
+      where: {
+        id: userId,
+        status: "ACTIVE",
+        isDeleted: false,
+        isVerified: true,
+      },
+    });
+
+    if (!userData) {
+      throw new CustomError(
+        "User not found",
+        404,
+        "User does not exist",
+      );
+    }
+    const printerId = BigInt(id);
+
+    const existingPrinter = await prisma.printer.findUnique({
+      where: { id: printerId },
+    });
+
+    if (!existingPrinter) {
+      throw new CustomError(
+        "Printer not found",
+        404,
+        "Printer does not exist",
+      );
+    }
+
+    const updatedPrinter = await prisma.printer.update({
+      where: { id: printerId },
+      data: {
+        ...data,
+      },
+    });
+
+    return {
+      message: "Printer updated successfully",
+      data: {
+        ...updatedPrinter,
+        id: updatedPrinter.id.toString(),
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+
+    throw new CustomError(
+      "Failed to update printer",
+      500,
+      error.message,
+    );
+  }
+}
+
+// DELETE PRINTER
+async deletePrinterBySuperAdmin(userId: number, id: number) {
+  try {
+    const userData = await prisma.user.findUnique({
+      where: {
+        id: userId,
+        status: "ACTIVE",
+        isDeleted: false,
+        isVerified: true,
+      },
+    });
+
+    if (!userData) {
+      throw new CustomError(
+        "User not found",
+        404,
+        "User does not exist",
+      );
+    }
+    const printerId = BigInt(id);
+
+    const existingPrinter = await prisma.printer.findUnique({
+      where: { id: printerId },
+    });
+
+    if (!existingPrinter) {
+      throw new CustomError(
+        "Printer not found",
+        404,
+        "Printer does not exist",
+      );
+    }
+
+    await prisma.printer.delete({
+      where: { id: printerId },
+    });
+
+    return {
+      message: "Printer deleted successfully",
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+
+    throw new CustomError(
+      "Failed to delete printer",
+      500,
+      error.message,
+    );
+  }
+}
+
+// GET ALL PRINTERS
+async getAllPrintersBySuperAdmin(
+  search?: string,
+  page: number = 1,
+  limit: number = 10,
+  category?: string,
+) {
+  try {
+    const skip = (page - 1) * limit;
+
+    const whereClause = {
+      ...(search && {
+        OR: [
+          { name: { contains: search } },
+          { model: { contains: search } },
+          { description: { contains: search } },
+        ],
+      }),
+
+      ...(category === "printer" && {
+        NOT: [
+          { model: null },
+          { model: "" },
+        ],
+      }),
+
+      ...(category === "paper" && {
+        OR: [
+          { model: null },
+          { model: "" },
+        ],
+      }),
+    };
+
+    const [printers, totalRecords] = await prisma.$transaction([
+      prisma.printer.findMany({
+        where: whereClause,
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.printer.count({
+        where: whereClause,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    const formattedPrinters = await Promise.all(
+      printers.map(async (printer) => ({
+        ...printer,
+        id: printer.id.toString(),
+        image: await generateReadUrl(printer.image),
+        stockStatus:
+          printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK",
+        isAvailable:
+          printer.status === "ACTIVE" && printer.quantity > 0,
+      })),
+    );
+
+    return {
+      message: "Printer list fetched successfully",
+      pagination: {
+        currentPage: page,
+        limit,
+        totalRecords,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      data: formattedPrinters,
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+
+    throw new CustomError(
+      "Failed to fetch printers",
+      500,
+      error.message,
+    );
+  }
+}
+
+// GET PRINTER BY ID
+async getPrinterByIdBySuperAdmin( id: number) {
+   try {
+  
+
+    const printerId = BigInt(id);
+
+    const printer = await prisma.printer.findUnique({
+      where: {
+        id: printerId,
+      },
+    });
+
+    if (!printer) {
+      throw new CustomError(
+        "Printer not found",
+        404,
+        "Printer does not exist",
+      );
+    }
+
+    const imageUrl = await generateReadUrl(printer.image);
+
+    return {
+      message: "Printer fetched successfully",
+      data: {
+        ...printer,
+        id: printer.id.toString(),
+        image: imageUrl,
+        stockStatus:
+          printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK",
+        isAvailable:
+          printer.status === "ACTIVE" && printer.quantity > 0,
+      },
+    };
+  } catch (error: any) {
+    if (error instanceof CustomError) {
+      throw error;
+    }
+
+    throw new CustomError(
+      "Failed to fetch printer",
+      500,
+      error.message,
+    );
+  }
+}
 }
 
 (async () => {

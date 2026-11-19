@@ -51,4 +51,5 @@ router.get("/session/:sessionId", subscriptionController.getSessionDetails.bind(
  * @access  Private (COMPANY)
  */
 router.post("/cancel", authMiddleware_1.clientAuthMiddleware, authMiddleware_1.authMiddleware, subscriptionController.cancelSubscription.bind(subscriptionController));
+router.post("/printerCheckout", authMiddleware_1.clientAuthMiddleware, subscriptionController.createPrinterCheckoutSession.bind(subscriptionController));
 exports.default = router;

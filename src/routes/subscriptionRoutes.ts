@@ -74,6 +74,12 @@ router.post(
     subscriptionController.cancelSubscription.bind(subscriptionController)
 );
 
+router.post(
+    "/printerCheckout",
+    clientAuthMiddleware, 
+    subscriptionController.createPrinterCheckoutSession.bind(subscriptionController)
+);
+
 export default router;
 
 
