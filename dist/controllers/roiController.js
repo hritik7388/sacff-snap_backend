@@ -34,6 +34,25 @@ class RoiController {
         });
     }
     /**
+     * @route   POST /api/v1/roi/update
+     * @desc    Update lead details (firstName, email, company, state) & send ROI calculation email
+     * @access  Public
+     */
+    updateLead(req, res, next) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c;
+            try {
+                const data = roiSchema_1.updateRoiLeadSchema.parse(req.body);
+                const leadId = (_c = (_b = (_a = req.body.leadId) !== null && _a !== void 0 ? _a : req.body.id) !== null && _b !== void 0 ? _b : req.params.id) !== null && _c !== void 0 ? _c : req.params.leadId;
+                const result = yield roiServices.updateLead(leadId, data);
+                res.status(result.statusCode).json(result);
+            }
+            catch (err) {
+                next(err);
+            }
+        });
+    }
+    /**
      * @route   GET /api/v1/roi/leads
      * @desc    Get all ROI leads with pagination, search, and summary stats
      * @access  Private (Super Admin)

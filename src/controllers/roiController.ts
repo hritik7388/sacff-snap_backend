@@ -7,6 +7,7 @@ import {
   adminRoiQuerySchema,
   roiLeadIdSchema,
   updateRoiStatusSchema,
+  updateRoiLeadSchema,
 } from "../schemas/roiSchema";
 
 const roiServices = new RoiServices();
@@ -25,6 +26,22 @@ export class RoiController {
       const userAgent = req.headers["user-agent"] as string;
 
       const result = await roiServices.submitLead(data, { ip, userAgent });
+      res.status(result.statusCode).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * @route   POST /api/v1/roi/update
+   * @desc    Update lead details (firstName, email, company, state) & send ROI calculation email
+   * @access  Public
+   */
+  async updateLead(req: Request, res: Response, next: Function) {
+    try {
+      const data = updateRoiLeadSchema.parse(req.body);
+      const leadId = req.body.leadId ?? req.body.id ?? req.params.id ?? req.params.leadId;
+      const result = await roiServices.updateLead(leadId, data);
       res.status(result.statusCode).json(result);
     } catch (err) {
       next(err);

@@ -388,6 +388,142 @@ class RoiServices {
             }
         });
     }
+    // ─── 4b. Update ROI Lead Details & Send Email ─────────────────────────────
+    updateLead(leadIdentifier, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const targetId = (_a = leadIdentifier !== null && leadIdentifier !== void 0 ? leadIdentifier : data.leadId) !== null && _a !== void 0 ? _a : data.id;
+                if (!targetId) {
+                    throw new customError_1.CustomError("leadId is required", 400, "Missing leadId in request");
+                }
+                let existingLead;
+                const isNumeric = typeof targetId === "number" ||
+                    (!isNaN(Number(targetId)) && typeof targetId === "string" && !targetId.includes("-"));
+                if (isNumeric) {
+                    existingLead = yield prismaClient_1.default.roiLead.findUnique({
+                        where: { id: BigInt(targetId) },
+                    });
+                }
+                else {
+                    existingLead = yield prismaClient_1.default.roiLead.findUnique({
+                        where: { uuid: String(targetId) },
+                    });
+                }
+                if (!existingLead) {
+                    throw new customError_1.CustomError(responseMessages_1.RESPONSE_MESSAGES.ROI.NOT_FOUND, 404, "ROI lead does not exist");
+                }
+                // Check operational inputs for recalculation if updated
+                const annualScaffoldCount = data.annualScaffoldCount !== undefined
+                    ? data.annualScaffoldCount
+                    : existingLead.annualScaffoldCount;
+                const avgRentalDurationDays = data.avgRentalDurationDays !== undefined
+                    ? data.avgRentalDurationDays
+                    : existingLead.avgRentalDurationDays;
+                const dailyRentalCost = data.dailyRentalCost !== undefined
+                    ? data.dailyRentalCost
+                    : existingLead.dailyRentalCost;
+                const crewSizePerBuild = data.crewSizePerBuild !== undefined
+                    ? data.crewSizePerBuild
+                    : existingLead.crewSizePerBuild;
+                const hourlyLaborRate = data.hourlyLaborRate !== undefined
+                    ? data.hourlyLaborRate
+                    : existingLead.hourlyLaborRate;
+                const standbyHours = data.standbyHours !== undefined
+                    ? data.standbyHours
+                    : existingLead.standbyHours;
+                // Recalculate ROI metrics with the operational inputs
+                const calculation = this.computeCalculation({
+                    annualScaffoldCount,
+                    avgRentalDurationDays,
+                    dailyRentalCost,
+                    crewSizePerBuild,
+                    hourlyLaborRate,
+                    standbyHours,
+                });
+                // Prepare updated fields
+                const updateData = {
+                    annualScaffoldCount: calculation.operationInputs.annualScaffoldCount,
+                    avgRentalDurationDays: calculation.operationInputs.avgRentalDurationDays,
+                    dailyRentalCost: calculation.operationInputs.dailyRentalCost,
+                    crewSizePerBuild: calculation.operationInputs.crewSizePerBuild,
+                    hourlyLaborRate: calculation.operationInputs.hourlyLaborRate,
+                    standbyHours: calculation.operationInputs.standbyHours,
+                    ghostRentalExposure: calculation.metrics.ghostRentalExposure,
+                    standbyLaborLeakage: calculation.metrics.standbyLaborLeakage,
+                    totalAnnualLeakage: calculation.metrics.totalAnnualLeakage,
+                    potentialRecoverableValue: calculation.metrics.potentialRecoverableValue,
+                    ghostRentalRecovery: calculation.recoveryBreakdown.ghostRental.amount,
+                    standbyLaborRecovery: calculation.recoveryBreakdown.standbyLabor.amount,
+                    adminRecovery: calculation.recoveryBreakdown.adminAndRebuild.amount,
+                    recommendedPlan: calculation.recommendedPlan.planName,
+                    recommendedPlanPrice: calculation.recommendedPlan.monthlyPrice,
+                    recommendedPlanAnnual: calculation.recommendedPlan.annualPrice,
+                };
+                if (data.firstName !== undefined && data.firstName !== null) {
+                    updateData.firstName = data.firstName.trim();
+                }
+                if (data.email !== undefined && data.email !== null) {
+                    updateData.email = data.email.trim();
+                }
+                if (data.company !== undefined && data.company !== null) {
+                    updateData.company = data.company.trim();
+                }
+                if (data.state !== undefined && data.state !== null) {
+                    updateData.state = data.state.trim();
+                }
+                if (data.notes !== undefined && data.notes !== null) {
+                    updateData.notes = data.notes;
+                }
+                const updatedLead = yield prismaClient_1.default.roiLead.update({
+                    where: { id: existingLead.id },
+                    data: updateData,
+                });
+                // Send calculation email to user if email is provided
+                if (updatedLead.email && updatedLead.email.trim().length > 0) {
+                    try {
+                        yield this.sendLeadEmails({
+                            firstName: updatedLead.firstName,
+                            email: updatedLead.email,
+                            company: updatedLead.company,
+                            state: updatedLead.state,
+                            notes: updatedLead.notes || "",
+                            annualScaffoldCount: updatedLead.annualScaffoldCount,
+                            avgRentalDurationDays: updatedLead.avgRentalDurationDays,
+                            dailyRentalCost: updatedLead.dailyRentalCost,
+                            crewSizePerBuild: updatedLead.crewSizePerBuild,
+                            hourlyLaborRate: updatedLead.hourlyLaborRate,
+                            standbyHours: updatedLead.standbyHours,
+                        }, calculation, updatedLead.uuid);
+                    }
+                    catch (mailErr) {
+                        console.error("Non-critical error sending updated ROI calculation email:", mailErr);
+                    }
+                }
+                return {
+                    success: true,
+                    statusCode: 200,
+                    message: responseMessages_1.RESPONSE_MESSAGES.ROI.UPDATE_SUCCESS,
+                    data: Object.assign({ leadId: updatedLead.id.toString(), uuid: updatedLead.uuid, leadInfo: {
+                            firstName: updatedLead.firstName,
+                            email: updatedLead.email,
+                            company: updatedLead.company,
+                            state: updatedLead.state,
+                            notes: updatedLead.notes,
+                            status: updatedLead.status,
+                            createdAt: updatedLead.createdAt,
+                            updatedAt: updatedLead.updatedAt,
+                        } }, calculation),
+                };
+            }
+            catch (error) {
+                console.error("Error updating ROI lead details:", error);
+                if (error instanceof customError_1.CustomError)
+                    throw error;
+                throw new customError_1.CustomError("Failed to update ROI lead", 500, error.message);
+            }
+        });
+    }
     // ─── 5. Delete ROI Lead (Super Admin) ────────────────────────────────────────
     deleteLead(id) {
         return __awaiter(this, void 0, void 0, function* () {

@@ -16,6 +16,12 @@ const roiController = new roiController_1.RoiController();
  */
 router.post("/submit", roiController.submitLead.bind(roiController));
 /**
+ * @route   POST /api/v1/roi/update
+ * @desc    Update lead details (firstName, email, company, state) & send ROI calculation email
+ * @access  Public
+ */
+router.post("/update", roiController.updateLead.bind(roiController));
+/**
  * ─── ADMIN ROUTES (Super Admin Dashboard) ───────────────────────────────────
  */
 /**

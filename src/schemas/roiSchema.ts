@@ -86,7 +86,34 @@ export const updateRoiStatusSchema = z.object({
   notes: z.string().optional(),
 });
 
+// Update Lead Details (firstName, email, company, state, notes) & Send Calculation Email
+export const updateRoiLeadSchema = z.object({
+  leadId: z.union([z.string(), z.number()]).optional(),
+  id: z.union([z.string(), z.number()]).optional(),
+  firstName: z.string().trim().optional(),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .optional()
+    .refine((val) => !val || z.string().email().safeParse(val).success, {
+      message: "Valid email is required",
+    }),
+  company: z.string().trim().optional(),
+  state: z.string().trim().optional(),
+  notes: z.string().optional(),
+
+  // Optional operational inputs
+  annualScaffoldCount: z.coerce.number().min(0).optional(),
+  avgRentalDurationDays: z.coerce.number().min(0).optional(),
+  dailyRentalCost: z.coerce.number().min(0).optional(),
+  crewSizePerBuild: z.coerce.number().min(0).optional(),
+  hourlyLaborRate: z.coerce.number().min(0).optional(),
+  standbyHours: z.coerce.number().min(0).optional(),
+});
+
 export type SubmitRoiLeadDTO = z.infer<typeof submitRoiLeadSchema>;
 export type AdminRoiQueryDTO = z.infer<typeof adminRoiQuerySchema>;
 export type RoiLeadIdDTO = z.infer<typeof roiLeadIdSchema>;
 export type UpdateRoiStatusDTO = z.infer<typeof updateRoiStatusSchema>;
+export type UpdateRoiLeadDTO = z.infer<typeof updateRoiLeadSchema>;

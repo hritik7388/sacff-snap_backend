@@ -6,6 +6,7 @@ import {
   SubmitRoiLeadDTO,
   AdminRoiQueryDTO,
   UpdateRoiStatusDTO,
+  UpdateRoiLeadDTO,
 } from "../schemas/roiSchema";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import { mailTransporter } from "../helpers/utils";
@@ -483,6 +484,168 @@ export class RoiServices {
       console.error("Error updating ROI lead status:", error);
       if (error instanceof CustomError) throw error;
       throw new CustomError("Failed to update ROI lead status", 500, error.message);
+    }
+  }
+
+  // ─── 4b. Update ROI Lead Details & Send Email ─────────────────────────────
+  async updateLead(
+    leadIdentifier: string | number | undefined,
+    data: UpdateRoiLeadDTO
+  ) {
+    try {
+      const targetId = leadIdentifier ?? data.leadId ?? data.id;
+
+      if (!targetId) {
+        throw new CustomError("leadId is required", 400, "Missing leadId in request");
+      }
+
+      let existingLead;
+      const isNumeric =
+        typeof targetId === "number" ||
+        (!isNaN(Number(targetId)) && typeof targetId === "string" && !targetId.includes("-"));
+
+      if (isNumeric) {
+        existingLead = await prisma.roiLead.findUnique({
+          where: { id: BigInt(targetId) },
+        });
+      } else {
+        existingLead = await prisma.roiLead.findUnique({
+          where: { uuid: String(targetId) },
+        });
+      }
+
+      if (!existingLead) {
+        throw new CustomError(RESPONSE_MESSAGES.ROI.NOT_FOUND, 404, "ROI lead does not exist");
+      }
+
+      // Check operational inputs for recalculation if updated
+      const annualScaffoldCount =
+        data.annualScaffoldCount !== undefined
+          ? data.annualScaffoldCount
+          : existingLead.annualScaffoldCount;
+      const avgRentalDurationDays =
+        data.avgRentalDurationDays !== undefined
+          ? data.avgRentalDurationDays
+          : existingLead.avgRentalDurationDays;
+      const dailyRentalCost =
+        data.dailyRentalCost !== undefined
+          ? data.dailyRentalCost
+          : existingLead.dailyRentalCost;
+      const crewSizePerBuild =
+        data.crewSizePerBuild !== undefined
+          ? data.crewSizePerBuild
+          : existingLead.crewSizePerBuild;
+      const hourlyLaborRate =
+        data.hourlyLaborRate !== undefined
+          ? data.hourlyLaborRate
+          : existingLead.hourlyLaborRate;
+      const standbyHours =
+        data.standbyHours !== undefined
+          ? data.standbyHours
+          : existingLead.standbyHours;
+
+      // Recalculate ROI metrics with the operational inputs
+      const calculation = this.computeCalculation({
+        annualScaffoldCount,
+        avgRentalDurationDays,
+        dailyRentalCost,
+        crewSizePerBuild,
+        hourlyLaborRate,
+        standbyHours,
+      });
+
+      // Prepare updated fields
+      const updateData: Prisma.RoiLeadUpdateInput = {
+        annualScaffoldCount: calculation.operationInputs.annualScaffoldCount,
+        avgRentalDurationDays: calculation.operationInputs.avgRentalDurationDays,
+        dailyRentalCost: calculation.operationInputs.dailyRentalCost,
+        crewSizePerBuild: calculation.operationInputs.crewSizePerBuild,
+        hourlyLaborRate: calculation.operationInputs.hourlyLaborRate,
+        standbyHours: calculation.operationInputs.standbyHours,
+
+        ghostRentalExposure: calculation.metrics.ghostRentalExposure,
+        standbyLaborLeakage: calculation.metrics.standbyLaborLeakage,
+        totalAnnualLeakage: calculation.metrics.totalAnnualLeakage,
+        potentialRecoverableValue: calculation.metrics.potentialRecoverableValue,
+
+        ghostRentalRecovery: calculation.recoveryBreakdown.ghostRental.amount,
+        standbyLaborRecovery: calculation.recoveryBreakdown.standbyLabor.amount,
+        adminRecovery: calculation.recoveryBreakdown.adminAndRebuild.amount,
+        recommendedPlan: calculation.recommendedPlan.planName,
+        recommendedPlanPrice: calculation.recommendedPlan.monthlyPrice,
+        recommendedPlanAnnual: calculation.recommendedPlan.annualPrice,
+      };
+
+      if (data.firstName !== undefined && data.firstName !== null) {
+        updateData.firstName = data.firstName.trim();
+      }
+      if (data.email !== undefined && data.email !== null) {
+        updateData.email = data.email.trim();
+      }
+      if (data.company !== undefined && data.company !== null) {
+        updateData.company = data.company.trim();
+      }
+      if (data.state !== undefined && data.state !== null) {
+        updateData.state = data.state.trim();
+      }
+      if (data.notes !== undefined && data.notes !== null) {
+        updateData.notes = data.notes;
+      }
+
+      const updatedLead = await prisma.roiLead.update({
+        where: { id: existingLead.id },
+        data: updateData,
+      });
+
+      // Send calculation email to user if email is provided
+      if (updatedLead.email && updatedLead.email.trim().length > 0) {
+        try {
+          await this.sendLeadEmails(
+            {
+              firstName: updatedLead.firstName,
+              email: updatedLead.email,
+              company: updatedLead.company,
+              state: updatedLead.state,
+              notes: updatedLead.notes || "",
+              annualScaffoldCount: updatedLead.annualScaffoldCount,
+              avgRentalDurationDays: updatedLead.avgRentalDurationDays,
+              dailyRentalCost: updatedLead.dailyRentalCost,
+              crewSizePerBuild: updatedLead.crewSizePerBuild,
+              hourlyLaborRate: updatedLead.hourlyLaborRate,
+              standbyHours: updatedLead.standbyHours,
+            },
+            calculation,
+            updatedLead.uuid
+          );
+        } catch (mailErr) {
+          console.error("Non-critical error sending updated ROI calculation email:", mailErr);
+        }
+      }
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: RESPONSE_MESSAGES.ROI.UPDATE_SUCCESS,
+        data: {
+          leadId: updatedLead.id.toString(),
+          uuid: updatedLead.uuid,
+          leadInfo: {
+            firstName: updatedLead.firstName,
+            email: updatedLead.email,
+            company: updatedLead.company,
+            state: updatedLead.state,
+            notes: updatedLead.notes,
+            status: updatedLead.status,
+            createdAt: updatedLead.createdAt,
+            updatedAt: updatedLead.updatedAt,
+          },
+          ...calculation,
+        },
+      };
+    } catch (error: any) {
+      console.error("Error updating ROI lead details:", error);
+      if (error instanceof CustomError) throw error;
+      throw new CustomError("Failed to update ROI lead", 500, error.message);
     }
   }
 
