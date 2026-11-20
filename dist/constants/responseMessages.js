@@ -241,6 +241,7 @@ exports.RESPONSE_MESSAGES = {
         FETCH_BY_ID_SUCCESS: "ROI lead details fetched successfully",
         NOT_FOUND: "ROI lead not found",
         UPDATE_STATUS_SUCCESS: "ROI lead status updated successfully",
+        UPDATE_SUCCESS: "ROI lead updated and calculation email sent successfully",
         DELETE_SUCCESS: "ROI lead deleted successfully",
         ANALYTICS_SUCCESS: "ROI analytics fetched successfully"
     },

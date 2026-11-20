@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateRoiStatusSchema = exports.roiLeadIdSchema = exports.adminRoiQuerySchema = exports.submitRoiLeadSchema = exports.generateGuestUserName = void 0;
+exports.updateRoiLeadSchema = exports.updateRoiStatusSchema = exports.roiLeadIdSchema = exports.adminRoiQuerySchema = exports.submitRoiLeadSchema = exports.generateGuestUserName = void 0;
 // src/schemas/roiSchema.ts
 const zod_1 = require("zod");
 // Helper to generate guest user with random unique digits
@@ -81,4 +81,28 @@ exports.roiLeadIdSchema = zod_1.z.object({
 exports.updateRoiStatusSchema = zod_1.z.object({
     status: zod_1.z.enum(["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "CLOSED"]),
     notes: zod_1.z.string().optional(),
+});
+// Update Lead Details (firstName, email, company, state, notes) & Send Calculation Email
+exports.updateRoiLeadSchema = zod_1.z.object({
+    leadId: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
+    id: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
+    firstName: zod_1.z.string().trim().optional(),
+    email: zod_1.z
+        .string()
+        .trim()
+        .toLowerCase()
+        .optional()
+        .refine((val) => !val || zod_1.z.string().email().safeParse(val).success, {
+        message: "Valid email is required",
+    }),
+    company: zod_1.z.string().trim().optional(),
+    state: zod_1.z.string().trim().optional(),
+    notes: zod_1.z.string().optional(),
+    // Optional operational inputs
+    annualScaffoldCount: zod_1.z.coerce.number().min(0).optional(),
+    avgRentalDurationDays: zod_1.z.coerce.number().min(0).optional(),
+    dailyRentalCost: zod_1.z.coerce.number().min(0).optional(),
+    crewSizePerBuild: zod_1.z.coerce.number().min(0).optional(),
+    hourlyLaborRate: zod_1.z.coerce.number().min(0).optional(),
+    standbyHours: zod_1.z.coerce.number().min(0).optional(),
 });
