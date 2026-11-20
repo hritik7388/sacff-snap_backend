@@ -177,6 +177,7 @@ export const companyAddTemplate = (
 `;
 };
 
+
 export const teamMemberAddTemplate = (
   memberName: string,
   userType: string,
@@ -1971,14 +1972,7 @@ export const yellowpdfTemplate = (data: any) => {
 `;
 };
 
-const escapeHtml = (value: any): string => {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-};
+ 
 export const certifictae = (data: any) => {
   const tradesmanName = escapeHtml(data.tradesmanName);
   const email = escapeHtml(data.email);
@@ -2792,6 +2786,378 @@ export const certifictae = (data: any) => {
 
   </div>
 
+</body>
+</html>
+`;
+};
+
+
+interface PrinterOrderEmailItem {
+  printerName: string;
+  model?: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+interface PrinterOrderAdminEmailData {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  billing: {
+    company?: string;
+    contactName: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  shipping?: {
+    company?: string;
+    contactName: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  sameAsBilling: boolean;
+  items: PrinterOrderEmailItem[];
+  totalAmount: number;
+  paymentStatus: string;
+}
+
+const escapeHtml = (value: unknown): string =>
+  String(value ?? "").replace(/[&<>"']/g, (char) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[char];
+  });
+
+const formatAmount = (amount: number): string =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+
+export const printerOrderAdminTemplate = (
+  data: PrinterOrderAdminEmailData,
+) => {
+  const LOGO_URL =
+    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+
+  const itemsHtml = data.items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:12px;border-bottom:1px solid #e5e7eb;">
+            <strong>${escapeHtml(item.printerName)}</strong>
+            <br/>
+            <span style="color:#6b7280;font-size:13px;">
+              ${escapeHtml(item.model || "")}
+            </span>
+          </td>
+          <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:center;">
+            ${item.quantity}
+          </td>
+          <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;">
+            ${formatAmount(item.unitPrice)}
+          </td>
+          <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;">
+            ${formatAmount(item.totalPrice)}
+          </td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  const shipping = data.sameAsBilling ? data.billing : data.shipping;
+
+  return `
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width"/>
+  <title>New Printer Order - ScaffSnapp</title>
+</head>
+
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial;color:#333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;">
+    <tr>
+      <td align="center" style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0"
+          style="max-width:650px;background:#fff;border-radius:12px;overflow:hidden;">
+
+          <tr>
+            <td style="height:6px;background:#3b82f6;"></td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:25px;background:#f9fafb;">
+              <img src="${LOGO_URL}" alt="ScaffSnapp Logo" style="width:130px;"/>
+              <h2 style="margin:15px 0 0;color:#111827;">
+                New Printer Order Received
+              </h2>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:25px;">
+
+              <p>Hello SuperAdmin,</p>
+
+              <p>
+                A new printer order has been placed on ScaffSnapp.
+                Please find the complete order details below.
+              </p>
+
+              <h3 style="color:#111827;">Order Information</h3>
+
+              <p><strong>Order Number:</strong> ${escapeHtml(data.orderNumber)}</p>
+              <p><strong>Payment Status:</strong> ${escapeHtml(data.paymentStatus)}</p>
+              <p><strong>Customer Name:</strong> ${escapeHtml(data.customerName)}</p>
+              <p><strong>Customer Email:</strong> ${escapeHtml(data.customerEmail)}</p>
+              <p><strong>Customer Phone:</strong> ${escapeHtml(data.customerPhone)}</p>
+
+              <h3 style="color:#111827;margin-top:25px;">Ordered Printers</h3>
+
+              <table width="100%" cellpadding="0" cellspacing="0"
+                style="border-collapse:collapse;font-size:14px;">
+                <thead>
+                  <tr style="background:#f3f4f6;">
+                    <th align="left" style="padding:12px;">Printer</th>
+                    <th align="center" style="padding:12px;">Quantity</th>
+                    <th align="right" style="padding:12px;">Unit Price</th>
+                    <th align="right" style="padding:12px;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+              </table>
+
+              <h3 style="color:#111827;margin-top:25px;">Billing Address</h3>
+
+              <p>
+                <strong>Company:</strong> ${escapeHtml(data.billing.company || "-")}<br/>
+                <strong>Contact:</strong> ${escapeHtml(data.billing.contactName)}<br/>
+                <strong>Email:</strong> ${escapeHtml(data.billing.email)}<br/>
+                <strong>Phone:</strong> ${escapeHtml(data.billing.phone)}<br/>
+                <strong>Address:</strong> ${escapeHtml(data.billing.address)}<br/>
+                <strong>City:</strong> ${escapeHtml(data.billing.city)}<br/>
+                <strong>State:</strong> ${escapeHtml(data.billing.state)}<br/>
+                <strong>ZIP Code:</strong> ${escapeHtml(data.billing.zipCode)}
+              </p>
+
+              <h3 style="color:#111827;margin-top:25px;">Shipping Address</h3>
+
+              ${
+                shipping
+                  ? `
+                    <p>
+                      <strong>Same as Billing:</strong> ${data.sameAsBilling ? "Yes" : "No"}<br/>
+                      <strong>Company:</strong> ${escapeHtml(shipping.company || "-")}<br/>
+                      <strong>Contact:</strong> ${escapeHtml(shipping.contactName)}<br/>
+                      <strong>Email:</strong> ${escapeHtml(shipping.email)}<br/>
+                      <strong>Phone:</strong> ${escapeHtml(shipping.phone)}<br/>
+                      <strong>Address:</strong> ${escapeHtml(shipping.address)}<br/>
+                      <strong>City:</strong> ${escapeHtml(shipping.city)}<br/>
+                      <strong>State:</strong> ${escapeHtml(shipping.state)}<br/>
+                      <strong>ZIP Code:</strong> ${escapeHtml(shipping.zipCode)}
+                    </p>
+                  `
+                  : "<p>Shipping address not provided.</p>"
+              }
+
+              <table width="100%" style="margin-top:25px;background:#f9fafb;padding:15px;">
+                <tr>
+                  <td style="font-size:18px;font-weight:bold;">Order Total</td>
+                  <td align="right" style="font-size:20px;font-weight:bold;color:#2563eb;">
+                    ${formatAmount(data.totalAmount)}
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin-top:30px;">
+                Best regards,<br/>
+                <strong>ScaffSnapp Platform</strong>
+              </p>
+
+              <p style="font-size:12px;color:#6b7280;margin-top:20px;">
+                © ${new Date().getFullYear()} ScaffSnapp. All rights reserved.
+              </p>
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+};
+
+
+interface PrinterPaymentSuccessEmailData {
+  customerName: string;
+  customerEmail: string;
+  orderNumber: string;
+  items: PrinterOrderEmailItem[];
+  totalAmount: number;
+}
+
+export const printerPaymentSuccessTemplate = (
+  data: PrinterPaymentSuccessEmailData,
+) => {
+  const LOGO_URL =
+    "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/notification/Scaff+svg+(1).png";
+
+  const itemsHtml = data.items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:12px;border-bottom:1px solid #e5e7eb;">
+            <strong>${escapeHtml(item.printerName)}</strong>
+            <br/>
+            <span style="font-size:13px;color:#6b7280;">
+              ${escapeHtml(item.model || "")}
+            </span>
+          </td>
+          <td style="padding:12px;text-align:center;border-bottom:1px solid #e5e7eb;">
+            ${item.quantity}
+          </td>
+          <td style="padding:12px;text-align:right;border-bottom:1px solid #e5e7eb;">
+            ${formatAmount(item.totalPrice)}
+          </td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  return `
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width"/>
+  <title>Payment Successful - ScaffSnapp</title>
+</head>
+
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial;color:#333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;">
+    <tr>
+      <td align="center" style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0"
+          style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden;">
+
+          <tr>
+            <td style="height:6px;background:#22c55e;"></td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:25px;background:#f9fafb;">
+              <img src="${LOGO_URL}" alt="ScaffSnapp Logo" style="width:130px;"/>
+
+              <h2 style="color:#16a34a;margin:15px 0 5px;">
+                Payment Successful!
+              </h2>
+
+              <p style="color:#6b7280;margin:5px 0;">
+                Your order has been confirmed.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:30px 25px;">
+
+              <p style="font-size:16px;">
+                Hello <strong>${escapeHtml(data.customerName)}</strong>,
+              </p>
+
+              <p style="font-size:15px;line-height:1.7;color:#444;">
+                Thank you for your purchase! Your payment has been successfully
+                received, and your printer order is confirmed.
+              </p>
+
+              <table width="100%" style="background:#f0fdf4;padding:15px;border-radius:8px;">
+                <tr>
+                  <td>
+                    <strong>Order Number</strong>
+                  </td>
+                  <td align="right">
+                    <strong>${escapeHtml(data.orderNumber)}</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-top:10px;">
+                    <strong>Payment Status</strong>
+                  </td>
+                  <td align="right" style="padding-top:10px;color:#16a34a;">
+                    <strong>PAID</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-top:10px;">
+                    <strong>Amount Paid</strong>
+                  </td>
+                  <td align="right" style="padding-top:10px;">
+                    <strong>${formatAmount(data.totalAmount)}</strong>
+                  </td>
+                </tr>
+              </table>
+
+              <h3 style="color:#111827;margin-top:25px;">Your Order Details</h3>
+
+              <table width="100%" cellpadding="0" cellspacing="0"
+                style="border-collapse:collapse;font-size:14px;">
+                <thead>
+                  <tr style="background:#f3f4f6;">
+                    <th align="left" style="padding:12px;">Printer</th>
+                    <th align="center" style="padding:12px;">Quantity</th>
+                    <th align="right" style="padding:12px;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+              </table>
+
+              <p style="font-size:15px;line-height:1.7;margin-top:25px;">
+                We will process your order shortly. Your product will be
+                delivered as soon as possible.
+              </p>
+
+              <p style="font-size:15px;line-height:1.7;">
+                Thank you for choosing ScaffSnapp!
+              </p>
+
+              <p style="font-size:15px;margin-top:30px;">
+                Best regards,<br/>
+                <strong>ScaffSnapp Team</strong>
+              </p>
+
+              <p style="font-size:12px;color:#6b7280;margin-top:20px;">
+                This email was sent to ${escapeHtml(data.customerEmail)}.
+                <br/>
+                © ${new Date().getFullYear()} ScaffSnapp. All rights reserved.
+              </p>
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;

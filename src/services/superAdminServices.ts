@@ -42,170 +42,168 @@ import {
   UpdateQuestionnaireDTO,
 } from "../schemas/superAdminSchema";
 import { now } from "moment";
-import { NotificationRole, NotificationType, Prisma, QuestionnaireStatus } from "@prisma/client";
+import {
+  NotificationRole,
+  NotificationType,
+  Prisma,
+  QuestionnaireStatus,
+} from "@prisma/client";
 
 dotenv.config();
 
 export class superAdminServices {
-async generateQuestionnaireVideoUploadService(
-  filename: string,
-  contentType: string,
-) {
-  try {
-    const result = await generateVideoUploadUrl(
-      filename,
-      contentType,
-    );
+  async generateQuestionnaireVideoUploadService(
+    filename: string,
+    contentType: string,
+  ) {
+    try {
+      const result = await generateVideoUploadUrl(filename, contentType);
 
-    return {
-      message: "Video upload URL generated successfully",
-      data: {
-        uploadUrl: result.uploadUrl,
-        videoKey: result.key,
-        expiresIn: result.expiresIn,
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) throw error;
+      return {
+        message: "Video upload URL generated successfully",
+        data: {
+          uploadUrl: result.uploadUrl,
+          videoKey: result.key,
+          expiresIn: result.expiresIn,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
 
-    throw new CustomError(
-      "Failed to generate video upload URL",
-      500,
-      error.message,
-    );
-  }
-}
-
-
-async generateQuestionnaireImageUploadService(
-  filename: string,
-  contentType: string,
-) {
-  try {
-    const result = await generateImageUploadUrl(
-      filename,
-      contentType,
-    );
-
-    return {
-      message: "Image upload URL generated successfully",
-      data: {
-        uploadUrl: result.uploadUrl,
-        imageKey: result.key,
-        expiresIn: result.expiresIn,
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) throw error;
-
-    throw new CustomError(
-      "Failed to generate image upload URL",
-      500,
-      error.message,
-    );
-  }
-}
-
-async deleteQuestionnaireServices(
-  questionnaireId: bigint,
-  superAdminId: bigint,
-) {
-  try {
-    // 1. Verify SuperAdmin
-    const superAdmin = await prisma.user.findFirst({
-      where: {
-        id: superAdminId,
-        user_type: "SUPER_ADMIN",
-        status: "ACTIVE",
-        isDeleted: false,
-        isVerified: true,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!superAdmin) {
       throw new CustomError(
-        "Unauthorized SuperAdmin",
-        403,
-        "SuperAdmin access required",
+        "Failed to generate video upload URL",
+        500,
+        error.message,
       );
     }
-
-    // 2. Validate questionnaire ID
-    if (!questionnaireId  ) {
-      throw new CustomError(
-        "Invalid questionnaire ID",
-        400,
-        "Valid questionnaire ID is required",
-      );
-    }
-
-    // 3. Check questionnaire exists
-    const questionnaire = await prisma.questionnaire.findUnique({
-      where: {
-        id: questionnaireId,
-      },
-      select: {
-        id: true,
-        uuid: true,
-        testName: true,
-      },
-    });
-
-    if (!questionnaire) {
-      throw new CustomError(
-        "Questionnaire not found",
-        404,
-        "Questionnaire does not exist",
-      );
-    }
-
-    // 4. Delete questionnaire
-    // Requires appropriate ON DELETE CASCADE relations
-    await prisma.questionnaire.delete({
-      where: {
-        id: questionnaireId,
-      },
-    });
-
-    // 5. Return response
-    return {
-      status: 200,
-      message: "Questionnaire deleted successfully",
-      data: {
-        id: questionnaire.id.toString(),
-        uuid: questionnaire.uuid,
-        testName: questionnaire.testName,
-      },
-    };
-} catch (error: any) {
-  console.error("DELETE QUESTIONNAIRE ERROR:", {
-    code: error?.code,
-    message: error?.message,
-    meta: error?.meta,
-  });
-
-  if (error instanceof CustomError) {
-    throw error;
   }
 
-  if (error.code === "P2003") {
-    throw new CustomError(
-      "Failed to delete questionnaire",
-      409,
-      "Questionnaire has related records that prevent deletion",
-    );
+  async generateQuestionnaireImageUploadService(
+    filename: string,
+    contentType: string,
+  ) {
+    try {
+      const result = await generateImageUploadUrl(filename, contentType);
+
+      return {
+        message: "Image upload URL generated successfully",
+        data: {
+          uploadUrl: result.uploadUrl,
+          imageKey: result.key,
+          expiresIn: result.expiresIn,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
+
+      throw new CustomError(
+        "Failed to generate image upload URL",
+        500,
+        error.message,
+      );
+    }
   }
 
-  throw new CustomError(
-    "Failed to delete questionnaire",
-    500,
-    error.message,
-  );
-}
-}
+  async deleteQuestionnaireServices(
+    questionnaireId: bigint,
+    superAdminId: bigint,
+  ) {
+    try {
+      // 1. Verify SuperAdmin
+      const superAdmin = await prisma.user.findFirst({
+        where: {
+          id: superAdminId,
+          user_type: "SUPER_ADMIN",
+          status: "ACTIVE",
+          isDeleted: false,
+          isVerified: true,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!superAdmin) {
+        throw new CustomError(
+          "Unauthorized SuperAdmin",
+          403,
+          "SuperAdmin access required",
+        );
+      }
+
+      // 2. Validate questionnaire ID
+      if (!questionnaireId) {
+        throw new CustomError(
+          "Invalid questionnaire ID",
+          400,
+          "Valid questionnaire ID is required",
+        );
+      }
+
+      // 3. Check questionnaire exists
+      const questionnaire = await prisma.questionnaire.findUnique({
+        where: {
+          id: questionnaireId,
+        },
+        select: {
+          id: true,
+          uuid: true,
+          testName: true,
+        },
+      });
+
+      if (!questionnaire) {
+        throw new CustomError(
+          "Questionnaire not found",
+          404,
+          "Questionnaire does not exist",
+        );
+      }
+
+      // 4. Delete questionnaire
+      // Requires appropriate ON DELETE CASCADE relations
+      await prisma.questionnaire.delete({
+        where: {
+          id: questionnaireId,
+        },
+      });
+
+      // 5. Return response
+      return {
+        status: 200,
+        message: "Questionnaire deleted successfully",
+        data: {
+          id: questionnaire.id.toString(),
+          uuid: questionnaire.uuid,
+          testName: questionnaire.testName,
+        },
+      };
+    } catch (error: any) {
+      console.error("DELETE QUESTIONNAIRE ERROR:", {
+        code: error?.code,
+        message: error?.message,
+        meta: error?.meta,
+      });
+
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      if (error.code === "P2003") {
+        throw new CustomError(
+          "Failed to delete questionnaire",
+          409,
+          "Questionnaire has related records that prevent deletion",
+        );
+      }
+
+      throw new CustomError(
+        "Failed to delete questionnaire",
+        500,
+        error.message,
+      );
+    }
+  }
   async createQuestionnaireServices(
     data: CreateQuestionnaireDTO,
     superAdminId: bigint,
@@ -273,82 +271,79 @@ async deleteQuestionnaireServices(
         },
       });
 
-        const tradesmen = await prisma.user.findMany({
-      where: {
-        user_type: "TRADESMAN",
-        status: "ACTIVE",
-        isDeleted: false,
-        isVerified: true,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (tradesmen.length > 0) {
-      const notificationTitle = "New Questionnaire Available";
-
-      const notificationMessage =
-        `A new questionnaire "${questionnaire.testName}" has been created.`;
-        const notificationImage =
-  "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/training.png";
-
-
-      // Save notification for every tradesman
-      await prisma.notification.createMany({
-        data: tradesmen.map((tradesman) => ({
-          uuid: uuidv4(),
-          title: notificationTitle,
-          message: notificationMessage,
-          type: NotificationType.QUESTIONNAIRE_CREATED,
-          role: "TRADESMAN" as const,
-          receiverId: tradesman.id,
-          senderId: superAdmin.id.toString(),
-          isRead: false,
-          notificationImage: notificationImage,
-        })),
-      });
-
-      // Fetch all tradesmen's registered device tokens
-      const devices = await prisma.device.findMany({
+      const tradesmen = await prisma.user.findMany({
         where: {
-          userId: {
-            in: tradesmen.map((tradesman) => tradesman.id),
-          },
           user_type: "TRADESMAN",
-          deviceToken: {
-            not: null,
-          },
+          status: "ACTIVE",
+          isDeleted: false,
+          isVerified: true,
         },
         select: {
-          deviceToken: true,
+          id: true,
         },
       });
 
-      // Send push notifications
-      const pushResults = await Promise.allSettled(
-        devices.map((device) =>
-          device.deviceToken
-            ? pushNotificationDelhi(
-                device.deviceToken,
-                notificationTitle,
-                notificationMessage,
-              )
-            : Promise.resolve(),
-        ),
-      );
+      if (tradesmen.length > 0) {
+        const notificationTitle = "New Questionnaire Available";
 
-      const failedPushes = pushResults.filter(
-        (result) => result.status === "rejected",
-      ).length;
+        const notificationMessage = `A new questionnaire "${questionnaire.testName}" has been created.`;
+        const notificationImage =
+          "https://scaffholding-bucket-dev.s3.us-east-1.amazonaws.com/training.png";
 
-      if (failedPushes > 0) {
-        console.error(
-          `${failedPushes} questionnaire push notifications failed`,
+        // Save notification for every tradesman
+        await prisma.notification.createMany({
+          data: tradesmen.map((tradesman) => ({
+            uuid: uuidv4(),
+            title: notificationTitle,
+            message: notificationMessage,
+            type: NotificationType.QUESTIONNAIRE_CREATED,
+            role: "TRADESMAN" as const,
+            receiverId: tradesman.id,
+            senderId: superAdmin.id.toString(),
+            isRead: false,
+            notificationImage: notificationImage,
+          })),
+        });
+
+        // Fetch all tradesmen's registered device tokens
+        const devices = await prisma.device.findMany({
+          where: {
+            userId: {
+              in: tradesmen.map((tradesman) => tradesman.id),
+            },
+            user_type: "TRADESMAN",
+            deviceToken: {
+              not: null,
+            },
+          },
+          select: {
+            deviceToken: true,
+          },
+        });
+
+        // Send push notifications
+        const pushResults = await Promise.allSettled(
+          devices.map((device) =>
+            device.deviceToken
+              ? pushNotificationDelhi(
+                  device.deviceToken,
+                  notificationTitle,
+                  notificationMessage,
+                )
+              : Promise.resolve(),
+          ),
         );
-      }
-    }
 
+        const failedPushes = pushResults.filter(
+          (result) => result.status === "rejected",
+        ).length;
+
+        if (failedPushes > 0) {
+          console.error(
+            `${failedPushes} questionnaire push notifications failed`,
+          );
+        }
+      }
 
       return {
         status: 201,
@@ -382,8 +377,6 @@ async deleteQuestionnaireServices(
           where: { status: "SUSPENDED" },
         }),
       ]);
-
-
 
       return {
         status: 200,
@@ -538,25 +531,22 @@ async deleteQuestionnaireServices(
       ]);
 
       const totalPages = Math.ceil(totalCount / limit);
-      
 
-   const responseData = await Promise.all(
-  questionnaires.map(async (quiz) => ({
-    id: quiz.id.toString(),
-    uuid: quiz.uuid,
-    testName: quiz.testName,
-    description: quiz.description,
-    videoUrl: quiz.videoUrl
-      ? await generateReadUrl(quiz.videoUrl)
-      : null,
-    certificateTemplateUrl: quiz.certificateTemplateUrl,
-    status: quiz.status,
-    createdById: quiz.createdById.toString(),
-    totalQuestions: quiz._count.questions,
-    createdAt: quiz.createdAt,
-    updatedAt: quiz.updatedAt,
-  }))
-);
+      const responseData = await Promise.all(
+        questionnaires.map(async (quiz) => ({
+          id: quiz.id.toString(),
+          uuid: quiz.uuid,
+          testName: quiz.testName,
+          description: quiz.description,
+          videoUrl: quiz.videoUrl ? await generateReadUrl(quiz.videoUrl) : null,
+          certificateTemplateUrl: quiz.certificateTemplateUrl,
+          status: quiz.status,
+          createdById: quiz.createdById.toString(),
+          totalQuestions: quiz._count.questions,
+          createdAt: quiz.createdAt,
+          updatedAt: quiz.updatedAt,
+        })),
+      );
       return {
         message: "Questionnaires fetched successfully",
         data: responseData,
@@ -610,31 +600,31 @@ async deleteQuestionnaireServices(
       }
 
       const videoReadUrl = quiz.videoUrl
-  ? await generateReadUrl(quiz.videoUrl)
-  : null;
+        ? await generateReadUrl(quiz.videoUrl)
+        : null;
 
-    return {
-  message: "Questionnaire fetched successfully",
-  data: {
-    ...quiz,
-    id: quiz.id.toString(),
-    createdById: quiz.createdById.toString(),
+      return {
+        message: "Questionnaire fetched successfully",
+        data: {
+          ...quiz,
+          id: quiz.id.toString(),
+          createdById: quiz.createdById.toString(),
 
-    videoKey: quiz.videoUrl,
-    videoUrl: videoReadUrl,
+          videoKey: quiz.videoUrl,
+          videoUrl: videoReadUrl,
 
-    questions: quiz.questions.map((question) => ({
-      ...question,
-      id: question.id.toString(),
-      questionnaireId: question.questionnaireId.toString(),
-      options: question.options.map((option) => ({
-        ...option,
-        id: option.id.toString(),
-        questionId: option.questionId.toString(),
-      })),
-    })),
-  },
-};
+          questions: quiz.questions.map((question) => ({
+            ...question,
+            id: question.id.toString(),
+            questionnaireId: question.questionnaireId.toString(),
+            options: question.options.map((option) => ({
+              ...option,
+              id: option.id.toString(),
+              questionId: option.questionId.toString(),
+            })),
+          })),
+        },
+      };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
 
@@ -645,237 +635,218 @@ async deleteQuestionnaireServices(
       );
     }
   }
-async updateQuestionnaireServices(
-  id: string,
-  data: UpdateQuestionnaireDTO,
-) {
-  try {
-    const questionnaireId = BigInt(id);
+  async updateQuestionnaireServices(id: string, data: UpdateQuestionnaireDTO) {
+    try {
+      const questionnaireId = BigInt(id);
 
-    const existing = await prisma.questionnaire.findUnique({
-      where: { id: questionnaireId },
-      select: { id: true },
-    });
+      const existing = await prisma.questionnaire.findUnique({
+        where: { id: questionnaireId },
+        select: { id: true },
+      });
 
-    if (!existing) {
-      throw new CustomError(
-        "Questionnaire not found",
-        404,
-        "Not found",
-      );
-    }
+      if (!existing) {
+        throw new CustomError("Questionnaire not found", 404, "Not found");
+      }
 
-    const updated = await prisma.$transaction(
-      async (tx) => {
-        // Update questionnaire details
-        await tx.questionnaire.update({
-          where: { id: questionnaireId },
-          data: {
-            ...(data.testName !== undefined && {
-              testName: data.testName,
-            }),
-            ...(data.description !== undefined && {
-              description: data.description,
-            }),
-            ...(data.videoUrl !== undefined && {
-              videoUrl: data.videoUrl,
-            }),
-            ...(data.certificateTemplateUrl !== undefined && {
-              certificateTemplateUrl:
-                data.certificateTemplateUrl,
-            }),
-            ...(data.status !== undefined && {
-              status: data.status,
-            }),
-          },
-        });
-
-        // Update questions and options only when provided
-        if (data.questions !== undefined) {
-          const existingQuestions = await tx.question.findMany({
-            where: {
-              questionnaireId,
+      const updated = await prisma.$transaction(
+        async (tx) => {
+          // Update questionnaire details
+          await tx.questionnaire.update({
+            where: { id: questionnaireId },
+            data: {
+              ...(data.testName !== undefined && {
+                testName: data.testName,
+              }),
+              ...(data.description !== undefined && {
+                description: data.description,
+              }),
+              ...(data.videoUrl !== undefined && {
+                videoUrl: data.videoUrl,
+              }),
+              ...(data.certificateTemplateUrl !== undefined && {
+                certificateTemplateUrl: data.certificateTemplateUrl,
+              }),
+              ...(data.status !== undefined && {
+                status: data.status,
+              }),
             },
-            orderBy: [
-              { sortOrder: "asc" },
-              { id: "asc" },
-            ],
+          });
+
+          // Update questions and options only when provided
+          if (data.questions !== undefined) {
+            const existingQuestions = await tx.question.findMany({
+              where: {
+                questionnaireId,
+              },
+              orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+              include: {
+                options: {
+                  orderBy: {
+                    id: "asc",
+                  },
+                },
+              },
+            });
+
+            for (const [index, question] of data.questions.entries()) {
+              const existingQuestion = existingQuestions[index];
+
+              if (existingQuestion) {
+                // Update existing question
+                await tx.question.update({
+                  where: {
+                    id: existingQuestion.id,
+                  },
+                  data: {
+                    questionText: question.questionText,
+                    sortOrder: index,
+                    timeLimitSeconds: 60,
+                  },
+                });
+
+                // Update existing options
+                for (const [
+                  optionIndex,
+                  option,
+                ] of question.options.entries()) {
+                  const existingOption = existingQuestion.options[optionIndex];
+
+                  if (existingOption) {
+                    await tx.questionOption.update({
+                      where: {
+                        id: existingOption.id,
+                      },
+                      data: {
+                        optionText: option.optionText,
+                        isCorrect: option.isCorrect,
+                      },
+                    });
+                  } else {
+                    // Create new option if it doesn't exist
+                    await tx.questionOption.create({
+                      data: {
+                        questionId: existingQuestion.id,
+                        optionText: option.optionText,
+                        isCorrect: option.isCorrect,
+                      },
+                    });
+                  }
+                }
+              } else {
+                // Create new question with options
+                await tx.question.create({
+                  data: {
+                    questionnaireId,
+                    questionText: question.questionText,
+                    sortOrder: index,
+                    timeLimitSeconds: 60,
+                    options: {
+                      create: question.options.map((option) => ({
+                        optionText: option.optionText,
+                        isCorrect: option.isCorrect,
+                      })),
+                    },
+                  },
+                });
+              }
+            }
+          }
+
+          return tx.questionnaire.findUniqueOrThrow({
+            where: {
+              id: questionnaireId,
+            },
             include: {
-              options: {
+              questions: {
                 orderBy: {
-                  id: "asc",
+                  sortOrder: "asc",
+                },
+                include: {
+                  options: true,
                 },
               },
             },
           });
+        },
+        {
+          maxWait: 10000,
+          timeout: 30000,
+        },
+      );
 
-          for (const [index, question] of data.questions.entries()) {
-            const existingQuestion = existingQuestions[index];
-
-            if (existingQuestion) {
-              // Update existing question
-              await tx.question.update({
-                where: {
-                  id: existingQuestion.id,
-                },
-                data: {
-                  questionText: question.questionText,
-                  sortOrder: index,
-                  timeLimitSeconds: 60,
-                },
-              });
-
-              // Update existing options
-              for (const [optionIndex, option] of question.options.entries()) {
-                const existingOption =
-                  existingQuestion.options[optionIndex];
-
-                if (existingOption) {
-                  await tx.questionOption.update({
-                    where: {
-                      id: existingOption.id,
-                    },
-                    data: {
-                      optionText: option.optionText,
-                      isCorrect: option.isCorrect,
-                    },
-                  });
-                } else {
-                  // Create new option if it doesn't exist
-                  await tx.questionOption.create({
-                    data: {
-                      questionId: existingQuestion.id,
-                      optionText: option.optionText,
-                      isCorrect: option.isCorrect,
-                    },
-                  });
-                }
-              }
-            } else {
-              // Create new question with options
-              await tx.question.create({
-                data: {
-                  questionnaireId,
-                  questionText: question.questionText,
-                  sortOrder: index,
-                  timeLimitSeconds: 60,
-                  options: {
-                    create: question.options.map((option) => ({
-                      optionText: option.optionText,
-                      isCorrect: option.isCorrect,
-                    })),
-                  },
-                },
-              });
-            }
-          }
-        }
-
-        return tx.questionnaire.findUniqueOrThrow({
-          where: {
-            id: questionnaireId,
-          },
-          include: {
-            questions: {
-              orderBy: {
-                sortOrder: "asc",
-              },
-              include: {
-                options: true,
-              },
-            },
-          },
-        });
-      },
-      {
-        maxWait: 10000,
-        timeout: 30000,
-      },
-    );
-
-    return {
-      message: "Questionnaire updated successfully",
-      data: {
-        ...updated,
-        id: updated.id.toString(),
-        createdById: updated.createdById.toString(),
-        questions: updated.questions.map((question) => ({
-          ...question,
-          id: question.id.toString(),
-          questionnaireId: question.questionnaireId.toString(),
-          options: question.options.map((option) => ({
-            ...option,
-            id: option.id.toString(),
-            questionId: option.questionId.toString(),
+      return {
+        message: "Questionnaire updated successfully",
+        data: {
+          ...updated,
+          id: updated.id.toString(),
+          createdById: updated.createdById.toString(),
+          questions: updated.questions.map((question) => ({
+            ...question,
+            id: question.id.toString(),
+            questionnaireId: question.questionnaireId.toString(),
+            options: question.options.map((option) => ({
+              ...option,
+              id: option.id.toString(),
+              questionId: option.questionId.toString(),
+            })),
           })),
-        })),
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
 
-    if (error.code === "P2025") {
+      if (error.code === "P2025") {
+        throw new CustomError("Questionnaire not found", 404, "Not found");
+      }
+
       throw new CustomError(
-        "Questionnaire not found",
-        404,
-        "Not found",
+        "Failed to update questionnaire",
+        500,
+        error.message,
       );
     }
-
-    throw new CustomError(
-      "Failed to update questionnaire",
-      500,
-      error.message,
-    );
   }
-}
 
   async changeQuestionnaireStatusServices(
-  id: string,
-  status: "ACTIVE" | "INACTIVE" | "SUSPENDED",
-) {
-  try {
-    
+    id: string,
+    status: "ACTIVE" | "INACTIVE" | "SUSPENDED",
+  ) {
+    try {
+      const updated = await prisma.questionnaire.update({
+        where: { id: BigInt(id) },
+        data: { status },
+        select: {
+          id: true,
+          uuid: true,
+          testName: true,
+          status: true,
+          updatedAt: true,
+        },
+      });
 
-    const updated = await prisma.questionnaire.update({
-      where: { id: BigInt(id) },
-      data: { status },
-      select: {
-        id: true,
-        uuid: true,
-        testName: true,
-        status: true,
-        updatedAt: true,
-      },
-    });
+      return {
+        message: "Questionnaire status updated successfully",
+        data: {
+          ...updated,
+          id: updated.id.toString(),
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
 
-    return {
-      message: "Questionnaire status updated successfully",
-      data: {
-        ...updated,
-        id: updated.id.toString(),
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) throw error;
+      if (error.code === "P2025") {
+        throw new CustomError("Questionnaire not found", 404, "Not found");
+      }
 
-    if (error.code === "P2025") {
       throw new CustomError(
-        "Questionnaire not found",
-        404,
-        "Not found",
+        "Failed to update questionnaire status",
+        500,
+        error.message,
       );
     }
-
-    throw new CustomError(
-      "Failed to update questionnaire status",
-      500,
-      error.message,
-    );
   }
-}
 
   async loginSuperAdminServices(data: SuperAdminDTO) {
     try {
@@ -1180,7 +1151,7 @@ async updateQuestionnaireServices(
         newCompany.email,
         "Welcome to ScaffSnapp Team!",
         html,
-      ); 
+      );
 
       const superAdmins = await prisma.user.findMany({
         where: { user_type: "SUPER_ADMIN" },
@@ -2347,293 +2318,476 @@ async updateQuestionnaireServices(
     }
   }
 
-
   async addPrinterBySuperAdmin(data: AddPrinterDTO) {
-  try {
-    const printer = await prisma.printer.create({
-      data: {
-        uuid: uuidv4(),
-        image: data.image,
-        name: data.name,
-        model: data.model,
-        price: data.price,
-        description: data.description,
-        status: data.status,
-      },
-    });
+    try {
+      const printer = await prisma.printer.create({
+        data: {
+          uuid: uuidv4(),
+          image: data.image,
+          name: data.name,
+          model: data.model,
+          price: data.price,
+          description: data.description,
+          status: data.status,
+        },
+      });
 
-    return {
-      message: "Printer added successfully",
-      data: {
-        ...printer,
-        id: printer.id.toString(),
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
+      return {
+        message: "Printer added successfully",
+        data: {
+          ...printer,
+          id: printer.id.toString(),
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
         throw error;
       }
-    throw error instanceof CustomError
-      ? error
-      : new CustomError(
-          "Failed to add printer",
-          500,
-          error.message,
-        );
+      throw error instanceof CustomError
+        ? error
+        : new CustomError("Failed to add printer", 500, error.message);
+    }
   }
-}
 
-// UPDATE PRINTER
-async updatePrinterBySuperAdmin(
-  userId: number,
-  id: number,
-  data: UpdatePrinterDTO,
-) {
-  try {
-    const userData = await prisma.user.findUnique({
-      where: {
-        id: userId,
-        status: "ACTIVE",
-        isDeleted: false,
-        isVerified: true,
-      },
-    });
-
-    if (!userData) {
-      throw new CustomError(
-        "User not found",
-        404,
-        "User does not exist",
-      );
-    }
-    const printerId = BigInt(id);
-
-    const existingPrinter = await prisma.printer.findUnique({
-      where: { id: printerId },
-    });
-
-    if (!existingPrinter) {
-      throw new CustomError(
-        "Printer not found",
-        404,
-        "Printer does not exist",
-      );
-    }
-
-    const updatedPrinter = await prisma.printer.update({
-      where: { id: printerId },
-      data: {
-        ...data,
-      },
-    });
-
-    return {
-      message: "Printer updated successfully",
-      data: {
-        ...updatedPrinter,
-        id: updatedPrinter.id.toString(),
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-
-    throw new CustomError(
-      "Failed to update printer",
-      500,
-      error.message,
-    );
-  }
-}
-
-// DELETE PRINTER
-async deletePrinterBySuperAdmin(userId: number, id: number) {
-  try {
-    const userData = await prisma.user.findUnique({
-      where: {
-        id: userId,
-        status: "ACTIVE",
-        isDeleted: false,
-        isVerified: true,
-      },
-    });
-
-    if (!userData) {
-      throw new CustomError(
-        "User not found",
-        404,
-        "User does not exist",
-      );
-    }
-    const printerId = BigInt(id);
-
-    const existingPrinter = await prisma.printer.findUnique({
-      where: { id: printerId },
-    });
-
-    if (!existingPrinter) {
-      throw new CustomError(
-        "Printer not found",
-        404,
-        "Printer does not exist",
-      );
-    }
-
-    await prisma.printer.delete({
-      where: { id: printerId },
-    });
-
-    return {
-      message: "Printer deleted successfully",
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-
-    throw new CustomError(
-      "Failed to delete printer",
-      500,
-      error.message,
-    );
-  }
-}
-
-// GET ALL PRINTERS
-async getAllPrintersBySuperAdmin(
-  search?: string,
-  page: number = 1,
-  limit: number = 10,
-  category?: string,
-) {
-  try {
-    const skip = (page - 1) * limit;
-
-    const whereClause = {
-      ...(search && {
-        OR: [
-          { name: { contains: search } },
-          { model: { contains: search } },
-          { description: { contains: search } },
-        ],
-      }),
-
-      ...(category === "printer" && {
-        NOT: [
-          { model: null },
-          { model: "" },
-        ],
-      }),
-
-      ...(category === "paper" && {
-        OR: [
-          { model: null },
-          { model: "" },
-        ],
-      }),
-    };
-
-    const [printers, totalRecords] = await prisma.$transaction([
-      prisma.printer.findMany({
-        where: whereClause,
-        orderBy: {
-          createdAt: "desc",
+  // UPDATE PRINTER
+  async updatePrinterBySuperAdmin(
+    userId: number,
+    id: number,
+    data: UpdatePrinterDTO,
+  ) {
+    try {
+      const userData = await prisma.user.findUnique({
+        where: {
+          id: userId,
+          status: "ACTIVE",
+          isDeleted: false,
+          isVerified: true,
         },
-        skip,
-        take: limit,
+      });
+
+      if (!userData) {
+        throw new CustomError("User not found", 404, "User does not exist");
+      }
+      const printerId = BigInt(id);
+
+      const existingPrinter = await prisma.printer.findUnique({
+        where: { id: printerId },
+      });
+
+      if (!existingPrinter) {
+        throw new CustomError(
+          "Printer not found",
+          404,
+          "Printer does not exist",
+        );
+      }
+
+      const updatedPrinter = await prisma.printer.update({
+        where: { id: printerId },
+        data: {
+          ...data,
+        },
+      });
+
+      return {
+        message: "Printer updated successfully",
+        data: {
+          ...updatedPrinter,
+          id: updatedPrinter.id.toString(),
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError("Failed to update printer", 500, error.message);
+    }
+  }
+
+  // DELETE PRINTER
+  async deletePrinterBySuperAdmin(userId: number, id: number) {
+    try {
+      const userData = await prisma.user.findUnique({
+        where: {
+          id: userId,
+          status: "ACTIVE",
+          isDeleted: false,
+          isVerified: true,
+        },
+      });
+
+      if (!userData) {
+        throw new CustomError("User not found", 404, "User does not exist");
+      }
+      const printerId = BigInt(id);
+
+      const existingPrinter = await prisma.printer.findUnique({
+        where: { id: printerId },
+      });
+
+      if (!existingPrinter) {
+        throw new CustomError(
+          "Printer not found",
+          404,
+          "Printer does not exist",
+        );
+      }
+
+      await prisma.printer.delete({
+        where: { id: printerId },
+      });
+
+      return {
+        message: "Printer deleted successfully",
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError("Failed to delete printer", 500, error.message);
+    }
+  }
+
+  // GET ALL PRINTERS
+  async getAllPrintersBySuperAdmin(
+    search?: string,
+    page: number = 1,
+    limit: number = 10,
+    category?: string,
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+
+      const whereClause = {
+        ...(search && {
+          OR: [
+            { name: { contains: search } },
+            { model: { contains: search } },
+            { description: { contains: search } },
+          ],
+        }),
+
+        ...(category === "printer" && {
+          NOT: [{ model: null }, { model: "" }],
+        }),
+
+        ...(category === "paper" && {
+          OR: [{ model: null }, { model: "" }],
+        }),
+      };
+
+      const [printers, totalRecords] = await prisma.$transaction([
+        prisma.printer.findMany({
+          where: whereClause,
+          orderBy: {
+            createdAt: "desc",
+          },
+          skip,
+          take: limit,
+        }),
+        prisma.printer.count({
+          where: whereClause,
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalRecords / limit);
+
+      const formattedPrinters = await Promise.all(
+        printers.map(async (printer) => ({
+          ...printer,
+          id: printer.id.toString(),
+          image: await generateReadUrl(printer.image),
+          stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK",
+          isAvailable: printer.status === "ACTIVE" && printer.quantity > 0,
+        })),
+      );
+
+      return {
+        message: "Printer list fetched successfully",
+        pagination: {
+          currentPage: page,
+          limit,
+          totalRecords,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+        data: formattedPrinters,
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError("Failed to fetch printers", 500, error.message);
+    }
+  }
+
+  // GET PRINTER BY ID
+  async getPrinterByIdBySuperAdmin(id: number) {
+    try {
+      const printerId = BigInt(id);
+
+      const printer = await prisma.printer.findUnique({
+        where: {
+          id: printerId,
+        },
+      });
+
+      if (!printer) {
+        throw new CustomError(
+          "Printer not found",
+          404,
+          "Printer does not exist",
+        );
+      }
+
+      const imageUrl = await generateReadUrl(printer.image);
+
+      return {
+        message: "Printer fetched successfully",
+        data: {
+          ...printer,
+          id: printer.id.toString(),
+          image: imageUrl,
+          stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK",
+          isAvailable: printer.status === "ACTIVE" && printer.quantity > 0,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError("Failed to fetch printer", 500, error.message);
+    }
+  }
+
+  async getproductPurchase(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+    search: string = "",
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+
+      const userData = await prisma.user.findUnique({
+        where: {
+          id: userId,
+          status: "ACTIVE",
+          isDeleted: false,
+          isVerified: true,
+        },
+      });
+
+      if (!userData) {
+        throw new CustomError("User not found", 404, "User does not exist");
+      }
+
+      const whereClause = {
+        ...(search && {
+          OR: [
+            {
+              productName: {
+                contains: search,
+              },
+            },
+            {
+              model: {
+                contains: search,
+              },
+            },
+            {
+              order: {
+                orderNumber: {
+                  contains: search,
+                },
+              },
+            },
+            {
+              order: {
+                customerName: {
+                  contains: search,
+                },
+              },
+            },
+            {
+              order: {
+                customerEmail: {
+                  contains: search,
+                },
+              },
+            },
+          ],
+        }),
+      };
+
+      const [purchases, totalRecords] = await prisma.$transaction([
+        prisma.printerOrderItem.findMany({
+          where: whereClause,
+          include: {
+            order: {
+              select: {
+                id: true,
+                orderNumber: true,
+                customerName: true,
+                customerEmail: true,
+                createdAt: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          skip,
+          take: limit,
+        }),
+
+        prisma.printerOrderItem.count({
+          where: whereClause,
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalRecords / limit);
+
+      const formattedPurchases = await Promise.all(
+        purchases.map(async (purchase) => ({
+          id: purchase.id.toString(),
+
+          orderId: purchase.order.id.toString(),
+          orderNumber: purchase.order.orderNumber,
+
+          customerName: purchase.order.customerName,
+          customerEmail: purchase.order.customerEmail,
+
+          printerName: purchase.productName,
+          model: purchase.model,
+
+          image: purchase.image ? await generateReadUrl(purchase.image) : null,
+
+          quantity: purchase.quantity,
+
+          totalAmount: (purchase.totalPriceCents / 100).toFixed(2),
+
+          createdAt: purchase.createdAt
+            .toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+            .replace(/ /g, " "),
+        })),
+      );
+
+      return {
+        purchases: formattedPurchases,
+        pagination: {
+          totalRecords,
+          currentPage: page,
+          totalPages,
+          limit,
+        },
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
+      throw new CustomError(
+        "Failed to fetch product purchases",
+        500,
+        error.message,
+      );
+    }
+  }
+
+
+async getPrinterDashboard(userId: number) {
+  try {
+    const userData = await prisma.user.findUnique({
+      where: {
+        id: userId,
+        status: "ACTIVE",
+        isDeleted: false,
+        isVerified: true,
+      },
+    });
+
+    if (!userData) {
+      throw new CustomError(
+        "User not found",
+        404,
+        "User does not exist",
+      );
+    }
+
+    const [
+      totalProducts,
+      totalUnitsSold,
+      totalOrders,
+      revenueData,
+    ] = await prisma.$transaction([
+      // Total Products from Printer table
+      prisma.printer.count(),
+
+      // Total Units Sold from PrinterOrderItem
+      prisma.printerOrderItem.aggregate({
+        _sum: {
+          quantity: true,
+        },
+        where: {
+          order: {
+            status: "PAID",
+          },
+        },
       }),
-      prisma.printer.count({
-        where: whereClause,
+
+      // Total Order Items count
+      prisma.printerOrderItem.count({
+        where: {
+          order: {
+            status: "PAID",
+          },
+        },
+      }),
+
+      // Total Revenue in USD
+      prisma.printerOrder.aggregate({
+        _sum: {
+          totalCents: true,
+        },
+        where: {
+          status: "PAID",
+        },
       }),
     ]);
 
-    const totalPages = Math.ceil(totalRecords / limit);
-
-    const formattedPrinters = await Promise.all(
-      printers.map(async (printer) => ({
-        ...printer,
-        id: printer.id.toString(),
-        image: await generateReadUrl(printer.image),
-        stockStatus:
-          printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK",
-        isAvailable:
-          printer.status === "ACTIVE" && printer.quantity > 0,
-      })),
-    );
+    const totalRevenueCents = revenueData._sum.totalCents || 0;
 
     return {
-      message: "Printer list fetched successfully",
-      pagination: {
-        currentPage: page,
-        limit,
-        totalRecords,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
-      data: formattedPrinters,
+      totalProducts,
+      totalUnitsSold: totalUnitsSold._sum.quantity || 0,
+      totalOrders,
+      totalRevenue: (totalRevenueCents / 100).toFixed(2),
+      currency: "USD",
     };
+
   } catch (error: any) {
     if (error instanceof CustomError) {
       throw error;
     }
 
     throw new CustomError(
-      "Failed to fetch printers",
+      "Failed to fetch printer dashboard",
       500,
       error.message,
     );
   }
 }
 
-// GET PRINTER BY ID
-async getPrinterByIdBySuperAdmin( id: number) {
-   try {
-  
-
-    const printerId = BigInt(id);
-
-    const printer = await prisma.printer.findUnique({
-      where: {
-        id: printerId,
-      },
-    });
-
-    if (!printer) {
-      throw new CustomError(
-        "Printer not found",
-        404,
-        "Printer does not exist",
-      );
-    }
-
-    const imageUrl = await generateReadUrl(printer.image);
-
-    return {
-      message: "Printer fetched successfully",
-      data: {
-        ...printer,
-        id: printer.id.toString(),
-        image: imageUrl,
-        stockStatus:
-          printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK",
-        isAvailable:
-          printer.status === "ACTIVE" && printer.quantity > 0,
-      },
-    };
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-
-    throw new CustomError(
-      "Failed to fetch printer",
-      500,
-      error.message,
-    );
-  }
-}
 }
 
 (async () => {

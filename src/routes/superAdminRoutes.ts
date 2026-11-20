@@ -494,7 +494,7 @@ router.delete(
  */
 router.get(
   "/getAllPrintersBySuperAdmin",
-  clientAuthMiddleware,   
+  clientAuthMiddleware,
   superAdminRoutes.getAllPrintersBySuperAdmin.bind(superAdminRoutes),
 );
 
@@ -505,8 +505,29 @@ router.get(
  */
 router.get(
   "/getPrinterByIdBySuperAdmin/:id",
-  clientAuthMiddleware, 
+  clientAuthMiddleware,
   superAdminRoutes.getPrinterByIdBySuperAdmin.bind(superAdminRoutes),
+);
+
+/**
+ * @route   GET /api/v1/superAdmin/getProductPurchase
+ * @desc    Get product purchase history
+ * @access  Private (Super Admin)
+ */
+router.get(
+  "/getProductPurchase",
+  clientAuthMiddleware,
+  authMiddleware,
+  isSUperAdmin,
+  superAdminRoutes.getProductPurchase.bind(superAdminRoutes),
+);
+
+router.get(
+  "/getPrinterDashboard",
+  clientAuthMiddleware,
+  authMiddleware,
+  isSUperAdmin,
+  superAdminRoutes.getPrinterDashboard.bind(superAdminRoutes),
 );
 
 export default router;

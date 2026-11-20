@@ -202,8 +202,8 @@ class SubscriptionServices {
                     stripeCustomerId = customer.id;
                 }
                 const frontendBaseUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
-                const successUrl = `${frontendBaseUrl}/`;
-                const cancelUrl = `${frontendBaseUrl}/pricing?canceled=true`;
+                const successUrl = data.successUrl || `${frontendBaseUrl}/`;
+                const cancelUrl = data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
                 // 3. Create Stripe Checkout Session
                 const session = yield stripe.checkout.sessions.create({
                     customer: stripeCustomerId,
@@ -1615,8 +1615,7 @@ class SubscriptionServices {
                         quantity: 1,
                     });
                 }
-                const frontendBaseUrl = (process.env.FRONTEND_URL ||
-                    "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
+                const frontendBaseUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
                 const successUrl = data.successUrl || `${frontendBaseUrl}/store`;
                 const cancelUrl = data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
                 // 12. Create Stripe Checkout Session
@@ -1648,6 +1647,74 @@ class SubscriptionServices {
                         stripeSessionId: session.id,
                     },
                 });
+                // 14. Prepare email items
+                const emailItems = orderItems.map((item) => ({
+                    printerName: item.productName,
+                    model: item.model || undefined,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPriceCents / 100,
+                    totalPrice: item.totalPriceCents / 100,
+                }));
+                // 15. Send Super Admin Email
+                try {
+                    const superAdmins = yield prismaClient_1.default.user.findMany({
+                        where: {
+                            user_type: "SUPER_ADMIN",
+                        },
+                        select: {
+                            email: true,
+                        },
+                    });
+                    const adminEmailData = {
+                        orderNumber: order.orderNumber,
+                        customerName: data.customerName,
+                        customerEmail: data.customerEmail,
+                        customerPhone: data.customerPhone,
+                        billing: {
+                            company: data.billing.company,
+                            contactName: data.billing.contactName,
+                            email: data.billing.email,
+                            phone: data.billing.phone,
+                            address: data.billing.address,
+                            city: data.billing.city,
+                            state: data.billing.state,
+                            zipCode: data.billing.zipCode,
+                        },
+                        shipping: {
+                            company: shipping.company,
+                            contactName: shipping.contactName,
+                            email: shipping.email,
+                            phone: shipping.phone,
+                            address: shipping.address,
+                            city: shipping.city,
+                            state: shipping.state,
+                            zipCode: shipping.zipCode,
+                        },
+                        sameAsBilling: data.sameAsBilling,
+                        items: emailItems,
+                        totalAmount: totalCents / 100,
+                        paymentStatus: "PENDING",
+                    };
+                    const adminHtml = (0, templates_1.printerOrderAdminTemplate)(adminEmailData);
+                    const adminEmails = [
+                        ...new Set(superAdmins
+                            .map((admin) => admin.email)
+                            .filter((email) => Boolean(email))),
+                    ];
+                    yield Promise.all(adminEmails.map((email) => (0, utils_1.sendMail)(email, `New Printer Order - ${order.orderNumber}`, adminHtml)));
+                    // 16. Send Customer Email
+                    const customerHtml = (0, templates_1.printerPaymentSuccessTemplate)({
+                        customerName: data.customerName,
+                        customerEmail: data.customerEmail,
+                        orderNumber: order.orderNumber,
+                        items: emailItems,
+                        totalAmount: totalCents / 100,
+                    });
+                    yield (0, utils_1.sendMail)(data.customerEmail, `Printer Order Confirmation - ${order.orderNumber}`, customerHtml);
+                }
+                catch (emailError) {
+                    console.error("Printer order email error:", emailError);
+                }
                 // 14. Return response
                 return {
                     success: true,

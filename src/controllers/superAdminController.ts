@@ -30,7 +30,10 @@ import {
 } from "../schemas/superAdminSchema";
 import { AuthenticatedRequest } from "../types/index";
 import { SubscriptionServices } from "../services/subscriptionServices";
-import { adminSubscriptionQuerySchema, updateSubscriptionStatusSchema } from "../schemas/subscriptionSchema";
+import {
+  adminSubscriptionQuerySchema,
+  updateSubscriptionStatusSchema,
+} from "../schemas/subscriptionSchema";
 
 const superAdmin = new superAdminServices();
 const subscriptionServices = new SubscriptionServices();
@@ -55,84 +58,82 @@ export class superAdminController {
   }
 
   async generateQuestionnaireVideoUpload(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const { filename, contentType } =
-      generateVideoUploadSchema.parse(req.body);
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const { filename, contentType } = generateVideoUploadSchema.parse(
+        req.body,
+      );
 
-    const result =
-      await superAdmin.generateQuestionnaireVideoUploadService(
+      const result = await superAdmin.generateQuestionnaireVideoUploadService(
         filename,
         contentType,
       );
 
-    return res.status(200).json({
-      success: true,
-      ...result,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-async generateQuestionnaireImageUpload(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const { filename, contentType } =
-      generateImageUploadSchema.parse(req.body);
-
-    const result =
-      await superAdmin.generateQuestionnaireImageUploadService(
-        filename,
-        contentType,
-      );
-
-    return res.status(200).json({
-      success: true,
-      ...result,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async deleteQuestionnaire(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const superAdminId = req.user?.id;
-
-    if (!superAdminId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
+      return res.status(200).json({
+        success: true,
+        ...result,
       });
+    } catch (error) {
+      next(error);
     }
-
-    const { questionnaireId } = deleteQuestionnaireSchema.parse(
-      req.body,
-    );
-
-    const result = await superAdmin.deleteQuestionnaireServices(
-      questionnaireId,
-      BigInt(superAdminId),
-    );
-
-    return res.status(200).json({
-      success: true,
-      ...result,
-    });
-  } catch (error) {
-    next(error);
   }
-}
+  async generateQuestionnaireImageUpload(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const { filename, contentType } = generateImageUploadSchema.parse(
+        req.body,
+      );
+
+      const result = await superAdmin.generateQuestionnaireImageUploadService(
+        filename,
+        contentType,
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteQuestionnaire(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const superAdminId = req.user?.id;
+
+      if (!superAdminId) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      const { questionnaireId } = deleteQuestionnaireSchema.parse(req.body);
+
+      const result = await superAdmin.deleteQuestionnaireServices(
+        questionnaireId,
+        BigInt(superAdminId),
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   async getQuestionnaireDashboard(req: Request, res: Response, next: Function) {
     try {
       const result = await superAdmin.getQuestionnaireDashboardServices();
@@ -180,29 +181,22 @@ async deleteQuestionnaire(
   }
 
   // 2. Update quiz by ID
-async updateQuestionnaire(
-  req: Request,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const id = String(req.body.id ?? "");
-    const data = updateQuestionnaireSchema.parse(req.body);
+  async updateQuestionnaire(req: Request, res: Response, next: Function) {
+    try {
+      const id = String(req.body.id ?? "");
+      const data = updateQuestionnaireSchema.parse(req.body);
 
-    const result = await superAdmin.updateQuestionnaireServices(
-      id,
-      data,
-    );
+      const result = await superAdmin.updateQuestionnaireServices(id, data);
 
-    res.status(200).json(result);
-  } catch (error) {
-    next(error);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
   }
-}
   // 3. Change quiz status
   async changeQuestionnaireStatus(req: Request, res: Response, next: Function) {
     try {
-        const id = String(req.body.id ?? "");
+      const id = String(req.body.id ?? "");
       const { status } = changeQuestionnaireStatusSchema.parse(req.body);
 
       const result = await superAdmin.changeQuestionnaireStatusServices(
@@ -602,7 +596,9 @@ async updateQuestionnaire(
    */
   async getSubscriptionById(req: Request, res: Response, next: Function) {
     try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const id = Array.isArray(req.params.id)
+        ? req.params.id[0]
+        : req.params.id;
       const result = await subscriptionServices.getAdminSubscriptionById(id);
       res.status(result.statusCode).json(result);
     } catch (err) {
@@ -620,7 +616,10 @@ async updateQuestionnaire(
     try {
       const data = updateSubscriptionStatusSchema.parse(req.body);
       const id = req.params.id || data.id || data.subscriptionId;
-      const result = await subscriptionServices.updateAdminSubscriptionStatus(String(id), data.status);
+      const result = await subscriptionServices.updateAdminSubscriptionStatus(
+        String(id),
+        data.status,
+      );
       res.status(result.statusCode).json(result);
     } catch (err) {
       next(err);
@@ -628,110 +627,146 @@ async updateQuestionnaire(
   }
 
   async addPrinterBySuperAdmin(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const data = addPrinterSchema.parse(req.body);
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const data = addPrinterSchema.parse(req.body);
 
-    const printer = await superAdmin.addPrinterBySuperAdmin(data);
+      const printer = await superAdmin.addPrinterBySuperAdmin(data);
 
-    res.status(201).json(printer);
-  } catch (err) {
-    next(err);
+      res.status(201).json(printer);
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
-// UPDATE PRINTER
-async updatePrinterBySuperAdmin(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-
+  // UPDATE PRINTER
+  async updatePrinterBySuperAdmin(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
       const userId = Number(req.user?.id!);
-    const id = Number(req.params.id);
+      const id = Number(req.params.id);
 
-   
+      const data = updatePrinterSchema.parse(req.body);
 
-    const data = updatePrinterSchema.parse(req.body);
+      const printer = await superAdmin.updatePrinterBySuperAdmin(
+        userId,
+        id,
+        data,
+      );
 
-    const printer = await superAdmin.updatePrinterBySuperAdmin(
-      userId,
-      id,
-      data,
-    );
-
-    res.status(200).json(printer);
-  } catch (err) {
-    next(err);
+      res.status(200).json(printer);
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
-// DELETE PRINTER
-async deletePrinterBySuperAdmin(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-
-
+  // DELETE PRINTER
+  async deletePrinterBySuperAdmin(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
       const userId = Number(req.user?.id!);
-    
-    const id = Number(req.params.id);
 
-    
+      const id = Number(req.params.id);
 
-    const printer = await superAdmin.deletePrinterBySuperAdmin(userId, id);
+      const printer = await superAdmin.deletePrinterBySuperAdmin(userId, id);
 
-    res.status(200).json(printer);
-  } catch (err) {
-    next(err);
+      res.status(200).json(printer);
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
-// GET ALL PRINTERS
-async getAllPrintersBySuperAdmin(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try {
-    const search = req.query.search ? String(req.query.search) : undefined;
+  // GET ALL PRINTERS
+  async getAllPrintersBySuperAdmin(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const search = req.query.search ? String(req.query.search) : undefined;
       const page = req.query.page ? Number(req.query.page) : 1;
       const limit = req.query.limit ? Number(req.query.limit) : 10;
 
-      const category = req.query.category ? String(req.query.category) : undefined;
+      const category = req.query.category
+        ? String(req.query.category)
+        : undefined;
 
-    const printers = await superAdmin.getAllPrintersBySuperAdmin(search,page, limit, category);
+      const printers = await superAdmin.getAllPrintersBySuperAdmin(
+        search,
+        page,
+        limit,
+        category,
+      );
 
-    res.status(200).json(printers);
-  } catch (err) {
-    next(err);
+      res.status(200).json(printers);
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
-// GET PRINTER BY ID
-async getPrinterByIdBySuperAdmin(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: Function,
-) {
-  try { 
-    const id = Number(req.params.id);
+  // GET PRINTER BY ID
+  async getPrinterByIdBySuperAdmin(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const id = Number(req.params.id);
 
-  
+      const printer = await superAdmin.getPrinterByIdBySuperAdmin(id);
 
-    const printer = await superAdmin.getPrinterByIdBySuperAdmin( id);
-
-    res.status(200).json(printer);
-  } catch (err) {
-    next(err);
+      res.status(200).json(printer);
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
+  async getProductPurchase(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const userId = Number(req.user?.id!);
+      const search = req.query.search ? String(req.query.search) : undefined;
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 10;
 
+      const productPurchases = await superAdmin.getproductPurchase(
+        userId,
+        page,
+        limit,
+        search,
+      );
+
+      res.status(200).json(productPurchases);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPrinterDashboard(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: Function,
+  ) {
+    try {
+      const userId = Number(req.user?.id!);
+
+      const dashboardData = await superAdmin.getPrinterDashboard(userId);
+
+      res.status(200).json(dashboardData);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

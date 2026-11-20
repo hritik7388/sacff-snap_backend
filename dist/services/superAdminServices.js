@@ -403,9 +403,7 @@ class superAdminServices {
                         uuid: quiz.uuid,
                         testName: quiz.testName,
                         description: quiz.description,
-                        videoUrl: quiz.videoUrl
-                            ? yield (0, utils_1.generateReadUrl)(quiz.videoUrl)
-                            : null,
+                        videoUrl: quiz.videoUrl ? yield (0, utils_1.generateReadUrl)(quiz.videoUrl) : null,
                         certificateTemplateUrl: quiz.certificateTemplateUrl,
                         status: quiz.status,
                         createdById: quiz.createdById.toString(),
@@ -507,10 +505,7 @@ class superAdminServices {
                             where: {
                                 questionnaireId,
                             },
-                            orderBy: [
-                                { sortOrder: "asc" },
-                                { id: "asc" },
-                            ],
+                            orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
                             include: {
                                 options: {
                                     orderBy: {
@@ -534,7 +529,7 @@ class superAdminServices {
                                     },
                                 });
                                 // Update existing options
-                                for (const [optionIndex, option] of question.options.entries()) {
+                                for (const [optionIndex, option,] of question.options.entries()) {
                                     const existingOption = existingQuestion.options[optionIndex];
                                     if (existingOption) {
                                         yield tx.questionOption.update({
@@ -1983,15 +1978,9 @@ class superAdminServices {
                         { description: { contains: search } },
                     ],
                 })), (category === "printer" && {
-                    NOT: [
-                        { model: null },
-                        { model: "" },
-                    ],
+                    NOT: [{ model: null }, { model: "" }],
                 })), (category === "paper" && {
-                    OR: [
-                        { model: null },
-                        { model: "" },
-                    ],
+                    OR: [{ model: null }, { model: "" }],
                 }));
                 const [printers, totalRecords] = yield prismaClient_1.default.$transaction([
                     prismaClient_1.default.printer.findMany({
@@ -2055,6 +2044,183 @@ class superAdminServices {
                     throw error;
                 }
                 throw new customError_1.CustomError("Failed to fetch printer", 500, error.message);
+            }
+        });
+    }
+    getproductPurchase(userId_1) {
+        return __awaiter(this, arguments, void 0, function* (userId, page = 1, limit = 10, search = "") {
+            try {
+                const skip = (page - 1) * limit;
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError("User not found", 404, "User does not exist");
+                }
+                const whereClause = Object.assign({}, (search && {
+                    OR: [
+                        {
+                            productName: {
+                                contains: search,
+                            },
+                        },
+                        {
+                            model: {
+                                contains: search,
+                            },
+                        },
+                        {
+                            order: {
+                                orderNumber: {
+                                    contains: search,
+                                },
+                            },
+                        },
+                        {
+                            order: {
+                                customerName: {
+                                    contains: search,
+                                },
+                            },
+                        },
+                        {
+                            order: {
+                                customerEmail: {
+                                    contains: search,
+                                },
+                            },
+                        },
+                    ],
+                }));
+                const [purchases, totalRecords] = yield prismaClient_1.default.$transaction([
+                    prismaClient_1.default.printerOrderItem.findMany({
+                        where: whereClause,
+                        include: {
+                            order: {
+                                select: {
+                                    id: true,
+                                    orderNumber: true,
+                                    customerName: true,
+                                    customerEmail: true,
+                                    createdAt: true,
+                                },
+                            },
+                        },
+                        orderBy: {
+                            createdAt: "desc",
+                        },
+                        skip,
+                        take: limit,
+                    }),
+                    prismaClient_1.default.printerOrderItem.count({
+                        where: whereClause,
+                    }),
+                ]);
+                const totalPages = Math.ceil(totalRecords / limit);
+                const formattedPurchases = yield Promise.all(purchases.map((purchase) => __awaiter(this, void 0, void 0, function* () {
+                    return ({
+                        id: purchase.id.toString(),
+                        orderId: purchase.order.id.toString(),
+                        orderNumber: purchase.order.orderNumber,
+                        customerName: purchase.order.customerName,
+                        customerEmail: purchase.order.customerEmail,
+                        printerName: purchase.productName,
+                        model: purchase.model,
+                        image: purchase.image ? yield (0, utils_1.generateReadUrl)(purchase.image) : null,
+                        quantity: purchase.quantity,
+                        totalAmount: (purchase.totalPriceCents / 100).toFixed(2),
+                        createdAt: purchase.createdAt
+                            .toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                        })
+                            .replace(/ /g, " "),
+                    });
+                })));
+                return {
+                    purchases: formattedPurchases,
+                    pagination: {
+                        totalRecords,
+                        currentPage: page,
+                        totalPages,
+                        limit,
+                    },
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch product purchases", 500, error.message);
+            }
+        });
+    }
+    getPrinterDashboard(userId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const userData = yield prismaClient_1.default.user.findUnique({
+                    where: {
+                        id: userId,
+                        status: "ACTIVE",
+                        isDeleted: false,
+                        isVerified: true,
+                    },
+                });
+                if (!userData) {
+                    throw new customError_1.CustomError("User not found", 404, "User does not exist");
+                }
+                const [totalProducts, totalUnitsSold, totalOrders, revenueData,] = yield prismaClient_1.default.$transaction([
+                    // Total Products from Printer table
+                    prismaClient_1.default.printer.count(),
+                    // Total Units Sold from PrinterOrderItem
+                    prismaClient_1.default.printerOrderItem.aggregate({
+                        _sum: {
+                            quantity: true,
+                        },
+                        where: {
+                            order: {
+                                status: "PAID",
+                            },
+                        },
+                    }),
+                    // Total Order Items count
+                    prismaClient_1.default.printerOrderItem.count({
+                        where: {
+                            order: {
+                                status: "PAID",
+                            },
+                        },
+                    }),
+                    // Total Revenue in USD
+                    prismaClient_1.default.printerOrder.aggregate({
+                        _sum: {
+                            totalCents: true,
+                        },
+                        where: {
+                            status: "PAID",
+                        },
+                    }),
+                ]);
+                const totalRevenueCents = revenueData._sum.totalCents || 0;
+                return {
+                    totalProducts,
+                    totalUnitsSold: totalUnitsSold._sum.quantity || 0,
+                    totalOrders,
+                    totalRevenue: (totalRevenueCents / 100).toFixed(2),
+                    currency: "USD",
+                };
+            }
+            catch (error) {
+                if (error instanceof customError_1.CustomError) {
+                    throw error;
+                }
+                throw new customError_1.CustomError("Failed to fetch printer dashboard", 500, error.message);
             }
         });
     }

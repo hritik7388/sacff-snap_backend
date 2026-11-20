@@ -230,4 +230,11 @@ router.get("/getAllPrintersBySuperAdmin", authMiddleware_2.clientAuthMiddleware,
  * @access  Private (Super Admin)
  */
 router.get("/getPrinterByIdBySuperAdmin/:id", authMiddleware_2.clientAuthMiddleware, superAdminRoutes.getPrinterByIdBySuperAdmin.bind(superAdminRoutes));
+/**
+ * @route   GET /api/v1/superAdmin/getProductPurchase
+ * @desc    Get product purchase history
+ * @access  Private (Super Admin)
+ */
+router.get("/getProductPurchase", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getProductPurchase.bind(superAdminRoutes));
+router.get("/getPrinterDashboard", authMiddleware_2.clientAuthMiddleware, authMiddleware_1.authMiddleware, authMiddleware_1.isSUperAdmin, superAdminRoutes.getPrinterDashboard.bind(superAdminRoutes));
 exports.default = router;

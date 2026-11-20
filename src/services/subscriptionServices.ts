@@ -16,7 +16,11 @@ import {
   sendMail,
 } from "../helpers/utils";
 import { SubscriptionPlan, SubscriptionStatus, Prisma } from "@prisma/client";
-import { companyAddTemplate } from "../helpers/templates";
+import {
+  companyAddTemplate,
+  printerOrderAdminTemplate,
+  printerPaymentSuccessTemplate,
+} from "../helpers/templates";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-09-30.endive" as any,
@@ -1932,15 +1936,13 @@ export class SubscriptionServices {
       }
 
       const frontendBaseUrl = (
-      process.env.FRONTEND_URL ||
-      "https://dev.d3s2x7qb09zbh7.amplifyapp.com"
-    ).replace(/\/+$/, "");
+        process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com"
+      ).replace(/\/+$/, "");
 
-    const successUrl =
-      data.successUrl || `${frontendBaseUrl}/store`;
+      const successUrl = data.successUrl || `${frontendBaseUrl}/store`;
 
-    const cancelUrl =
-      data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
+      const cancelUrl =
+        data.cancelUrl || `${frontendBaseUrl}/pricing?canceled=true`;
 
       // 12. Create Stripe Checkout Session
       const session = await stripe.checkout.sessions.create({
@@ -1978,6 +1980,97 @@ export class SubscriptionServices {
           stripeSessionId: session.id,
         },
       });
+      // 14. Prepare email items
+      const emailItems = orderItems.map((item) => ({
+        printerName: item.productName,
+        model: item.model || undefined,
+        quantity: item.quantity,
+        unitPrice: item.unitPriceCents / 100,
+        totalPrice: item.totalPriceCents / 100,
+      }));
+
+      // 15. Send Super Admin Email
+      try {
+        const superAdmins = await prisma.user.findMany({
+          where: {
+            user_type: "SUPER_ADMIN",
+          },
+          select: {
+            email: true,
+          },
+        });
+
+        const adminEmailData = {
+          orderNumber: order.orderNumber,
+          customerName: data.customerName,
+          customerEmail: data.customerEmail,
+          customerPhone: data.customerPhone,
+
+          billing: {
+            company: data.billing.company,
+            contactName: data.billing.contactName,
+            email: data.billing.email,
+            phone: data.billing.phone,
+            address: data.billing.address,
+            city: data.billing.city,
+            state: data.billing.state,
+            zipCode: data.billing.zipCode,
+          },
+
+          shipping: {
+            company: shipping.company,
+            contactName: shipping.contactName,
+            email: shipping.email,
+            phone: shipping.phone,
+            address: shipping.address,
+            city: shipping.city,
+            state: shipping.state,
+            zipCode: shipping.zipCode,
+          },
+
+          sameAsBilling: data.sameAsBilling,
+          items: emailItems,
+          totalAmount: totalCents / 100,
+          paymentStatus: "PENDING",
+        };
+
+        const adminHtml = printerOrderAdminTemplate(adminEmailData);
+
+        const adminEmails = [
+          ...new Set(
+            superAdmins
+              .map((admin) => admin.email)
+              .filter((email): email is string => Boolean(email)),
+          ),
+        ];
+
+        await Promise.all(
+          adminEmails.map((email) =>
+            sendMail(
+              email,
+              `New Printer Order - ${order.orderNumber}`,
+              adminHtml,
+            ),
+          ),
+        );
+
+        // 16. Send Customer Email
+        const customerHtml = printerPaymentSuccessTemplate({
+          customerName: data.customerName,
+          customerEmail: data.customerEmail,
+          orderNumber: order.orderNumber,
+          items: emailItems,
+          totalAmount: totalCents / 100,
+        });
+
+        await sendMail(
+          data.customerEmail,
+          `Printer Order Confirmation - ${order.orderNumber}`,
+          customerHtml,
+        );
+      } catch (emailError) {
+        console.error("Printer order email error:", emailError);
+      }
 
       // 14. Return response
       return {
