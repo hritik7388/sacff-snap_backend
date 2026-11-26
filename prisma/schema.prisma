@@ -805,6 +805,7 @@ model RoiLead {
   state                     String
   status                    RoiLeadStatus @default(NEW)
   notes                     String?       @db.Text
+  segment                   String        @default("commercial")
 
   // Operation Inputs
   annualScaffoldCount       Int           @default(0)

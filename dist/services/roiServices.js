@@ -299,6 +299,7 @@ class RoiServices {
                         company: data.company || "",
                         state: data.state || "",
                         notes: data.notes || null,
+                        segment: calculation.segment || data.segment || "commercial",
                         // Operation inputs
                         annualScaffoldCount: calculation.operationInputs.annualScaffoldCount,
                         avgRentalDurationDays: calculation.operationInputs.avgRentalDurationDays,
