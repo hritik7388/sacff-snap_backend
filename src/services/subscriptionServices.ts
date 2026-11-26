@@ -129,6 +129,7 @@ export class SubscriptionServices {
                     data: {
                         uuid: uuidv4(),
                         name: data.name,
+                        company_name: data.company_name || null,
                         email: data.email,
                         address: data.address,
                         password: hashedPassword,
@@ -205,15 +206,15 @@ export class SubscriptionServices {
                 stripeCustomerId = customer.id;
             }
 
-            const frontendBaseUrl = (process.env.FRONTEND_URL || "https://dev.d3s2x7qb09zbh7.amplifyapp.com").replace(/\/+$/, "");
+            const frontendBaseUrl = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/+$/, "");
 
             const successUrl =
                 data.successUrl ||
-                `${frontendBaseUrl}/`;
+                `${frontendBaseUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
 
             const cancelUrl =
                 data.cancelUrl ||
-                `${frontendBaseUrl}/pricing?canceled=true`;
+                `${frontendBaseUrl}/subscription/cancel`;
 
             // 3. Create Stripe Checkout Session
             const session = await stripe.checkout.sessions.create({

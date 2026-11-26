@@ -3,7 +3,8 @@ import { z } from "zod";
 
 export const createCheckoutSessionSchema = z.object({
     // Company Registration Fields (all fields from create company)
-    name: z.string().min(1, "Company Name is required"),
+    name: z.string().min(1, "Name is required"),
+    company_name: z.string().optional().nullable(),
     email: z.string().email("Invalid email format").min(1, "Email is required"),
     password: z.string().min(8, "Password must be at least 8 characters long"),
     mobileNumber: z
