@@ -14,7 +14,9 @@ export const submitRoiLeadSchema = z.object({
     .string()
     .nullable()
     .optional()
-    .transform((val) => (val && val.trim().length > 0 ? val.trim() : generateGuestUserName())),
+    .transform((val) =>
+      val && val.trim().length > 0 ? val.trim() : generateGuestUserName(),
+    ),
   email: z
     .string()
     .nullable()
@@ -61,17 +63,21 @@ export const adminRoiQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional(),
-  status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "CLOSED"]).optional(),
+  status: z
+    .enum(["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "CLOSED"])
+    .optional(),
   state: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  sortBy: z.enum([
-    "createdAt",
-    "potentialRecoverableValue",
-    "totalAnnualLeakage",
-    "company",
-    "annualScaffoldCount",
-  ]).default("createdAt"),
+  sortBy: z
+    .enum([
+      "createdAt",
+      "potentialRecoverableValue",
+      "totalAnnualLeakage",
+      "company",
+      "annualScaffoldCount",
+    ])
+    .default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 

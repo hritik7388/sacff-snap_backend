@@ -1867,26 +1867,32 @@ class superAdminServices {
                 const printer = yield prismaClient_1.default.printer.create({
                     data: {
                         uuid: (0, uuid_1.v4)(),
-                        image: data.image,
                         name: data.name,
                         model: data.model,
                         price: data.price,
                         description: data.description,
                         status: data.status,
+                        quantity: data.quantity,
+                        image: {
+                            create: data.images.map((image) => ({
+                                image,
+                            })),
+                        },
+                    },
+                    include: {
+                        image: true,
                     },
                 });
                 return {
                     message: "Printer added successfully",
-                    data: Object.assign(Object.assign({}, printer), { id: printer.id.toString() }),
+                    data: Object.assign(Object.assign({}, printer), { id: printer.id.toString(), images: printer.image.map((item) => (Object.assign(Object.assign({}, item), { id: item.id.toString(), printerId: item.printerId.toString() }))) }),
                 };
             }
             catch (error) {
                 if (error instanceof customError_1.CustomError) {
                     throw error;
                 }
-                throw error instanceof customError_1.CustomError
-                    ? error
-                    : new customError_1.CustomError("Failed to add printer", 500, error.message);
+                throw new customError_1.CustomError("Failed to add printer", 500, error.message);
             }
         });
     }
@@ -1912,13 +1918,40 @@ class superAdminServices {
                 if (!existingPrinter) {
                     throw new customError_1.CustomError("Printer not found", 404, "Printer does not exist");
                 }
-                const updatedPrinter = yield prismaClient_1.default.printer.update({
-                    where: { id: printerId },
-                    data: Object.assign({}, data),
-                });
+                const { images } = data, printerData = __rest(data, ["images"]);
+                const updatedPrinter = yield prismaClient_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                    // UPDATE PRINTER DETAILS
+                    yield tx.printer.update({
+                        where: { id: printerId },
+                        data: printerData,
+                    });
+                    // UPDATE IMAGES ONLY WHEN PROVIDED
+                    if (images !== undefined) {
+                        yield tx.printerImage.deleteMany({
+                            where: {
+                                printerId,
+                            },
+                        });
+                        yield tx.printerImage.createMany({
+                            data: images.map((image) => ({
+                                printerId,
+                                image,
+                            })),
+                        });
+                    }
+                    return yield tx.printer.findUnique({
+                        where: { id: printerId },
+                        include: {
+                            image: true,
+                        },
+                    });
+                }));
+                if (!updatedPrinter) {
+                    throw new customError_1.CustomError("Printer not found", 404, "Printer does not exist");
+                }
                 return {
                     message: "Printer updated successfully",
-                    data: Object.assign(Object.assign({}, updatedPrinter), { id: updatedPrinter.id.toString() }),
+                    data: Object.assign(Object.assign({}, updatedPrinter), { id: updatedPrinter.id.toString(), images: updatedPrinter.image.map((item) => (Object.assign(Object.assign({}, item), { id: item.id.toString(), printerId: item.printerId.toString() }))) }),
                 };
             }
             catch (error) {
@@ -1990,6 +2023,9 @@ class superAdminServices {
                         },
                         skip,
                         take: limit,
+                        include: {
+                            image: true,
+                        },
                     }),
                     prismaClient_1.default.printer.count({
                         where: whereClause,
@@ -1997,7 +2033,14 @@ class superAdminServices {
                 ]);
                 const totalPages = Math.ceil(totalRecords / limit);
                 const formattedPrinters = yield Promise.all(printers.map((printer) => __awaiter(this, void 0, void 0, function* () {
-                    return (Object.assign(Object.assign({}, printer), { id: printer.id.toString(), image: yield (0, utils_1.generateReadUrl)(printer.image), stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK", isAvailable: printer.status === "ACTIVE" && printer.quantity > 0 }));
+                    return (Object.assign(Object.assign({}, printer), { id: printer.id.toString(), images: yield Promise.all(printer.image.map((item) => __awaiter(this, void 0, void 0, function* () {
+                            return ({
+                                id: item.id.toString(),
+                                printerId: item.printerId.toString(),
+                                image: yield (0, utils_1.generateReadUrl)(item.image),
+                                createdAt: item.createdAt,
+                            });
+                        }))), stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK", isAvailable: printer.status === "ACTIVE" && printer.quantity > 0 }));
                 })));
                 return {
                     message: "Printer list fetched successfully",
@@ -2029,14 +2072,24 @@ class superAdminServices {
                     where: {
                         id: printerId,
                     },
+                    include: {
+                        image: true,
+                    },
                 });
                 if (!printer) {
                     throw new customError_1.CustomError("Printer not found", 404, "Printer does not exist");
                 }
-                const imageUrl = yield (0, utils_1.generateReadUrl)(printer.image);
+                const formattedImages = yield Promise.all(printer.image.map((item) => __awaiter(this, void 0, void 0, function* () {
+                    return ({
+                        id: item.id.toString(),
+                        printerId: item.printerId.toString(),
+                        image: yield (0, utils_1.generateReadUrl)(item.image),
+                        createdAt: item.createdAt,
+                    });
+                })));
                 return {
                     message: "Printer fetched successfully",
-                    data: Object.assign(Object.assign({}, printer), { id: printer.id.toString(), image: imageUrl, stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK", isAvailable: printer.status === "ACTIVE" && printer.quantity > 0 }),
+                    data: Object.assign(Object.assign({}, printer), { id: printer.id.toString(), images: formattedImages, stockStatus: printer.quantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK", isAvailable: printer.status === "ACTIVE" && printer.quantity > 0 }),
                 };
             }
             catch (error) {
@@ -2175,7 +2228,7 @@ class superAdminServices {
                 if (!userData) {
                     throw new customError_1.CustomError("User not found", 404, "User does not exist");
                 }
-                const [totalProducts, totalUnitsSold, totalOrders, revenueData,] = yield prismaClient_1.default.$transaction([
+                const [totalProducts, totalUnitsSold, totalOrders, revenueData] = yield prismaClient_1.default.$transaction([
                     // Total Products from Printer table
                     prismaClient_1.default.printer.count(),
                     // Total Units Sold from PrinterOrderItem

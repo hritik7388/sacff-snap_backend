@@ -2329,6 +2329,7 @@ export class superAdminServices {
           price: data.price,
           description: data.description,
           status: data.status,
+          quantity: data.quantity,
         },
       });
 
@@ -2704,90 +2705,79 @@ export class superAdminServices {
     }
   }
 
+  async getPrinterDashboard(userId: number) {
+    try {
+      const userData = await prisma.user.findUnique({
+        where: {
+          id: userId,
+          status: "ACTIVE",
+          isDeleted: false,
+          isVerified: true,
+        },
+      });
 
-async getPrinterDashboard(userId: number) {
-  try {
-    const userData = await prisma.user.findUnique({
-      where: {
-        id: userId,
-        status: "ACTIVE",
-        isDeleted: false,
-        isVerified: true,
-      },
-    });
+      if (!userData) {
+        throw new CustomError("User not found", 404, "User does not exist");
+      }
 
-    if (!userData) {
+      const [totalProducts, totalUnitsSold, totalOrders, revenueData] =
+        await prisma.$transaction([
+          // Total Products from Printer table
+          prisma.printer.count(),
+
+          // Total Units Sold from PrinterOrderItem
+          prisma.printerOrderItem.aggregate({
+            _sum: {
+              quantity: true,
+            },
+            where: {
+              order: {
+                status: "PAID",
+              },
+            },
+          }),
+
+          // Total Order Items count
+          prisma.printerOrderItem.count({
+            where: {
+              order: {
+                status: "PAID",
+              },
+            },
+          }),
+
+          // Total Revenue in USD
+          prisma.printerOrder.aggregate({
+            _sum: {
+              totalCents: true,
+            },
+            where: {
+              status: "PAID",
+            },
+          }),
+        ]);
+
+      const totalRevenueCents = revenueData._sum.totalCents || 0;
+
+      return {
+        totalProducts,
+        totalUnitsSold: totalUnitsSold._sum.quantity || 0,
+        totalOrders,
+        totalRevenue: (totalRevenueCents / 100).toFixed(2),
+        currency: "USD",
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) {
+        throw error;
+      }
+
       throw new CustomError(
-        "User not found",
-        404,
-        "User does not exist",
+        "Failed to fetch printer dashboard",
+        500,
+        error.message,
       );
     }
-
-    const [
-      totalProducts,
-      totalUnitsSold,
-      totalOrders,
-      revenueData,
-    ] = await prisma.$transaction([
-      // Total Products from Printer table
-      prisma.printer.count(),
-
-      // Total Units Sold from PrinterOrderItem
-      prisma.printerOrderItem.aggregate({
-        _sum: {
-          quantity: true,
-        },
-        where: {
-          order: {
-            status: "PAID",
-          },
-        },
-      }),
-
-      // Total Order Items count
-      prisma.printerOrderItem.count({
-        where: {
-          order: {
-            status: "PAID",
-          },
-        },
-      }),
-
-      // Total Revenue in USD
-      prisma.printerOrder.aggregate({
-        _sum: {
-          totalCents: true,
-        },
-        where: {
-          status: "PAID",
-        },
-      }),
-    ]);
-
-    const totalRevenueCents = revenueData._sum.totalCents || 0;
-
-    return {
-      totalProducts,
-      totalUnitsSold: totalUnitsSold._sum.quantity || 0,
-      totalOrders,
-      totalRevenue: (totalRevenueCents / 100).toFixed(2),
-      currency: "USD",
-    };
-
-  } catch (error: any) {
-    if (error instanceof CustomError) {
-      throw error;
-    }
-
-    throw new CustomError(
-      "Failed to fetch printer dashboard",
-      500,
-      error.message,
-    );
   }
-}
-
 }
 
 (async () => {

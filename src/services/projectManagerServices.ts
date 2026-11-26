@@ -338,6 +338,7 @@ export class ProjectManagerServices {
       return {
         message: RESPONSE_MESSAGES.PROJECT.FETCH_ALL_SUCCESS,
         data: formattedProjects,
+        // totalProjects: totalCount,
         pagination: {
           total: totalCount,
           page,

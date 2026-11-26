@@ -42,8 +42,8 @@ export class scaffHoldController {
             const data = searchFilter.parse(req.body);
 
             // 📄 pagination
-            const page = Number(req.query.page) || 1;
-            const limit = Number(req.query.limit) || 10;
+            const page = Number(req.body.page) || 1;
+            const limit = Number(req.body.limit) || 10;
 
             // 🚀 service call
             const result = await scaffHold.getProjectScaffHold(

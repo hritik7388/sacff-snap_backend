@@ -12,7 +12,11 @@ exports.createCheckoutSessionSchema = zod_1.z.object({
         .string()
         .min(8, "Phone number must be at least 8 characters long")
         .max(16, "Phone number cannot exceed 16 characters"),
-    countryCode: zod_1.z.string().min(1, "Country code is required").optional().default("+91"),
+    countryCode: zod_1.z
+        .string()
+        .min(1, "Country code is required")
+        .optional()
+        .default("+91"),
     address: zod_1.z.string().min(1, "Address is required"),
     image: zod_1.z.string().optional(),
     latitude: zod_1.z.number().optional(),
@@ -56,21 +60,25 @@ const addressSchema = zod_1.z.object({
     state: zod_1.z.string().min(1, "State is required"),
     zipCode: zod_1.z.string().min(1, "ZIP code is required"),
 });
-exports.createPrinterCheckoutSchema = zod_1.z.object({
+exports.createPrinterCheckoutSchema = zod_1.z
+    .object({
     customerName: zod_1.z.string().min(1, "Customer name is required"),
     customerEmail: zod_1.z.string().email("Invalid email address"),
     customerPhone: zod_1.z.string().min(8).max(16),
-    items: zod_1.z.array(zod_1.z.object({
+    items: zod_1.z
+        .array(zod_1.z.object({
         printerId: zod_1.z.number().int().positive(),
         quantity: zod_1.z.number().int().min(1).max(100),
-    })).min(1, "At least one printer is required"),
+    }))
+        .min(1, "At least one printer is required"),
     billing: addressSchema,
     sameAsBilling: zod_1.z.boolean().default(false),
     shipping: addressSchema.optional(),
     successUrl: zod_1.z.string().url("successUrl must be a valid URL").optional(),
     cancelUrl: zod_1.z.string().url("cancelUrl must be a valid URL").optional(),
-}).superRefine((data, ctx) => {
-    const ids = data.items.map(item => item.printerId);
+})
+    .superRefine((data, ctx) => {
+    const ids = data.items.map((item) => item.printerId);
     if (new Set(ids).size !== ids.length) {
         ctx.addIssue({
             code: zod_1.z.ZodIssueCode.custom,

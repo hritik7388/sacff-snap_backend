@@ -47,8 +47,8 @@ class scaffHoldController {
                 // ✅ Zod validation
                 const data = tradesManSchema_1.searchFilter.parse(req.body);
                 // 📄 pagination
-                const page = Number(req.query.page) || 1;
-                const limit = Number(req.query.limit) || 10;
+                const page = Number(req.body.page) || 1;
+                const limit = Number(req.body.limit) || 10;
                 // 🚀 service call
                 const result = yield scaffHold.getProjectScaffHold(data, page, limit, projectId);
                 return res.status(200).json(result);

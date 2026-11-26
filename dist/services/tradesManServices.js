@@ -1014,9 +1014,7 @@ class tradesManServices {
     getCertificateByIdService(certificateId, tradesmanId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                // ======================================================
                 // 1. FETCH AUTHENTICATED USER
-                // ======================================================
                 const tradesman = yield prismaClient_1.default.user.findUnique({
                     where: {
                         id: tradesmanId,
@@ -1035,13 +1033,9 @@ class tradesManServices {
                 if (!tradesman || !tradesman.tradesman) {
                     throw new customError_1.CustomError("Tradesman not found", 404, "The specified tradesman does not exist");
                 }
-                // ======================================================
                 // 2. ACTUAL TRADESMAN ID
-                // ======================================================
                 const actualTradesmanId = tradesman.tradesman.id;
-                // ======================================================
                 // 3. FETCH CERTIFICATE
-                // ======================================================
                 const certificate = yield prismaClient_1.default.certificate.findFirst({
                     where: {
                         id: certificateId,
@@ -1057,7 +1051,6 @@ class tradesManServices {
                                 testName: true,
                                 description: true,
                                 certificateTemplateUrl: true,
-                                // certificateThumbnailUrl: true,
                             },
                         },
                         attempt: {
@@ -1074,58 +1067,40 @@ class tradesManServices {
                 if (!certificate) {
                     throw new customError_1.CustomError("Certificate not found", 404, "Certificate does not exist or does not belong to this tradesman");
                 }
-                // ======================================================
                 // 4. CERTIFICATE TEMPLATE S3 URL
-                // ======================================================
                 const certificateTemplateUrl = certificate.questionnaire
                     .certificateTemplateUrl
                     ? yield (0, utils_1.generateReadUrl)(certificate.questionnaire.certificateTemplateUrl)
                     : null;
-                // const certificateThumbnailUrl = certificate.questionnaire
-                //   .certificateThumbnailUrl
-                //   ? await generateReadUrl(
-                //       certificate.questionnaire.certificateThumbnailUrl,
-                //     )
-                //   : null;
-                // ======================================================
-                // 5. GENERATE CERTIFICATE IMAGE
-                // ======================================================
-                const certificateImage = yield (0, utils_1.certificateImageGenerator)({
-                    tradesmanName: tradesman.name,
-                    email: tradesman.email,
-                });
-                if (!certificateImage || certificateImage.length === 0) {
-                    throw new Error("Certificate image generation failed");
-                }
-                // ======================================================
-                // 6. UPLOADS FOLDER
-                // ======================================================
+                // 5. UPLOADS FOLDER
                 const uploadsPath = path_1.default.join(process.cwd(), "uploads");
                 if (!fs_1.default.existsSync(uploadsPath)) {
                     fs_1.default.mkdirSync(uploadsPath, {
                         recursive: true,
                     });
                 }
-                // ======================================================
-                // 7. FILE NAME
-                // ======================================================
+                // 6. FILE NAME
                 const fileName = `certificate-${certificate.id.toString()}.png`;
                 const imagePath = path_1.default.join(uploadsPath, fileName);
-                // ======================================================
-                // 8. SAVE CERTIFICATE IMAGE
-                // ======================================================
-                fs_1.default.writeFileSync(imagePath, certificateImage);
-                // ======================================================
-                // 9. SERVER URL
-                // ======================================================
+                // 7. SERVER URL
                 const SERVER_URL = process.env.SERVER_URL || "http://50.19.99.226:3001";
-                // ======================================================
-                // 10. CERTIFICATE IMAGE URL
-                // ======================================================
+                // 8. CERTIFICATE IMAGE URL
                 const certificateImageUrl = `${SERVER_URL}/uploads/${fileName}`;
-                // ======================================================
-                // 11. RESPONSE
-                // ======================================================
+                // 9. GENERATE QR CODE
+                const qrCodeDataUrl = yield (0, utils_1.generateCertificateQR)(certificateImageUrl);
+                console.log("QR GENERATED:", qrCodeDataUrl.substring(0, 50));
+                // 10. GENERATE CERTIFICATE IMAGE WITH QR
+                const certificateImage = yield (0, utils_1.certificateImageGenerator)({
+                    tradesmanName: tradesman.name,
+                    email: tradesman.email,
+                    qrCodeDataUrl,
+                });
+                if (!certificateImage || certificateImage.length === 0) {
+                    throw new Error("Certificate image generation failed");
+                }
+                // 11. SAVE CERTIFICATE IMAGE
+                fs_1.default.writeFileSync(imagePath, certificateImage);
+                // 12. RESPONSE
                 return {
                     message: "Certificate fetched successfully",
                     data: {
@@ -1135,7 +1110,6 @@ class tradesManServices {
                         certificateNo: certificate.certificateNo,
                         certificateUrl: certificate.certificateUrl,
                         certificateImage: certificateImageUrl,
-                        // certificateThumbnailUrl: certificateThumbnailUrl,
                         issuedAt: certificate.issuedAt,
                         tradesmanName: tradesman.name,
                         email: tradesman.email,

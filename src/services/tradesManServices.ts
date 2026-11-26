@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import {
   certificateImageGenerator,
+  generateCertificateQR,
   generateReadUrl,
   generateToken,
   pushNotificationDelhi,
@@ -280,10 +281,6 @@ export class tradesManServices {
       const skip = (page - 1) * limit;
 
       const data = filteredQuestionnaires.slice(skip, skip + limit);
-
-     
-
-      
 
       // 7. Final response
       return {
@@ -1408,10 +1405,7 @@ export class tradesManServices {
 
   async getCertificateByIdService(certificateId: bigint, tradesmanId: bigint) {
     try {
-      // ======================================================
       // 1. FETCH AUTHENTICATED USER
-      // ======================================================
-
       const tradesman = await prisma.user.findUnique({
         where: {
           id: tradesmanId,
@@ -1436,16 +1430,10 @@ export class tradesManServices {
         );
       }
 
-      // ======================================================
       // 2. ACTUAL TRADESMAN ID
-      // ======================================================
-
       const actualTradesmanId = tradesman.tradesman.id;
 
-      // ======================================================
       // 3. FETCH CERTIFICATE
-      // ======================================================
-
       const certificate = await prisma.certificate.findFirst({
         where: {
           id: certificateId,
@@ -1461,7 +1449,6 @@ export class tradesManServices {
               testName: true,
               description: true,
               certificateTemplateUrl: true,
-              // certificateThumbnailUrl: true,
             },
           },
           attempt: {
@@ -1484,10 +1471,7 @@ export class tradesManServices {
         );
       }
 
-      // ======================================================
       // 4. CERTIFICATE TEMPLATE S3 URL
-      // ======================================================
-
       const certificateTemplateUrl = certificate.questionnaire
         .certificateTemplateUrl
         ? await generateReadUrl(
@@ -1495,30 +1479,7 @@ export class tradesManServices {
           )
         : null;
 
-      // const certificateThumbnailUrl = certificate.questionnaire
-      //   .certificateThumbnailUrl
-      //   ? await generateReadUrl(
-      //       certificate.questionnaire.certificateThumbnailUrl,
-      //     )
-      //   : null;
-
-      // ======================================================
-      // 5. GENERATE CERTIFICATE IMAGE
-      // ======================================================
-
-      const certificateImage = await certificateImageGenerator({
-        tradesmanName: tradesman.name,
-        email: tradesman.email,
-      });
-
-      if (!certificateImage || certificateImage.length === 0) {
-        throw new Error("Certificate image generation failed");
-      }
-
-      // ======================================================
-      // 6. UPLOADS FOLDER
-      // ======================================================
-
+      // 5. UPLOADS FOLDER
       const uploadsPath = path.join(process.cwd(), "uploads");
 
       if (!fs.existsSync(uploadsPath)) {
@@ -1527,36 +1488,37 @@ export class tradesManServices {
         });
       }
 
-      // ======================================================
-      // 7. FILE NAME
-      // ======================================================
-
+      // 6. FILE NAME
       const fileName = `certificate-${certificate.id.toString()}.png`;
 
       const imagePath = path.join(uploadsPath, fileName);
 
-      // ======================================================
-      // 8. SAVE CERTIFICATE IMAGE
-      // ======================================================
-
-      fs.writeFileSync(imagePath, certificateImage);
-
-      // ======================================================
-      // 9. SERVER URL
-      // ======================================================
-
+      // 7. SERVER URL
       const SERVER_URL = process.env.SERVER_URL || "http://50.19.99.226:3001";
 
-      // ======================================================
-      // 10. CERTIFICATE IMAGE URL
-      // ======================================================
-
+      // 8. CERTIFICATE IMAGE URL
       const certificateImageUrl = `${SERVER_URL}/uploads/${fileName}`;
 
-      // ======================================================
-      // 11. RESPONSE
-      // ======================================================
+      // 9. GENERATE QR CODE
+      const qrCodeDataUrl = await generateCertificateQR(certificateImageUrl);
 
+      console.log("QR GENERATED:", qrCodeDataUrl.substring(0, 50));
+
+      // 10. GENERATE CERTIFICATE IMAGE WITH QR
+      const certificateImage = await certificateImageGenerator({
+        tradesmanName: tradesman.name,
+        email: tradesman.email,
+        qrCodeDataUrl,
+      });
+
+      if (!certificateImage || certificateImage.length === 0) {
+        throw new Error("Certificate image generation failed");
+      }
+
+      // 11. SAVE CERTIFICATE IMAGE
+      fs.writeFileSync(imagePath, certificateImage);
+
+      // 12. RESPONSE
       return {
         message: "Certificate fetched successfully",
 
@@ -1569,7 +1531,6 @@ export class tradesManServices {
           certificateUrl: certificate.certificateUrl,
 
           certificateImage: certificateImageUrl,
-          // certificateThumbnailUrl: certificateThumbnailUrl,
 
           issuedAt: certificate.issuedAt,
 

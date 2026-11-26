@@ -507,8 +507,7 @@ const unusualActivityTemplate = (name, deviceName, deviceType, osVersion, lastLo
 exports.unusualActivityTemplate = unusualActivityTemplate;
 const greenpdfTemplate = (data) => {
     var _a;
-    return `
-<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2450,22 +2449,25 @@ const certifictae = (data) => {
       margin-top: 2px;
     }
 
-    .qr-container {
-      width: 68px;
-      height: 68px;
-      padding: 4px;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+   .qr-container {
+  width: 68px;
+  height: 68px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
 
-    .qr-container svg {
-      width: 100%;
-      height: 100%;
-    }
+.qr-container img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
     /* Print Styles */
     @media print {
@@ -2656,75 +2658,14 @@ const certifictae = (data) => {
           </div>
         </div>
         <!-- QR Code SVG with Brand Icon in Center -->
-        <div class="qr-container">
-          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- Top-Left Finder Pattern -->
-            <rect x="5" y="5" width="26" height="26" rx="3" fill="#000000" />
-            <rect x="9" y="9" width="18" height="18" rx="2" fill="#ffffff" />
-            <rect x="13" y="13" width="10" height="10" rx="1.5" fill="#000000" />
-
-            <!-- Top-Right Finder Pattern -->
-            <rect x="69" y="5" width="26" height="26" rx="3" fill="#000000" />
-            <rect x="73" y="9" width="18" height="18" rx="2" fill="#ffffff" />
-            <rect x="77" y="13" width="10" height="10" rx="1.5" fill="#000000" />
-
-            <!-- Bottom-Left Finder Pattern -->
-            <rect x="5" y="69" width="26" height="26" rx="3" fill="#000000" />
-            <rect x="9" y="73" width="18" height="18" rx="2" fill="#ffffff" />
-            <rect x="13" y="77" width="10" height="10" rx="1.5" fill="#000000" />
-
-            <!-- QR Data Modules Matrix -->
-            <!-- Row 1-6 alignment & data -->
-            <rect x="36" y="8" width="5" height="5" fill="#000000" />
-            <rect x="47" y="8" width="5" height="5" fill="#000000" />
-            <rect x="58" y="8" width="5" height="5" fill="#000000" />
-            <rect x="41" y="16" width="5" height="5" fill="#000000" />
-            <rect x="53" y="16" width="5" height="5" fill="#000000" />
-            <rect x="36" y="24" width="5" height="5" fill="#000000" />
-            <rect x="47" y="24" width="5" height="5" fill="#000000" />
-            <rect x="58" y="24" width="5" height="5" fill="#000000" />
-
-            <!-- Timing horizontal & vertical -->
-            <rect x="8" y="37" width="5" height="5" fill="#000000" />
-            <rect x="18" y="37" width="5" height="5" fill="#000000" />
-            <rect x="28" y="37" width="5" height="5" fill="#000000" />
-            <rect x="38" y="37" width="5" height="5" fill="#000000" />
-            <rect x="68" y="37" width="5" height="5" fill="#000000" />
-            <rect x="78" y="37" width="5" height="5" fill="#000000" />
-            <rect x="88" y="37" width="5" height="5" fill="#000000" />
-
-            <!-- Lower data modules -->
-            <rect x="36" y="48" width="5" height="5" fill="#000000" />
-            <rect x="58" y="48" width="5" height="5" fill="#000000" />
-            <rect x="68" y="48" width="5" height="5" fill="#000000" />
-            <rect x="83" y="48" width="5" height="5" fill="#000000" />
-            
-            <rect x="36" y="58" width="5" height="5" fill="#000000" />
-            <rect x="47" y="58" width="5" height="5" fill="#000000" />
-            <rect x="73" y="58" width="5" height="5" fill="#000000" />
-            <rect x="88" y="58" width="5" height="5" fill="#000000" />
-
-            <rect x="36" y="70" width="5" height="5" fill="#000000" />
-            <rect x="47" y="70" width="5" height="5" fill="#000000" />
-            <rect x="58" y="70" width="5" height="5" fill="#000000" />
-            <rect x="68" y="70" width="5" height="5" fill="#000000" />
-            <rect x="78" y="70" width="5" height="5" fill="#000000" />
-
-            <rect x="42" y="80" width="5" height="5" fill="#000000" />
-            <rect x="53" y="80" width="5" height="5" fill="#000000" />
-            <rect x="63" y="80" width="5" height="5" fill="#000000" />
-            <rect x="83" y="80" width="5" height="5" fill="#000000" />
-
-            <rect x="36" y="90" width="5" height="5" fill="#000000" />
-            <rect x="53" y="90" width="5" height="5" fill="#000000" />
-            <rect x="73" y="90" width="5" height="5" fill="#000000" />
-            <rect x="88" y="90" width="5" height="5" fill="#000000" />
-
-            <!-- Center Brand Badge in QR -->
-            <rect x="39" y="39" width="22" height="22" rx="4" fill="#f59e0b" stroke="#ffffff" stroke-width="2" />
-            <text x="50" y="55" font-family="'Montserrat', sans-serif" font-size="14" font-weight="900" fill="#ffffff" text-anchor="middle">S</text>
-          </svg>
-        </div>
+        <!-- Dynamic QR Code -->
+<div class="qr-container">
+  <img
+    src="${data.qrCodeDataUrl}"
+    alt="Certificate QR Code"
+    style="width: 100%; height: 100%; object-fit: contain;"
+  />
+</div>
       </div>
     </footer>
 

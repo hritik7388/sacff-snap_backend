@@ -594,6 +594,8 @@ export class CompanyServices {
                     isVerified: false
                 }
             });
+
+            console.log("otp===================>>>",otp)
             const html = otpTemplate(user.name, emailOTP.otp.toString());
             console.log("html==================>>>>>", html)
 

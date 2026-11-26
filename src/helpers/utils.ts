@@ -623,9 +623,7 @@ export const imageGenerator = async (
       });
     }
   }
-};
-
-import fs from "fs";
+}; 
 export const certificateImageGenerator = async (
   certificateDetails: any,
 ): Promise<Buffer> => {
@@ -684,6 +682,20 @@ export const certificateImageGenerator = async (
         "Could not find .certificate-page element. Check certificate HTML template.",
       );
     }
+
+    await page.waitForFunction(() => {
+  const qrImage = document.querySelector(
+    ".qr-container img",
+  ) as HTMLImageElement | null;
+
+  return (
+    qrImage !== null &&
+    qrImage.complete &&
+    qrImage.naturalWidth > 0
+  );
+}, {
+  timeout: 15000,
+});
 
     // ======================================================
     // SCREENSHOT
@@ -793,5 +805,21 @@ export const certificateImageGenerator = async (
         );
       });
     }
+  }
+};
+
+export const generateCertificateQR = async (
+  certificateImageUrl: string,
+): Promise<string> => {
+  try {
+    return await QRCode.toDataURL(certificateImageUrl, {
+      errorCorrectionLevel: "H",
+      type: "image/png",
+      width: 500,
+      margin: 4,
+    });
+  } catch (error: any) {
+    console.error("QR CODE GENERATION ERROR:", error);
+    throw new Error("Failed to generate certificate QR code");
   }
 };

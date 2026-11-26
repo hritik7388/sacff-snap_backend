@@ -89,7 +89,9 @@ exports.addNewCompanySchema = zod_1.default.object({
     longitude: zod_1.default.number().optional(),
 });
 exports.addPrinterSchema = zod_1.default.object({
-    image: zod_1.default.string().min(1, "Printer image is required"),
+    images: zod_1.default
+        .array(zod_1.default.string().min(1, "Printer image is required"))
+        .min(1, "At least one printer image is required"),
     name: zod_1.default.string().min(1, "Printer name is required"),
     model: zod_1.default.string().optional(),
     price: zod_1.default.number().min(0, "Price cannot be negative"),
@@ -100,7 +102,10 @@ exports.addPrinterSchema = zod_1.default.object({
 // UPDATE PRINTER
 exports.updatePrinterSchema = zod_1.default
     .object({
-    image: zod_1.default.string().min(1, "Printer image is required").optional(),
+    images: zod_1.default
+        .array(zod_1.default.string().min(1, "Printer image is required"))
+        .min(1, "At least one printer image is required")
+        .optional(),
     name: zod_1.default.string().min(1, "Printer name is required").optional(),
     model: zod_1.default.string().optional(),
     price: zod_1.default.number().min(0, "Price cannot be negative").optional(),

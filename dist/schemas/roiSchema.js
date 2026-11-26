@@ -16,7 +16,7 @@ exports.submitRoiLeadSchema = zod_1.z.object({
         .string()
         .nullable()
         .optional()
-        .transform((val) => (val && val.trim().length > 0 ? val.trim() : (0, exports.generateGuestUserName)())),
+        .transform((val) => val && val.trim().length > 0 ? val.trim() : (0, exports.generateGuestUserName)()),
     email: zod_1.z
         .string()
         .nullable()
@@ -60,17 +60,21 @@ exports.adminRoiQuerySchema = zod_1.z.object({
     page: zod_1.z.coerce.number().int().min(1).default(1),
     limit: zod_1.z.coerce.number().int().min(1).max(100).default(10),
     search: zod_1.z.string().optional(),
-    status: zod_1.z.enum(["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "CLOSED"]).optional(),
+    status: zod_1.z
+        .enum(["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "CLOSED"])
+        .optional(),
     state: zod_1.z.string().optional(),
     startDate: zod_1.z.string().optional(),
     endDate: zod_1.z.string().optional(),
-    sortBy: zod_1.z.enum([
+    sortBy: zod_1.z
+        .enum([
         "createdAt",
         "potentialRecoverableValue",
         "totalAnnualLeakage",
         "company",
         "annualScaffoldCount",
-    ]).default("createdAt"),
+    ])
+        .default("createdAt"),
     sortOrder: zod_1.z.enum(["asc", "desc"]).default("desc"),
 });
 // Lead ID param

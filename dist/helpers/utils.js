@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.certificateImageGenerator = exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateImageUploadUrl = exports.generateReadUrl = exports.generatePresignedUrl = exports.generateVideoUploadUrl = exports.extractS3Key = exports.mailTransporter = void 0;
+exports.generateCertificateQR = exports.certificateImageGenerator = exports.imageGenerator = exports.qrCodeGenerator = exports.sendMail = exports.pushNotificationDelhi = exports.reqscaffHoldIdGenerator = exports.projectIdGenerator = exports.scaffHoldIdGenerator = exports.generateJobId = exports.generateProjectId = exports.generateCompanyId = exports.generateOTP = exports.generateToken = exports.generateImageUploadUrl = exports.generateReadUrl = exports.generatePresignedUrl = exports.generateVideoUploadUrl = exports.extractS3Key = exports.mailTransporter = void 0;
 // src/helpers/utils.ts
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const qrcode_1 = __importDefault(require("qrcode"));
@@ -532,6 +532,14 @@ const certificateImageGenerator = (certificateDetails) => __awaiter(void 0, void
         if (!certificateElement) {
             throw new Error("Could not find .certificate-page element. Check certificate HTML template.");
         }
+        yield page.waitForFunction(() => {
+            const qrImage = document.querySelector(".qr-container img");
+            return (qrImage !== null &&
+                qrImage.complete &&
+                qrImage.naturalWidth > 0);
+        }, {
+            timeout: 15000,
+        });
         // ======================================================
         // SCREENSHOT
         // ======================================================
@@ -616,3 +624,18 @@ const certificateImageGenerator = (certificateDetails) => __awaiter(void 0, void
     }
 });
 exports.certificateImageGenerator = certificateImageGenerator;
+const generateCertificateQR = (certificateImageUrl) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        return yield qrcode_1.default.toDataURL(certificateImageUrl, {
+            errorCorrectionLevel: "H",
+            type: "image/png",
+            width: 500,
+            margin: 4,
+        });
+    }
+    catch (error) {
+        console.error("QR CODE GENERATION ERROR:", error);
+        throw new Error("Failed to generate certificate QR code");
+    }
+});
+exports.generateCertificateQR = generateCertificateQR;
