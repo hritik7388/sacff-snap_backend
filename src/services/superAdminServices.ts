@@ -1126,6 +1126,7 @@ export class superAdminServices {
         data: {
           uuid: uuidv4(),
           name: data.name,
+          company_name: data.company_name,
           email: data.email,
           address: data.address,
           password: hasPassword,
@@ -1140,7 +1141,9 @@ export class superAdminServices {
         },
       });
 
-      const html = companyAddTemplate(
+      const html = companyAddTemplate( 
+        
+        
         newCompany.name,
         newCompany.user_type,
         newCompany.email,
@@ -1186,6 +1189,7 @@ export class superAdminServices {
 
       const companyData = {
         id: newCompany.id,
+        company_name: newCompany.company_name,
         name: newCompany.name,
         email: newCompany.email,
         address: newCompany.address,

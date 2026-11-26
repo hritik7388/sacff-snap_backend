@@ -140,6 +140,7 @@ export class CompanyServices {
                     id: companyData.id,
                 },
                 data: {
+                    company_name: data.company_name,
                     name: data.name,
                     email: data.email,
                     address: data.address,

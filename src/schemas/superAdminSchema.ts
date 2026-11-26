@@ -98,6 +98,7 @@ export type ChangeQuestionnaireStatusDTO = z.infer<
 >;
 
 export const addNewCompanySchema = z.object({
+  company_name: z.string().min(1, "Company Name is required"),
   name: z.string().min(1, "Company Name is required"),
   email: z.string().email("Invalid email format").min(1, "Email is required"),
   image: z.string(),

@@ -21,6 +21,7 @@ export const companyRegisterSchema = z.object({
 export const companyUpdateSchema = z.object({
     id: z.number(),
     name: z.string().optional(),
+    company_name: z.string().optional(),
     email: z.string().optional(),
     image: z.string().optional(),
     address: z.string().min(1, "Address is required").optional(),
