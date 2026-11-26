@@ -12,28 +12,141 @@ import { RESPONSE_MESSAGES } from "../constants/responseMessages";
 import { mailTransporter } from "../helpers/utils";
 import { Prisma, RoiLeadStatus } from "@prisma/client";
 
+export const SCAFF_ENTERPRISE_CONFIG = {
+  profiles: {
+    commercial: {
+      label: "Commercial Construction",
+      volume: 500,
+      wastedLaborHoursPerBuild: 4.5,
+      ghostRentalDaysPerBuild: 3.2,
+      rebuildRate: 0.08,
+      adminHoursPerBuild: 1.5,
+      fullyBurdenedLaborRate: 65.0,
+      scaffoldRentalCostPerDay: 15.0,
+      averageCostPerErection: 3200,
+      scaffSnappAnnualCost: 0,
+    },
+    industrial: {
+      label: "Industrial & Heavy Facilities",
+      volume: 500,
+      wastedLaborHoursPerBuild: 6.5,
+      ghostRentalDaysPerBuild: 5.0,
+      rebuildRate: 0.12,
+      adminHoursPerBuild: 2.5,
+      fullyBurdenedLaborRate: 85.0,
+      scaffoldRentalCostPerDay: 25.0,
+      averageCostPerErection: 5200,
+      scaffSnappAnnualCost: 0,
+    },
+  },
+  defaults: {
+    wastedLaborHoursPerBuild: 4.5,
+    ghostRentalDaysPerBuild: 3.2,
+    rebuildRate: 0.08,
+    adminHoursPerBuild: 1.5,
+    fullyBurdenedLaborRate: 65.0,
+    scaffoldRentalCostPerDay: 15.0,
+    averageCostPerErection: 3200,
+    scaffSnappAnnualCost: 0,
+  },
+  efficiencies: {
+    laborCapture: 0.45,
+    rentalCapture: 0.70,
+    buildsCapture: 0.40,
+    adminCapture: 0.80,
+  },
+};
+
 export interface RoiCalculationResult {
+  segment: "commercial" | "industrial";
   operationInputs: {
+    volume: number;
+    annualBuildVolume: number;
     annualScaffoldCount: number;
-    avgRentalDurationDays: number;
-    dailyRentalCost: number;
-    crewSizePerBuild: number;
+    laborRate: number;
+    fullyBurdenedLaborRate: number;
     hourlyLaborRate: number;
+    rentalRate: number;
+    scaffoldRentalCostPerDay: number;
+    dailyRentalCost: number;
+    erectionCost: number;
+    averageCostPerErection: number;
+    laborHours: number;
+    wastedLaborHoursPerBuild: number;
     standbyHours: number;
+    rentalDays: number;
+    ghostRentalDaysPerBuild: number;
+    avgRentalDurationDays: number;
+    rebuildRate: number;
+    adminHours: number;
+    adminHoursPerBuild: number;
+    softwareTCO: number;
+    scaffSnappAnnualCost: number;
+    crewSizePerBuild: number;
   };
   metrics: {
+    // Enterprise Engine losses (Zero Magic Numbers)
+    lossLabor: number;
+    lossRental: number;
+    lossErections: number;
+    lossAdmin: number;
+    totalGrossLoss: number;
+    // Enterprise Engine savings
+    laborSaved: number;
+    rentalSaved: number;
+    buildsSaved: number;
+    adminSaved: number;
+    recoveredCapital: number;
+    netAnnualSavings: number;
+    calculatedROI: number;
+    paybackPeriod: string;
+    // Backward-compatibility aliases
     ghostRentalExposure: number;
     standbyLaborLeakage: number;
     totalAnnualLeakage: number;
     potentialRecoverableValue: number;
   };
   formattedMetrics: {
+    lossLabor: string;
+    lossRental: string;
+    lossErections: string;
+    lossAdmin: string;
+    totalGrossLoss: string;
+    recoveredCapital: string;
+    netAnnualSavings: string;
+    calculatedROI: string;
+    paybackPeriod: string;
     ghostRentalExposure: string;
     standbyLaborLeakage: string;
     totalAnnualLeakage: string;
     potentialRecoverableValue: string;
   };
   recoveryBreakdown: {
+    labor: {
+      amount: number;
+      formatted: string;
+      percentage: number;
+      captureRate: number;
+    };
+    rental: {
+      amount: number;
+      formatted: string;
+      percentage: number;
+      captureRate: number;
+    };
+    builds: {
+      amount: number;
+      formatted: string;
+      percentage: number;
+      captureRate: number;
+    };
+    admin: {
+      amount: number;
+      formatted: string;
+      percentage: number;
+      captureRate: number;
+    };
+    // Compatibility aliases
     ghostRental: {
       amount: number;
       formatted: string;
@@ -78,40 +191,169 @@ export class RoiServices {
     });
   }
 
-  // Core Calculation Engine
-  computeCalculation(data: Partial<SubmitRoiLeadDTO>): RoiCalculationResult {
-    // 1. Resolve inputs with fallback to defaults or aliases
-    const scaffolds = Math.max(0, data.annualScaffoldCount ?? data.scaffolds ?? 120);
-    const rentalDays = Math.max(0, data.avgRentalDurationDays ?? data.rentalDays ?? 18);
-    const dailyCost = Math.max(0, data.dailyRentalCost ?? data.dailyCost ?? 480);
-    const crewSize = Math.max(0, data.crewSizePerBuild ?? data.crewSize ?? 4);
-    const hourlyRate = Math.max(0, data.hourlyLaborRate ?? data.hourlyRate ?? 68);
-    const standbyHrs = Math.max(0, data.standbyHours ?? data.standbyHrs ?? 6);
+  // Core Calculation Engine (SCAFF_ENTERPRISE_CONFIG - Zero Magic Numbers)
+  computeCalculation(data: any): RoiCalculationResult {
+    const inputs = data?.inputs || {};
+    const segment = (
+      data.segment ||
+      data.profile ||
+      inputs.segment ||
+      "commercial"
+    ).toLowerCase() as "commercial" | "industrial";
 
-    // 2. Primary Economic Leakage Formulas
-    // Ghost rental: scaffolds * rentalDays * dailyCost * 21%
-    const ghostRental = Math.round(scaffolds * rentalDays * dailyCost * 0.21 * 100) / 100;
-    // Standby labor: scaffolds * standbyHrs * crewSize * hourlyRate
-    const standbyLabor = Math.round(scaffolds * standbyHrs * crewSize * hourlyRate * 100) / 100;
-    // Admin overhead benchmark: scaffolds * $1,200
-    const adminOverhead = Math.round(scaffolds * 1200 * 100) / 100;
+    const profile =
+      SCAFF_ENTERPRISE_CONFIG.profiles[segment] ||
+      SCAFF_ENTERPRISE_CONFIG.profiles.commercial;
 
-    const totalLeakage = Math.round((ghostRental + standbyLabor + adminOverhead) * 100) / 100;
-    // Recoverable at conservative 35% capture rate with ScaffSnapp
-    const recoverable = Math.round(totalLeakage * 0.35 * 100) / 100;
+    // 1. Resolve inputs with fallback to segment profile defaults
+    let volume =
+      data.volume ??
+      data.annualBuildVolume ??
+      data.annualScaffoldCount ??
+      data.scaffolds ??
+      inputs.volume ??
+      profile.volume ??
+      500;
+    if (isNaN(volume) || volume < 1) volume = 500;
+    volume = Math.max(1, Math.min(volume, 50000));
 
-    // 3. Recovery Breakdown
-    const ghostRecovery = Math.round(ghostRental * 0.35 * 100) / 100;
-    const standbyRecovery = Math.round(standbyLabor * 0.35 * 100) / 100;
-    const adminRecovery = Math.round(adminOverhead * 0.35 * 100) / 100;
-    const totalRecovery = ghostRecovery + standbyRecovery + adminRecovery || 1;
+    const laborRate = Math.max(
+      0,
+      data.laborRate ??
+        data.fullyBurdenedLaborRate ??
+        data.hourlyLaborRate ??
+        data.hourlyRate ??
+        inputs.labor_rate ??
+        inputs.laborRate ??
+        profile.fullyBurdenedLaborRate
+    );
 
-    const ghostPercent = Math.round((ghostRecovery / totalRecovery) * 100);
-    const standbyPercent = Math.round((standbyRecovery / totalRecovery) * 100);
-    const adminPercent = Math.max(0, 100 - ghostPercent - standbyPercent);
+    const rentalRate = Math.max(
+      0,
+      data.rentalRate ??
+        data.scaffoldRentalCostPerDay ??
+        data.dailyRentalCost ??
+        data.dailyCost ??
+        inputs.rental_rate ??
+        inputs.rentalRate ??
+        profile.scaffoldRentalCostPerDay
+    );
 
-    // 4. 12-Month Cumulative Trajectory
-    const monthSavings = recoverable / 12;
+    const erectionCost = Math.max(
+      0,
+      data.erectionCost ??
+        data.averageCostPerErection ??
+        inputs.erection_cost ??
+        inputs.erectionCost ??
+        profile.averageCostPerErection
+    );
+
+    const laborHours = Math.max(
+      0,
+      data.laborHours ??
+        data.wastedLaborHoursPerBuild ??
+        data.standbyHours ??
+        data.standbyHrs ??
+        inputs.wasted_labor_hours ??
+        inputs.laborHours ??
+        profile.wastedLaborHoursPerBuild
+    );
+
+    const rentalDays = Math.max(
+      0,
+      data.rentalDays ??
+        data.ghostRentalDaysPerBuild ??
+        data.avgRentalDurationDays ??
+        inputs.ghost_rental_days ??
+        inputs.rentalDays ??
+        profile.ghostRentalDaysPerBuild
+    );
+
+    let rebuildPct = Math.max(
+      0,
+      data.rebuildRate ??
+        data.rebuildPct ??
+        inputs.rebuild_rate ??
+        inputs.rebuildRate ??
+        profile.rebuildRate
+    );
+    if (rebuildPct > 1) rebuildPct = rebuildPct / 100;
+
+    const adminHours = Math.max(
+      0,
+      data.adminHours ??
+        data.adminHoursPerBuild ??
+        inputs.admin_hours ??
+        inputs.adminHours ??
+        profile.adminHoursPerBuild
+    );
+
+    const softwareTCO = Math.max(
+      0,
+      data.softwareTCO ??
+        data.scaffSnappAnnualCost ??
+        inputs.software_tco ??
+        inputs.softwareTCO ??
+        profile.scaffSnappAnnualCost ??
+        0
+    );
+
+    const crewSize = Math.max(
+      1,
+      data.crewSize ?? data.crewSizePerBuild ?? inputs.crewSize ?? 4
+    );
+
+    // 2. Enterprise Waste Calculations (Losses)
+    const laborLoss = Math.round(volume * laborHours * laborRate * 100) / 100;
+    const rentalLoss = Math.round(volume * rentalDays * rentalRate * 100) / 100;
+    const buildsLoss = Math.round(volume * rebuildPct * erectionCost * 100) / 100;
+    const adminLoss = Math.round(volume * adminHours * laborRate * 100) / 100;
+    const totalLoss =
+      Math.round((laborLoss + rentalLoss + buildsLoss + adminLoss) * 100) / 100;
+
+    // 3. Enterprise Value Realization / Savings
+    const laborSaved =
+      Math.round(laborLoss * SCAFF_ENTERPRISE_CONFIG.efficiencies.laborCapture * 100) / 100;
+    const rentalSaved =
+      Math.round(rentalLoss * SCAFF_ENTERPRISE_CONFIG.efficiencies.rentalCapture * 100) / 100;
+    const buildsSaved =
+      Math.round(buildsLoss * SCAFF_ENTERPRISE_CONFIG.efficiencies.buildsCapture * 100) / 100;
+    const adminSaved =
+      Math.round(adminLoss * SCAFF_ENTERPRISE_CONFIG.efficiencies.adminCapture * 100) / 100;
+    const totalSavings =
+      Math.round((laborSaved + rentalSaved + buildsSaved + adminSaved) * 100) / 100;
+
+    const netSavings = Math.round((totalSavings - softwareTCO) * 100) / 100;
+    const netROI =
+      softwareTCO > 0
+        ? Math.round(((netSavings / softwareTCO) * 100) * 10) / 10
+        : 0;
+
+    // 4. Payback Logic
+    let paybackPeriodText = "";
+    if (softwareTCO === 0) {
+      paybackPeriodText = "Immediate";
+    } else if (netSavings <= 0) {
+      paybackPeriodText = "Never";
+    } else {
+      const paybackMonths = parseFloat(
+        ((softwareTCO / totalSavings) * 12).toFixed(1)
+      );
+      paybackPeriodText = `${paybackMonths} Months`;
+    }
+
+    // 5. Recovery Breakdown Percentages
+    const totalRecovery = totalSavings || 1;
+    const laborPercent = Math.round((laborSaved / totalRecovery) * 100);
+    const rentalPercent = Math.round((rentalSaved / totalRecovery) * 100);
+    const buildsPercent = Math.round((buildsSaved / totalRecovery) * 100);
+    const adminPercent = Math.max(
+      0,
+      100 - laborPercent - rentalPercent - buildsPercent
+    );
+
+    // 6. 12-Month Cumulative Trajectory
+    const monthSavings = totalSavings / 12;
     const monthlyTrajectory = Array.from({ length: 12 }, (_, i) => {
       const month = i + 1;
       const cumulative = Math.round(monthSavings * month * 100) / 100;
@@ -121,20 +363,23 @@ export class RoiServices {
         monthlySavings: Math.round(monthSavings * 100) / 100,
         cumulativeSavings: cumulative,
         formattedCumulative: this.formatCurrency(cumulative),
-        percentage: Math.min(100, Math.round((cumulative / (recoverable || 1)) * 100)),
+        percentage: Math.min(
+          100,
+          Math.round((cumulative / (totalSavings || 1)) * 100)
+        ),
       };
     });
 
-    // 5. Recommended Plan Tier
+    // 7. Recommended Plan Tier
     let planName: "Starter" | "Professional" | "Enterprise";
     let planPrice: number;
     let features: string;
 
-    if (scaffolds < 60) {
+    if (volume < 60) {
       planName = "Starter";
       planPrice = 299;
       features = "Up to 60 scaffolds/yr · Core tracking · Email support";
-    } else if (scaffolds <= 180) {
+    } else if (volume <= 180) {
       planName = "Professional";
       planPrice = 599;
       features = "Up to 180 scaffolds/yr · Full analytics · Priority support";
@@ -146,41 +391,109 @@ export class RoiServices {
     const annualPrice = planPrice * 12;
 
     return {
+      segment,
       operationInputs: {
-        annualScaffoldCount: scaffolds,
+        volume,
+        annualBuildVolume: volume,
+        annualScaffoldCount: volume,
+        laborRate,
+        fullyBurdenedLaborRate: laborRate,
+        hourlyLaborRate: laborRate,
+        rentalRate,
+        scaffoldRentalCostPerDay: rentalRate,
+        dailyRentalCost: rentalRate,
+        erectionCost,
+        averageCostPerErection: erectionCost,
+        laborHours,
+        wastedLaborHoursPerBuild: laborHours,
+        standbyHours: laborHours,
+        rentalDays,
+        ghostRentalDaysPerBuild: rentalDays,
         avgRentalDurationDays: rentalDays,
-        dailyRentalCost: dailyCost,
+        rebuildRate: rebuildPct,
+        adminHours,
+        adminHoursPerBuild: adminHours,
+        softwareTCO,
+        scaffSnappAnnualCost: softwareTCO,
         crewSizePerBuild: crewSize,
-        hourlyLaborRate: hourlyRate,
-        standbyHours: standbyHrs,
       },
       metrics: {
-        ghostRentalExposure: ghostRental,
-        standbyLaborLeakage: standbyLabor,
-        totalAnnualLeakage: totalLeakage,
-        potentialRecoverableValue: recoverable,
+        lossLabor: laborLoss,
+        lossRental: rentalLoss,
+        lossErections: buildsLoss,
+        lossAdmin: adminLoss,
+        totalGrossLoss: totalLoss,
+        laborSaved,
+        rentalSaved,
+        buildsSaved,
+        adminSaved,
+        recoveredCapital: totalSavings,
+        netAnnualSavings: netSavings,
+        calculatedROI: netROI,
+        paybackPeriod: paybackPeriodText,
+        // Backward-compatible aliases
+        ghostRentalExposure: rentalLoss,
+        standbyLaborLeakage: laborLoss,
+        totalAnnualLeakage: totalLoss,
+        potentialRecoverableValue: totalSavings,
       },
       formattedMetrics: {
-        ghostRentalExposure: this.formatCurrency(ghostRental),
-        standbyLaborLeakage: this.formatCurrency(standbyLabor),
-        totalAnnualLeakage: this.formatCurrency(totalLeakage),
-        potentialRecoverableValue: this.formatCurrency(recoverable),
+        lossLabor: this.formatCurrency(laborLoss),
+        lossRental: this.formatCurrency(rentalLoss),
+        lossErections: this.formatCurrency(buildsLoss),
+        lossAdmin: this.formatCurrency(adminLoss),
+        totalGrossLoss: this.formatCurrency(totalLoss),
+        recoveredCapital: this.formatCurrency(totalSavings),
+        netAnnualSavings: this.formatCurrency(netSavings),
+        calculatedROI: softwareTCO > 0 ? `${netROI.toFixed(1)}%` : "N/A",
+        paybackPeriod: paybackPeriodText,
+        ghostRentalExposure: this.formatCurrency(rentalLoss),
+        standbyLaborLeakage: this.formatCurrency(laborLoss),
+        totalAnnualLeakage: this.formatCurrency(totalLoss),
+        potentialRecoverableValue: this.formatCurrency(totalSavings),
       },
       recoveryBreakdown: {
+        labor: {
+          amount: laborSaved,
+          formatted: this.formatCurrency(laborSaved),
+          percentage: laborPercent,
+          captureRate: SCAFF_ENTERPRISE_CONFIG.efficiencies.laborCapture,
+        },
+        rental: {
+          amount: rentalSaved,
+          formatted: this.formatCurrency(rentalSaved),
+          percentage: rentalPercent,
+          captureRate: SCAFF_ENTERPRISE_CONFIG.efficiencies.rentalCapture,
+        },
+        builds: {
+          amount: buildsSaved,
+          formatted: this.formatCurrency(buildsSaved),
+          percentage: buildsPercent,
+          captureRate: SCAFF_ENTERPRISE_CONFIG.efficiencies.buildsCapture,
+        },
+        admin: {
+          amount: adminSaved,
+          formatted: this.formatCurrency(adminSaved),
+          percentage: adminPercent,
+          captureRate: SCAFF_ENTERPRISE_CONFIG.efficiencies.adminCapture,
+        },
+        // Compatibility aliases
         ghostRental: {
-          amount: ghostRecovery,
-          formatted: this.formatCurrency(ghostRecovery),
-          percentage: ghostPercent,
+          amount: rentalSaved,
+          formatted: this.formatCurrency(rentalSaved),
+          percentage: rentalPercent,
         },
         standbyLabor: {
-          amount: standbyRecovery,
-          formatted: this.formatCurrency(standbyRecovery),
-          percentage: standbyPercent,
+          amount: laborSaved,
+          formatted: this.formatCurrency(laborSaved),
+          percentage: laborPercent,
         },
         adminAndRebuild: {
-          amount: adminRecovery,
-          formatted: this.formatCurrency(adminRecovery),
-          percentage: adminPercent,
+          amount: Math.round((adminSaved + buildsSaved) * 100) / 100,
+          formatted: this.formatCurrency(
+            Math.round((adminSaved + buildsSaved) * 100) / 100
+          ),
+          percentage: Math.min(100, buildsPercent + adminPercent),
         },
       },
       monthlyTrajectory,
@@ -607,6 +920,7 @@ export class RoiServices {
               company: updatedLead.company,
               state: updatedLead.state,
               notes: updatedLead.notes || "",
+              segment: "commercial",
               annualScaffoldCount: updatedLead.annualScaffoldCount,
               avgRentalDurationDays: updatedLead.avgRentalDurationDays,
               dailyRentalCost: updatedLead.dailyRentalCost,
@@ -793,11 +1107,15 @@ export class RoiServices {
         </div>
 
         <div style="background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #fbbf24;">
-          <h3 style="margin-top: 0; color: #f8fafc; font-size: 16px;">Key Findings</h3>
-          <p style="margin: 6px 0; color: #cbd5e1;">🏗️ <strong>Est. Ghost Rental Exposure:</strong> <span style="color: #fb923c;">${calc.formattedMetrics.ghostRentalExposure}</span></p>
-          <p style="margin: 6px 0; color: #cbd5e1;">👷 <strong>Est. Standby Labor Leakage:</strong> <span style="color: #facc15;">${calc.formattedMetrics.standbyLaborLeakage}</span></p>
-          <p style="margin: 6px 0; color: #cbd5e1;">💰 <strong>Total Est. Annual Leakage:</strong> <span style="color: #f87171;">${calc.formattedMetrics.totalAnnualLeakage}</span></p>
-          <p style="margin: 12px 0 0; font-size: 18px; font-weight: bold; color: #4ade80;">🎯 <strong>Potential Recoverable Value:</strong> ${calc.formattedMetrics.potentialRecoverableValue} / year</p>
+          <h3 style="margin-top: 0; color: #f8fafc; font-size: 16px;">Enterprise Scaffolding Waste Breakdown (${calc.segment === "industrial" ? "Industrial" : "Commercial"} Profile)</h3>
+          <p style="margin: 6px 0; color: #cbd5e1;">👷 <strong>Wasted Standby Labor:</strong> <span style="color: #fb923c;">${calc.formattedMetrics.lossLabor}</span> <span style="color: #4ade80; font-size: 12px;">(Recovers: ${this.formatCurrency(calc.metrics.laborSaved)})</span></p>
+          <p style="margin: 6px 0; color: #cbd5e1;">🏗️ <strong>Ghost Rental Fees:</strong> <span style="color: #facc15;">${calc.formattedMetrics.lossRental}</span> <span style="color: #4ade80; font-size: 12px;">(Recovers: ${this.formatCurrency(calc.metrics.rentalSaved)})</span></p>
+          <p style="margin: 6px 0; color: #cbd5e1;">🔄 <strong>Redundant Re-Erections:</strong> <span style="color: #38bdf8;">${calc.formattedMetrics.lossErections}</span> <span style="color: #4ade80; font-size: 12px;">(Recovers: ${this.formatCurrency(calc.metrics.buildsSaved)})</span></p>
+          <p style="margin: 6px 0; color: #cbd5e1;">📋 <strong>Manual Administrative Labor:</strong> <span style="color: #a78bfa;">${calc.formattedMetrics.lossAdmin}</span> <span style="color: #4ade80; font-size: 12px;">(Recovers: ${this.formatCurrency(calc.metrics.adminSaved)})</span></p>
+          <hr style="border: none; border-top: 1px solid #334155; margin: 12px 0;" />
+          <p style="margin: 6px 0; color: #cbd5e1;">💰 <strong>Total Gross Annual Loss:</strong> <span style="color: #f87171; font-weight: bold;">${calc.formattedMetrics.totalGrossLoss}</span></p>
+          <p style="margin: 12px 0 0; font-size: 18px; font-weight: bold; color: #4ade80;">🎯 <strong>Potential Recoverable Capital:</strong> ${calc.formattedMetrics.recoveredCapital} / year</p>
+          ${calc.metrics.paybackPeriod ? `<p style="margin: 4px 0 0; font-size: 13px; color: #94a3b8;">Payback Period: <strong style="color: #f8fafc;">${calc.metrics.paybackPeriod}</strong></p>` : ""}
         </div>
 
         <div style="background: #1e293b; padding: 18px; border-radius: 8px; margin-bottom: 20px;">

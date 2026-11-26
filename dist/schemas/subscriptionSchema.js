@@ -5,7 +5,8 @@ exports.updateSubscriptionStatusSchema = exports.adminSubscriptionQuerySchema = 
 const zod_1 = require("zod");
 exports.createCheckoutSessionSchema = zod_1.z.object({
     // Company Registration Fields (all fields from create company)
-    name: zod_1.z.string().min(1, "Company Name is required"),
+    name: zod_1.z.string().min(1, "Name is required"),
+    company_name: zod_1.z.string().optional().nullable(),
     email: zod_1.z.string().email("Invalid email format").min(1, "Email is required"),
     password: zod_1.z.string().min(8, "Password must be at least 8 characters long"),
     mobileNumber: zod_1.z
