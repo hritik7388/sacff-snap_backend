@@ -798,14 +798,15 @@ enum RoiLeadStatus {
 }
 
 model RoiLead {
-  id        BigInt        @id @default(autoincrement())
-  uuid      String        @unique
-  firstName String
-  email     String
-  company   String
-  state     String
-  status    RoiLeadStatus @default(NEW)
-  notes     String?       @db.Text
+  id                        BigInt        @id @default(autoincrement())
+  uuid                      String        @unique
+  firstName                 String
+  email                     String
+  company                   String
+  state                     String
+  status                    RoiLeadStatus @default(NEW)
+  notes                     String?       @db.Text
+  segment                   String        @default("commercial")
 
   // Operation Inputs
   annualScaffoldCount   Int   @default(0)

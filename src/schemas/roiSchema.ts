@@ -7,24 +7,23 @@ export const generateGuestUserName = (): string => {
   return `Guest User ${randomDigits}`;
 };
 
-// Submission schema (Operation inputs + Lead details)
+// Submission schema (Enterprise Operation inputs + Lead details)
 export const submitRoiLeadSchema = z.object({
-  // Lead details (Modal Popup in screenshot 2 - optional with auto-guest fallback)
+  // Existing lead identifier (if updating an existing lead)
+  leadId: z.union([z.string(), z.number()]).optional(),
+  id: z.union([z.string(), z.number()]).optional(),
+
+  // Lead contact fields
+  contact_name: z.string().nullable().optional(),
+  contact_email: z.string().nullable().optional(),
   firstName: z
     .string()
     .nullable()
-    .optional()
-    .transform((val) =>
-      val && val.trim().length > 0 ? val.trim() : generateGuestUserName(),
-    ),
+    .optional(),
   email: z
     .string()
     .nullable()
-    .optional()
-    .transform((val) => (val ? val.trim().toLowerCase() : ""))
-    .refine((val) => !val || z.string().email().safeParse(val).success, {
-      message: "Valid work email is required",
-    }),
+    .optional(),
   company: z
     .string()
     .nullable()
@@ -41,21 +40,76 @@ export const submitRoiLeadSchema = z.object({
     .optional()
     .transform((val) => (val ? val.trim() : "")),
 
-  // Operation inputs (Fields in screenshot 1)
-  annualScaffoldCount: z.coerce.number().min(0).default(120),
-  avgRentalDurationDays: z.coerce.number().min(0).default(18),
-  dailyRentalCost: z.coerce.number().min(0).default(480),
-  crewSizePerBuild: z.coerce.number().min(0).default(4),
-  hourlyLaborRate: z.coerce.number().min(0).default(68),
-  standbyHours: z.coerce.number().min(0).default(6),
+  // Industry segment / profile (Commercial vs Industrial)
+  segment: z.enum(["commercial", "industrial"]).optional().default("commercial"),
+  profile: z.enum(["commercial", "industrial"]).optional(),
 
-  // Optional alternative aliases for input IDs
+  // Enterprise ROI Engine Operation inputs
+  volume: z.coerce.number().optional(),
+  annualBuildVolume: z.coerce.number().optional(),
+  annualScaffoldCount: z.coerce.number().optional(),
   scaffolds: z.coerce.number().optional(),
-  rentalDays: z.coerce.number().optional(),
-  dailyCost: z.coerce.number().optional(),
-  crewSize: z.coerce.number().optional(),
+
+  laborRate: z.coerce.number().optional(),
+  fullyBurdenedLaborRate: z.coerce.number().optional(),
+  hourlyLaborRate: z.coerce.number().optional(),
   hourlyRate: z.coerce.number().optional(),
+
+  rentalRate: z.coerce.number().optional(),
+  scaffoldRentalCostPerDay: z.coerce.number().optional(),
+  dailyRentalCost: z.coerce.number().optional(),
+  dailyCost: z.coerce.number().optional(),
+
+  erectionCost: z.coerce.number().optional(),
+  averageCostPerErection: z.coerce.number().optional(),
+
+  laborHours: z.coerce.number().optional(),
+  wastedLaborHoursPerBuild: z.coerce.number().optional(),
+  standbyHours: z.coerce.number().optional(),
   standbyHrs: z.coerce.number().optional(),
+
+  rentalDays: z.coerce.number().optional(),
+  ghostRentalDaysPerBuild: z.coerce.number().optional(),
+  avgRentalDurationDays: z.coerce.number().optional(),
+
+  rebuildRate: z.coerce.number().optional(),
+  rebuildPct: z.coerce.number().optional(),
+
+  adminHours: z.coerce.number().optional(),
+  adminHoursPerBuild: z.coerce.number().optional(),
+
+  softwareTCO: z.coerce.number().optional(),
+  scaffSnappAnnualCost: z.coerce.number().optional(),
+
+  crewSize: z.coerce.number().optional(),
+  crewSizePerBuild: z.coerce.number().optional(),
+
+  // Nested inputs object payload compatibility (e.g. from handleFormSubmit webhook payload)
+  inputs: z.record(z.any()).optional(),
+}).transform((data) => {
+  const resolvedName = (data.firstName || data.contact_name || "").trim();
+  const finalFirstName = resolvedName.length > 0 ? resolvedName : generateGuestUserName();
+
+  let resolvedEmail = (data.email || data.contact_email || "").trim().toLowerCase();
+  if (resolvedEmail && !z.string().email().safeParse(resolvedEmail).success) {
+    throw new z.ZodError([
+      {
+        code: z.ZodIssueCode.custom,
+        path: ["email"],
+        message: "Valid work email is required",
+      },
+    ]);
+  }
+
+  return {
+    ...data,
+    firstName: finalFirstName,
+    email: resolvedEmail,
+    company: data.company || "",
+    state: data.state || "",
+    notes: data.notes || "",
+    segment: (data.segment || data.profile || "commercial").toLowerCase() as "commercial" | "industrial",
+  };
 });
 
 // Admin Query Filters
@@ -96,6 +150,8 @@ export const updateRoiStatusSchema = z.object({
 export const updateRoiLeadSchema = z.object({
   leadId: z.union([z.string(), z.number()]).optional(),
   id: z.union([z.string(), z.number()]).optional(),
+  contact_name: z.string().nullable().optional(),
+  contact_email: z.string().nullable().optional(),
   firstName: z.string().trim().optional(),
   email: z
     .string()
@@ -108,14 +164,58 @@ export const updateRoiLeadSchema = z.object({
   company: z.string().trim().optional(),
   state: z.string().trim().optional(),
   notes: z.string().optional(),
+  segment: z.enum(["commercial", "industrial"]).optional(),
+  profile: z.enum(["commercial", "industrial"]).optional(),
 
-  // Optional operational inputs
-  annualScaffoldCount: z.coerce.number().min(0).optional(),
-  avgRentalDurationDays: z.coerce.number().min(0).optional(),
-  dailyRentalCost: z.coerce.number().min(0).optional(),
-  crewSizePerBuild: z.coerce.number().min(0).optional(),
-  hourlyLaborRate: z.coerce.number().min(0).optional(),
-  standbyHours: z.coerce.number().min(0).optional(),
+  // Enterprise operational inputs
+  volume: z.coerce.number().optional(),
+  annualBuildVolume: z.coerce.number().optional(),
+  annualScaffoldCount: z.coerce.number().optional(),
+  scaffolds: z.coerce.number().optional(),
+
+  laborRate: z.coerce.number().optional(),
+  fullyBurdenedLaborRate: z.coerce.number().optional(),
+  hourlyLaborRate: z.coerce.number().optional(),
+  hourlyRate: z.coerce.number().optional(),
+
+  rentalRate: z.coerce.number().optional(),
+  scaffoldRentalCostPerDay: z.coerce.number().optional(),
+  dailyRentalCost: z.coerce.number().optional(),
+  dailyCost: z.coerce.number().optional(),
+
+  erectionCost: z.coerce.number().optional(),
+  averageCostPerErection: z.coerce.number().optional(),
+
+  laborHours: z.coerce.number().optional(),
+  wastedLaborHoursPerBuild: z.coerce.number().optional(),
+  standbyHours: z.coerce.number().optional(),
+  standbyHrs: z.coerce.number().optional(),
+
+  rentalDays: z.coerce.number().optional(),
+  ghostRentalDaysPerBuild: z.coerce.number().optional(),
+  avgRentalDurationDays: z.coerce.number().optional(),
+
+  rebuildRate: z.coerce.number().optional(),
+  rebuildPct: z.coerce.number().optional(),
+
+  adminHours: z.coerce.number().optional(),
+  adminHoursPerBuild: z.coerce.number().optional(),
+
+  softwareTCO: z.coerce.number().optional(),
+  scaffSnappAnnualCost: z.coerce.number().optional(),
+
+  crewSize: z.coerce.number().optional(),
+  crewSizePerBuild: z.coerce.number().optional(),
+
+  inputs: z.record(z.any()).optional(),
+}).transform((data) => {
+  const resolvedName = (data.firstName || data.contact_name || undefined)?.trim();
+  const resolvedEmail = (data.email || data.contact_email || undefined)?.trim().toLowerCase();
+  return {
+    ...data,
+    firstName: resolvedName,
+    email: resolvedEmail,
+  };
 });
 
 export type SubmitRoiLeadDTO = z.infer<typeof submitRoiLeadSchema>;
