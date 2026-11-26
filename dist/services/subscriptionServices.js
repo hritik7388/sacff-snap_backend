@@ -203,7 +203,7 @@ class SubscriptionServices {
                 }
                 const frontendBaseUrl = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/+$/, "");
                 const successUrl = data.successUrl ||
-                    `${frontendBaseUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+                    `${frontendBaseUrl}/subscription/success`;
                 const cancelUrl = data.cancelUrl ||
                     `${frontendBaseUrl}/subscription/cancel`;
                 // 3. Create Stripe Checkout Session

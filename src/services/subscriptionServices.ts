@@ -210,7 +210,7 @@ export class SubscriptionServices {
 
             const successUrl =
                 data.successUrl ||
-                `${frontendBaseUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+                `${frontendBaseUrl}/subscription/success`;
 
             const cancelUrl =
                 data.cancelUrl ||
