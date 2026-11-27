@@ -56,7 +56,14 @@ const io = new socket_io_1.Server(server, {
 app.use((0, cors_1.default)());
 app.use("/uploads", express_1.default.static(path_1.default.join(process.cwd(), "uploads")));
 app.use((0, morgan_1.default)("dev"));
-app.use(express_1.default.json());
+app.use((req, res, next) => {
+    if (req.originalUrl.startsWith("/api/v1/subscription/webhook")) {
+        next();
+    }
+    else {
+        express_1.default.json()(req, res, next);
+    }
+});
 app.set("io", io);
 app.use("/api", routes_1.default);
 app.use(express_1.default.static(path_1.default.join(__dirname, ".well-known")));

@@ -49,7 +49,13 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 
 app.use(morgan("dev"));
-app.use(express.json());
+app.use((req, res, next) => {
+    if (req.originalUrl.startsWith("/api/v1/subscription/webhook")) {
+        next();
+    } else {
+        express.json()(req, res, next);
+    }
+});
 
 
 app.set("io", io);
