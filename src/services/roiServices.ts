@@ -373,18 +373,16 @@ export class RoiServices {
     // 7. Recommended Plan Tier
     const planPrice = 299;
     const annualPrice = 2999;
+    const features =
+      "1 Admin seat · 2 PM seats · Unlimited Competent Persons · Unlimited projects · Free access for Tradesmen";
     let planName: "Starter" | "Professional" | "Enterprise";
-    let features: string;
 
     if (volume < 60) {
       planName = "Starter";
-      features = "Up to 60 scaffolds/yr · Core tracking · Email support";
     } else if (volume <= 180) {
       planName = "Professional";
-      features = "Up to 180 scaffolds/yr · Full analytics · Priority support";
     } else {
       planName = "Enterprise";
-      features = "Unlimited scaffolds · Custom integrations · Dedicated CSM";
     }
 
     return {
